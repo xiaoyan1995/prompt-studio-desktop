@@ -1,0 +1,15 @@
+studio-data/
+desktop/.context/
+__pycache__/
+*.pyc
+desktop/studio/data.json
+extension.zip
+*.log
+.DS_Store
+Thumbs.db
+release/
+desktop/node_modules/
+desktop/dist/
+desktop/server-dist/*
+!desktop/server-dist/.gitkeep
+desktop/server-build/prompt-studio-server/

@@ -1,0 +1,74 @@
+{
+  "name": "prompt-studio-desktop",
+  "version": "1.0.3",
+  "description": "Prompt Studio desktop shell with companion browser extension support.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/start-electron.js",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12",
+    "playwright": "^1.60.0"
+  },
+  "build": {
+    "appId": "com.promptstudio.desktop",
+    "productName": "Prompt Studio Desktop",
+    "icon": "build/icon",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "scripts/**/*",
+      "studio/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "studio",
+        "to": "studio"
+      },
+      {
+        "from": "../prompt_studio_icon.ico",
+        "to": "prompt_studio_icon.ico"
+      },
+      {
+        "from": "../prompt_studio_icon.png",
+        "to": "prompt_studio_icon.png"
+      },
+      {
+        "from": "server-dist",
+        "to": "server",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "protocols": [
+      {
+        "name": "Prompt Studio Desktop",
+        "schemes": [
+          "promptstudio-desktop"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "mac": {
+      "icon": "build/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity"
+    }
+  }
+}

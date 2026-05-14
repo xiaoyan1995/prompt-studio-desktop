@@ -1,0 +1,1798 @@
+#!/usr/bin/env python3
+"""
+Prompt Studio local server.
+Usage:  python server.py
+Then open:  http://127.0.0.1:8767/
+"""
+import base64, json, mimetypes, os, re, socket, sys, tempfile, threading, time, urllib.request, urllib.error, uuid, zipfile, hashlib, difflib
+from urllib.parse import unquote, urljoin, parse_qs
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import urlparse
+import shutil
+
+# ── SSE broadcast registry ────────────────────────────────────────────────────
+_sse_lock    = threading.Lock()
+_sse_clients = []   # list of queue.Queue
+import queue
+
+def _sse_notify(event="data-changed", data="1"):
+    msg = f"event: {event}\ndata: {data}\n\n".encode()
+    with _sse_lock:
+        dead = []
+        for q in _sse_clients:
+            try: q.put_nowait(msg)
+            except: dead.append(q)
+        for q in dead: _sse_clients.remove(q)
+
+if os.environ.get("PROMPT_STUDIO_STATIC_DIR"):
+    BASE_DIR = Path(os.environ["PROMPT_STUDIO_STATIC_DIR"]).resolve()
+elif getattr(sys, "frozen", False):
+    BASE_DIR = Path.cwd().resolve()
+else:
+    BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR   = Path(os.environ.get("PROMPT_STUDIO_DATA_DIR", BASE_DIR)).resolve()
+DATA_FILE  = DATA_DIR / "data.json"
+UPLOAD_DIR = DATA_DIR / "uploads"
+CONFIG_FILE = DATA_DIR / "desktop_settings.json"
+EXPORT_DIR = DATA_DIR / "exports"
+SNAPSHOT_DIR = DATA_DIR / "snapshots"
+SMART_FOLDERS_FILE = DATA_DIR / "smart_folders.json"
+PORT       = 8767
+
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+if not DATA_FILE.exists():
+    bundled_data = BASE_DIR / "data.json"
+    if bundled_data.exists():
+        shutil.copy2(bundled_data, DATA_FILE)
+    else:
+        DATA_FILE.write_text('{"projects":[]}', encoding="utf-8")
+
+DEFAULT_DESKTOP_SETTINGS = {
+    "imageApiBase": "https://api.openai.com/v1",
+    "imageApiKey": "",
+    "imageModel": "gpt-4o",
+    "videoApiBase": "https://generativelanguage.googleapis.com/v1beta",
+    "videoApiKey": "",
+    "videoModel": "gemini-2.5-pro",
+    "videoUploadTimeoutSec": "240",
+    "videoUploadRetries": "1",
+    "imageReverseInstruction": "",
+    "videoReverseInstruction": "",
+    "promptPresets": [],
+}
+
+
+def _load_settings():
+    try:
+        saved = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        if not isinstance(saved, dict):
+            saved = {}
+    except Exception:
+        saved = {}
+    return {**DEFAULT_DESKTOP_SETTINGS, **saved}
+
+
+def _save_settings(settings):
+    clean = {}
+    for key, default in DEFAULT_DESKTOP_SETTINGS.items():
+        value = settings.get(key, default)
+        if key == "promptPresets":
+            presets = value if isinstance(value, list) else []
+            clean[key] = [
+                {
+                    "name": str(p.get("name", "")).strip()[:80],
+                    "content": str(p.get("content", "")),
+                }
+                for p in presets
+                if isinstance(p, dict) and str(p.get("name", "")).strip() and str(p.get("content", "")).strip()
+            ]
+        else:
+            clean[key] = str(value or "")
+    CONFIG_FILE.write_text(json.dumps(clean, ensure_ascii=False, indent=2), encoding="utf-8")
+    return clean
+
+
+def _read_json_file(path, default):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return default
+
+
+def _write_json_file(path, payload):
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _project_name_map(data):
+    return {str(p.get("id", "")): str(p.get("name", "")) for p in (data.get("projects", []) or []) if isinstance(p, dict)}
+
+
+def _normalize_text(value):
+    text = str(value or "")
+    text = re.sub(r"\s+", " ", text).strip().lower()
+    return text
+
+
+def _extract_media_path(item):
+    if not isinstance(item, dict):
+        return ""
+    media_path = item.get("image") or item.get("video") or ""
+    return str(media_path)
+
+
+def _safe_stat_size_for_upload_url(path_or_url):
+    rel = _normalize_upload_ref(path_or_url)
+    if not rel:
+        return 0
+    try:
+        target = _upload_target(rel)
+    except Exception:
+        return 0
+    try:
+        return int(target.stat().st_size)
+    except Exception:
+        return 0
+
+
+def _item_identity_signature(item):
+    if not isinstance(item, dict):
+        return ""
+    media_path = _extract_media_path(item)
+    prompt = _normalize_text(item.get("prompt", ""))
+    model = _normalize_text(item.get("model", ""))
+    title = _normalize_text(item.get("title", ""))
+    size_hint = str(_safe_stat_size_for_upload_url(media_path) or "")
+    raw = "|".join([media_path, title, model, prompt, size_hint])
+    return hashlib.sha1(raw.encode("utf-8", errors="ignore")).hexdigest()[:16]
+
+
+def _item_version_id(item):
+    if not isinstance(item, dict):
+        return ""
+    prompt = _normalize_text(item.get("prompt", ""))
+    model = _normalize_text(item.get("model", ""))
+    media_path = _extract_media_path(item)
+    raw = "|".join([prompt, model, media_path])
+    return hashlib.sha1(raw.encode("utf-8", errors="ignore")).hexdigest()[:16]
+
+
+def _build_item_doc(project_id, project_name, category, item):
+    if not isinstance(item, dict):
+        return None
+    item_type = "image" if category == "image_prompts" else ("video" if category == "video_prompts" else "skill")
+    tags = item.get("tags", []) if isinstance(item.get("tags", []), list) else []
+    title = str(item.get("title", ""))
+    prompt = str(item.get("prompt", ""))
+    analysis = str(item.get("analysis", ""))
+    model = str(item.get("model", ""))
+    media_path = _extract_media_path(item)
+    doc = {
+        "id": str(item.get("id", "")),
+        "project_id": str(project_id),
+        "project_name": str(project_name),
+        "category": category,
+        "type": item_type,
+        "title": title,
+        "prompt": prompt,
+        "analysis": analysis,
+        "model": model,
+        "tags": [str(t) for t in tags if str(t).strip()],
+        "created_at": item.get("created_at", ""),
+        "updated_at": item.get("updated_at", ""),
+        "image": item.get("image", ""),
+        "video": item.get("video", ""),
+        "ref_images": item.get("ref_images", []) if isinstance(item.get("ref_images", []), list) else [],
+        "version_id": _item_version_id(item),
+        "identity_sig": _item_identity_signature(item),
+        "quality": item.get("quality", {}) if isinstance(item.get("quality", {}), dict) else {},
+        "lineage": item.get("lineage", {}) if isinstance(item.get("lineage", {}), dict) else {},
+    }
+    return doc
+
+
+def _collect_docs(data):
+    docs = []
+    for proj in data.get("projects", []) or []:
+        if not isinstance(proj, dict):
+            continue
+        pid = proj.get("id", "")
+        pname = proj.get("name", "")
+        for category in ("image_prompts", "video_prompts", "skill_prompts"):
+            for item in (proj.get(category, []) or []):
+                doc = _build_item_doc(pid, pname, category, item)
+                if doc and doc["id"]:
+                    docs.append(doc)
+    return docs
+
+
+def _match_score(doc, query):
+    if not query:
+        return 0
+    q = _normalize_text(query)
+    title = _normalize_text(doc.get("title", ""))
+    tags = " ".join(_normalize_text(t) for t in (doc.get("tags", []) or []))
+    prompt = _normalize_text(doc.get("prompt", ""))
+    analysis = _normalize_text(doc.get("analysis", ""))
+    model = _normalize_text(doc.get("model", ""))
+    score = 0
+    if q in title:
+        score += 60
+    if q in tags:
+        score += 35
+    if q in model:
+        score += 20
+    if q in prompt:
+        score += 30
+    if q in analysis:
+        score += 18
+    if score == 0:
+        ratio = difflib.SequenceMatcher(None, q, title or prompt[: max(len(q), 1)]).ratio()
+        if ratio >= 0.72:
+            score = int(ratio * 25)
+    return score
+
+
+def _ensure_item_schema(item):
+    if not isinstance(item, dict):
+        return
+    quality = item.get("quality")
+    if not isinstance(quality, dict):
+        quality = {}
+    quality.setdefault("star", False)
+    quality.setdefault("rating", 0)
+    quality.setdefault("status", "")
+    item["quality"] = quality
+    lineage = item.get("lineage")
+    if not isinstance(lineage, dict):
+        lineage = {}
+    lineage.setdefault("source_id", "")
+    lineage.setdefault("version", 1)
+    lineage.setdefault("version_id", _item_version_id(item))
+    lineage.setdefault("history", [])
+    if not isinstance(lineage.get("history"), list):
+        lineage["history"] = []
+    item["lineage"] = lineage
+
+
+def _ensure_data_schema(data):
+    if not isinstance(data, dict):
+        data = {"projects": []}
+    projects = data.get("projects", [])
+    if not isinstance(projects, list):
+        projects = []
+    data["projects"] = projects
+    changed = False
+    for proj in projects:
+        if not isinstance(proj, dict):
+            continue
+        for category in ("image_prompts", "video_prompts", "skill_prompts"):
+            items = proj.get(category, [])
+            if not isinstance(items, list):
+                proj[category] = []
+                changed = True
+                continue
+            for item in items:
+                before = json.dumps(item, ensure_ascii=False, sort_keys=True) if isinstance(item, dict) else ""
+                _ensure_item_schema(item)
+                after = json.dumps(item, ensure_ascii=False, sort_keys=True) if isinstance(item, dict) else ""
+                if before and after and before != after:
+                    changed = True
+    return data, changed
+
+
+def _get_smart_folders():
+    raw = _read_json_file(SMART_FOLDERS_FILE, {"folders": []})
+    folders = raw.get("folders", []) if isinstance(raw, dict) else []
+    if not isinstance(folders, list):
+        folders = []
+    clean = []
+    for f in folders:
+        if not isinstance(f, dict):
+            continue
+        clean.append({
+            "id": str(f.get("id", uuid.uuid4().hex[:12])),
+            "name": str(f.get("name", "")).strip() or "未命名智能文件夹",
+            "rules": f.get("rules", {}) if isinstance(f.get("rules", {}), dict) else {},
+            "created_at": str(f.get("created_at", "")),
+            "updated_at": str(f.get("updated_at", "")),
+        })
+    return {"folders": clean}
+
+
+def _save_smart_folders(payload):
+    folders = payload.get("folders", []) if isinstance(payload, dict) else []
+    if not isinstance(folders, list):
+        folders = []
+    clean = []
+    for f in folders:
+        if not isinstance(f, dict):
+            continue
+        clean.append({
+            "id": str(f.get("id", uuid.uuid4().hex[:12])),
+            "name": str(f.get("name", "")).strip()[:80] or "未命名智能文件夹",
+            "rules": f.get("rules", {}) if isinstance(f.get("rules", {}), dict) else {},
+            "created_at": str(f.get("created_at", "")) or time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "updated_at": str(f.get("updated_at", "")) or time.strftime("%Y-%m-%dT%H:%M:%S"),
+        })
+    out = {"folders": clean}
+    _write_json_file(SMART_FOLDERS_FILE, out)
+    return out
+
+
+def _apply_folder_rules(doc, rules):
+    if not isinstance(rules, dict):
+        return False
+    doc_type = str(doc.get("type", ""))
+    doc_model = str(doc.get("model", ""))
+    doc_tags = set(str(t) for t in (doc.get("tags", []) or []))
+    doc_quality = doc.get("quality", {}) if isinstance(doc.get("quality", {}), dict) else {}
+    doc_lineage = doc.get("lineage", {}) if isinstance(doc.get("lineage", {}), dict) else {}
+
+    type_filter = str(rules.get("type", "all") or "all")
+    if type_filter != "all" and type_filter != doc_type:
+        return False
+
+    model_kw = str(rules.get("model", "")).strip().lower()
+    if model_kw and model_kw not in doc_model.lower():
+        return False
+
+    include_tags = rules.get("include_tags", [])
+    if isinstance(include_tags, list):
+        inc_set = set(str(t).strip() for t in include_tags if str(t).strip())
+        if inc_set and not inc_set.intersection(doc_tags):
+            return False
+
+    exclude_tags = rules.get("exclude_tags", [])
+    if isinstance(exclude_tags, list):
+        exc_set = set(str(t).strip() for t in exclude_tags if str(t).strip())
+        if exc_set and exc_set.intersection(doc_tags):
+            return False
+
+    if rules.get("only_starred") and not bool(doc_quality.get("star")):
+        return False
+
+    min_rating = rules.get("min_rating")
+    if min_rating is not None:
+        try:
+            if int(doc_quality.get("rating", 0)) < int(min_rating):
+                return False
+        except Exception:
+            return False
+
+    status = str(rules.get("status", "")).strip().lower()
+    if status:
+        if str(doc_quality.get("status", "")).strip().lower() != status:
+            return False
+
+    has_source = rules.get("has_source")
+    if has_source is True and not str(doc_lineage.get("source_id", "")).strip():
+        return False
+    if has_source is False and str(doc_lineage.get("source_id", "")).strip():
+        return False
+
+    query = str(rules.get("query", "")).strip()
+    if query and _match_score(doc, query) <= 0:
+        return False
+    return True
+
+
+def _resolve_docs_by_refs(data, refs):
+    docs = _collect_docs(data)
+    lookup = {}
+    for d in docs:
+        lookup[f"{d.get('project_id')}::{d.get('category')}::{d.get('id')}"] = d
+    resolved = []
+    for ref in refs:
+        if not isinstance(ref, dict):
+            continue
+        key = f"{ref.get('project_id','')}::{ref.get('category','')}::{ref.get('id','')}"
+        doc = lookup.get(key)
+        if doc:
+            resolved.append(doc)
+    return resolved
+
+
+def _snapshot_manifest():
+    snaps = []
+    for zf in sorted(SNAPSHOT_DIR.glob("*.zip"), reverse=True):
+        try:
+            stat = zf.stat()
+            snaps.append({
+                "name": zf.name,
+                "path": str(zf),
+                "size": stat.st_size,
+                "mtime": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(stat.st_mtime)),
+            })
+        except Exception:
+            continue
+    return snaps
+
+
+def _as_int(value, default, min_value=None, max_value=None):
+    try:
+        n = int(str(value).strip())
+    except Exception:
+        n = default
+    if min_value is not None and n < min_value:
+        n = min_value
+    if max_value is not None and n > max_value:
+        n = max_value
+    return n
+
+
+def _is_timeout_error(err):
+    if isinstance(err, (TimeoutError, socket.timeout)):
+        return True
+    if isinstance(err, urllib.error.URLError):
+        reason = getattr(err, "reason", None)
+        if isinstance(reason, (TimeoutError, socket.timeout)):
+            return True
+        if isinstance(reason, OSError) and "timed out" in str(reason).lower():
+            return True
+    return "timed out" in str(err).lower()
+
+
+VIDEO_EXTS = {".mp4", ".webm", ".mov", ".m4v", ".ts"}
+IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"}
+
+
+def _url_ext(url):
+    try:
+        return Path(urlparse(url).path).suffix.lower()
+    except Exception:
+        return ""
+
+
+def _normalize_upload_ref(value):
+    if not isinstance(value, str) or not value.startswith("/uploads/"):
+        return None
+    rel = unquote(value[len("/uploads/"):]).replace("\\", "/").lstrip("/")
+    if not rel or rel.startswith("../") or "/../" in f"/{rel}":
+        return None
+    return rel
+
+
+def _upload_target(rel):
+    target = (UPLOAD_DIR / rel).resolve()
+    target.relative_to(UPLOAD_DIR.resolve())
+    return target
+
+
+def _item_upload_refs(item):
+    refs = set()
+    if not isinstance(item, dict):
+        return refs
+    for key in ("image", "video"):
+        rel = _normalize_upload_ref(item.get(key))
+        if rel:
+            refs.add(rel)
+    ref_images = item.get("ref_images", [])
+    if isinstance(ref_images, list):
+        for ref in ref_images:
+            rel = _normalize_upload_ref(ref)
+            if rel:
+                refs.add(rel)
+    return refs
+
+
+def _data_upload_refs(data):
+    refs = set()
+    for proj in data.get("projects", []):
+        if not isinstance(proj, dict):
+            continue
+        for key in ("image_prompts", "video_prompts"):
+            for item in proj.get(key, []) or []:
+                refs.update(_item_upload_refs(item))
+    return refs
+
+
+def _prune_empty_upload_dirs(start):
+    root = UPLOAD_DIR.resolve()
+    parent = start.parent.resolve()
+    while parent != root:
+        try:
+            parent.rmdir()
+        except OSError:
+            break
+        parent = parent.parent.resolve()
+
+
+def _delete_upload_refs(refs, keep_refs=None):
+    keep_refs = keep_refs or set()
+    deleted, skipped = [], []
+    total_bytes = 0
+    for rel in sorted(set(refs)):
+        if rel in keep_refs:
+            skipped.append(rel)
+            continue
+        try:
+            target = _upload_target(rel)
+        except Exception:
+            skipped.append(rel)
+            continue
+        if not target.exists() or not target.is_file():
+            continue
+        try:
+            total_bytes += target.stat().st_size
+            target.unlink()
+            deleted.append(rel)
+            _prune_empty_upload_dirs(target)
+        except OSError:
+            skipped.append(rel)
+    return {"files": len(deleted), "bytes": total_bytes, "deleted": deleted, "skipped": skipped}
+
+
+def _cleanup_unreferenced_uploads(data):
+    keep_refs = _data_upload_refs(data)
+    orphan_refs = set()
+    if UPLOAD_DIR.exists():
+        for target in UPLOAD_DIR.rglob("*"):
+            if not target.is_file():
+                continue
+            rel = target.relative_to(UPLOAD_DIR).as_posix()
+            if rel not in keep_refs:
+                orphan_refs.add(rel)
+    return _delete_upload_refs(orphan_refs)
+
+
+def _media_headers(media_type="image", referer="", cookie=""):
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "video/*,audio/*,*/*;q=0.8" if media_type == "video"
+                  else "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+    }
+    if referer and referer.startswith(("http://", "https://")):
+        headers["Referer"] = referer
+    if cookie:
+        headers["Cookie"] = cookie
+    return headers
+
+
+def _fetch_url(url, headers, timeout=60):
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read()
+        ct = (resp.headers.get_content_type() or "").split(";")[0].strip()
+    return raw, ct
+
+
+def _parse_m3u8_attrs(line):
+    attrs = {}
+    for key, value in re.findall(r'([A-Z0-9-]+)=("[^"]*"|[^,]*)', line):
+        attrs[key] = value.strip('"')
+    return attrs
+
+
+def _next_uri(lines, start_index):
+    for i in range(start_index + 1, len(lines)):
+        line = lines[i].strip()
+        if line and not line.startswith("#"):
+            return line
+    return ""
+
+
+def _download_hls(url, headers, timeout=120):
+    raw, _ct = _fetch_url(url, headers, timeout=30)
+    text = raw.decode("utf-8", errors="replace")
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if any(line.startswith("#EXT-X-KEY") and "METHOD=NONE" not in line for line in lines):
+        raise RuntimeError("检测到加密 HLS 视频流，当前版本暂不支持解密下载。")
+
+    # Master playlist: choose the highest bandwidth variant.
+    variants = []
+    for i, line in enumerate(lines):
+        if line.startswith("#EXT-X-STREAM-INF"):
+            attrs = _parse_m3u8_attrs(line)
+            uri = _next_uri(lines, i)
+            if uri:
+                try:
+                    bandwidth = int(attrs.get("BANDWIDTH", "0"))
+                except ValueError:
+                    bandwidth = 0
+                variants.append((bandwidth, urljoin(url, uri)))
+    if variants:
+        variants.sort(reverse=True)
+        return _download_hls(variants[0][1], headers, timeout=timeout)
+
+    if "#EXT-X-ENDLIST" not in text:
+        raise RuntimeError("检测到直播/未结束的 HLS 视频流，当前只支持下载点播视频。")
+
+    init_url = ""
+    for line in lines:
+        if line.startswith("#EXT-X-MAP"):
+            attrs = _parse_m3u8_attrs(line)
+            if attrs.get("URI"):
+                init_url = urljoin(url, attrs["URI"])
+            break
+
+    segment_urls = [urljoin(url, line) for line in lines if line and not line.startswith("#")]
+    if not segment_urls:
+        raise RuntimeError("HLS 播放列表里没有找到可下载的视频分片。")
+
+    parts = []
+    if init_url:
+        init_raw, _ = _fetch_url(init_url, headers, timeout=30)
+        parts.append(init_raw)
+    for seg_url in segment_urls:
+        seg_raw, _ = _fetch_url(seg_url, headers, timeout=30)
+        parts.append(seg_raw)
+
+    return b"".join(parts), "video/mp4" if init_url else "video/mp2t", ".mp4" if init_url else ".ts"
+
+
+def _download_remote_media(url, media_type="image", referer="", cookie="", timeout=60):
+    if not url:
+        raise RuntimeError("Missing media URL")
+    if not url.startswith(("http://", "https://")):
+        raise RuntimeError("Unsupported media URL")
+
+    ext = _url_ext(url)
+    if ext == ".mpd":
+        raise RuntimeError("已识别到 DASH/MPD 视频流；当前版本先支持直连视频和 m3u8，MPD 需要后续接入音视频轨合并。")
+
+    headers = _media_headers(media_type, referer, cookie)
+    if ext == ".m3u8":
+        return _download_hls(url, headers, timeout=timeout)
+
+    raw, ct = _fetch_url(url, headers, timeout=timeout)
+    if "mpegurl" in ct or "m3u8" in ct:
+        return _download_hls(url, headers, timeout=timeout)
+    if "dash+xml" in ct or "mpd" in ct:
+        raise RuntimeError("已识别到 DASH/MPD 视频流；当前版本先支持直连视频和 m3u8，MPD 需要后续接入音视频轨合并。")
+    return raw, ct or ("video/mp4" if media_type == "video" else "image/jpeg"), ""
+
+
+def _format_art_brief(obj):
+    """Convert a JSON art-brief dict to a readable multi-section text."""
+    lines = []
+    if obj.get("title"):
+        lines.append(f"【{obj['title']}】\n")
+    if obj.get("coreExpression"):
+        lines.append(f"▍核心表达\n{obj['coreExpression']}\n")
+    section_labels = [
+        ("composition","构图"), ("camera","镜头"), ("lighting","光线"),
+        ("material","材质"), ("space","空间"), ("colorAesthetics","色彩"),
+        ("postProcessing","后期"), ("technicalSketch","技术细节"), ("vision","画面语言"),
+    ]
+    secs = obj.get("sections") or {}
+    for key, label in section_labels:
+        if secs.get(key):
+            lines.append(f"▍{label}\n{secs[key]}\n")
+    colors = obj.get("colors") or []
+    if colors:
+        lines.append(f"▍色板\n{' '.join(str(c) for c in colors)}\n")
+    tp = obj.get("technicalParams") or {}
+    parts = []
+    if tp.get("format"):       parts.append(f"画幅：{tp['format']}")
+    if tp.get("renderEngine"): parts.append(f"渲染：{tp['renderEngine']}")
+    if parts:
+        lines.append(f"▍技术参数\n{'　'.join(parts)}\n")
+    return "\n".join(lines).strip()
+
+
+class Handler(SimpleHTTPRequestHandler):
+    def __init__(self, *a, **kw):
+        super().__init__(*a, directory=str(BASE_DIR), **kw)
+
+    def log_message(self, fmt, *args):
+        print(f"[studio] {fmt % args}")
+
+    # ── routing ──────────────────────────────────────────────────────────
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._cors_headers()
+        self.end_headers()
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+        query = parse_qs(parsed.query or "")
+        if path == "/api/data":
+            raw = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+            fixed, changed = _ensure_data_schema(raw)
+            if changed:
+                DATA_FILE.write_text(json.dumps(fixed, ensure_ascii=False, indent=2), encoding="utf-8")
+            self._json_resp(fixed)
+        elif path == "/api/projects":
+            data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+            data, changed = _ensure_data_schema(data)
+            if changed:
+                DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            self._json_resp(data.get("projects", []))
+        elif path == "/api/desktop/settings":
+            self._json_resp({"ok": True, "settings": _load_settings()})
+        elif path == "/api/smart-folders":
+            self._json_resp({"ok": True, **_get_smart_folders()})
+        elif path == "/api/snapshot/list":
+            self._json_resp({"ok": True, "snapshots": _snapshot_manifest()})
+        elif path == "/api/search-assets":
+            self._handle_search_assets(query)
+        elif path == "/api/detect-duplicates":
+            self._handle_detect_duplicates(query)
+        elif path == "/api/smart-folders/preview":
+            self._handle_smart_folder_preview(query)
+        elif path == "/api/events":
+            self._handle_sse()
+        elif path.startswith("/uploads/"):
+            self._serve_upload(path)
+        elif path.startswith("/exports/"):
+            self._serve_export(path)
+        else:
+            super().do_GET()
+
+    def _serve_upload(self, path):
+        rel = unquote(path[len("/uploads/"):]).replace("\\", "/")
+        if rel.startswith("../") or "/../" in rel:
+            return self._err(400, "Invalid upload path")
+        target = (UPLOAD_DIR / rel).resolve()
+        try:
+            target.relative_to(UPLOAD_DIR.resolve())
+        except ValueError:
+            return self._err(400, "Invalid upload path")
+        if not target.exists() or not target.is_file():
+            return self._err(404, "Not found")
+        ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(target.stat().st_size))
+        self._cors_headers()
+        self.end_headers()
+        with target.open("rb") as f:
+            shutil.copyfileobj(f, self.wfile)
+
+    def _serve_export(self, path):
+        rel = unquote(path[len("/exports/"):]).replace("\\", "/").strip()
+        if not rel or "/" in rel or "\\" in rel or rel.startswith("."):
+            return self._err(400, "Invalid export path")
+        target = (EXPORT_DIR / rel).resolve()
+        try:
+            target.relative_to(EXPORT_DIR.resolve())
+        except Exception:
+            return self._err(400, "Invalid export path")
+        if not target.exists() or not target.is_file():
+            return self._err(404, "Not found")
+        ctype = "application/zip"
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(target.stat().st_size))
+        self._cors_headers()
+        self.end_headers()
+        with target.open("rb") as f:
+            shutil.copyfileobj(f, self.wfile)
+
+    def _handle_sse(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        q = queue.Queue()
+        with _sse_lock: _sse_clients.append(q)
+        try:
+            while True:
+                try:
+                    msg = q.get(timeout=25)
+                    self.wfile.write(msg)
+                    self.wfile.flush()
+                except queue.Empty:
+                    self.wfile.write(b": keepalive\n\n")
+                    self.wfile.flush()
+        except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+            pass
+        finally:
+            with _sse_lock:
+                if q in _sse_clients: _sse_clients.remove(q)
+
+    def do_POST(self):
+        path = urlparse(self.path).path
+        if path == "/api/upload-video":
+            return self._handle_video_upload()
+        try:
+            body = self._read_body()
+        except Exception as e:
+            return self._err(400, str(e))
+
+        if path == "/api/data":
+            fixed, _changed = _ensure_data_schema(body if isinstance(body, dict) else {"projects": []})
+            DATA_FILE.write_text(
+                json.dumps(fixed, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            self._json_resp({"ok": True})
+        elif path == "/api/upload-image":
+            self._handle_upload(body)
+        elif path == "/api/save-media":
+            self._handle_save_media(body)
+        elif path == "/api/save-prompt":
+            self._handle_save_prompt(body)
+        elif path == "/api/delete-prompt":
+            self._handle_delete_prompt(body)
+        elif path == "/api/delete-project":
+            self._handle_delete_project(body)
+        elif path == "/api/cleanup-media":
+            self._handle_cleanup_media(body)
+        elif path == "/api/reverse-prompt":
+            self._handle_reverse_prompt(body)
+        elif path == "/api/create-project":
+            self._handle_create_project(body)
+        elif path == "/api/gen-title":
+            self._handle_gen_title(body)
+        elif path == "/api/desktop/settings":
+            self._json_resp({"ok": True, "settings": _save_settings(body)})
+        elif path == "/api/export-bundle":
+            self._handle_export_bundle(body)
+        elif path == "/api/snapshot/create":
+            self._handle_snapshot_create(body)
+        elif path == "/api/snapshot/restore":
+            self._handle_snapshot_restore(body)
+        elif path == "/api/smart-folders":
+            self._handle_save_smart_folders(body)
+        elif path == "/api/asset/quality":
+            self._handle_asset_quality(body)
+        elif path == "/api/asset/lineage":
+            self._handle_asset_lineage(body)
+        else:
+            self._err(404, "Not found")
+
+    # ── helpers ───────────────────────────────────────────────────────────
+    def _read_body(self):
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length)
+        return json.loads(raw)
+
+    def _handle_upload(self, body):
+        data_url = body.get("data_url", "")
+        filename  = body.get("filename", "image.jpg") or "image.jpg"
+        # strip unsafe chars from filename
+        filename = re.sub(r"[^\w.\-]", "_", Path(filename).name)[:60]
+        m = re.match(r"data:([^;]+);base64,(.+)", data_url, re.DOTALL)
+        if not m:
+            return self._err(400, "Invalid data_url")
+        mime, b64 = m.group(1), m.group(2)
+        ext = mimetypes.guess_extension(mime) or ".jpg"
+        ext = ext.replace(".jpe", ".jpg")
+        stem = Path(filename).stem
+        # sub-folder by project
+        proj_raw = body.get("project", "") or ""
+        proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", proj_raw)[:40] if proj_raw else "default"
+        save_dir = UPLOAD_DIR / proj_folder / "images"
+        save_dir.mkdir(parents=True, exist_ok=True)
+        out_path = save_dir / f"{stem}{ext}"
+        counter = 1
+        while out_path.exists():
+            out_path = save_dir / f"{stem}_{counter}{ext}"
+            counter += 1
+        out_path.write_bytes(base64.b64decode(b64))
+        self._json_resp({"ok": True, "path": f"/uploads/{proj_folder}/images/{out_path.name}"})
+
+    def _handle_video_upload(self):
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length)
+        filename  = unquote(self.headers.get("X-Filename", "video.mp4") or "video.mp4")
+        proj_raw  = unquote(self.headers.get("X-Project",  "default")  or "default")
+        proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", proj_raw)[:40] if proj_raw else "default"
+        stem = re.sub(r"[^\w.\-]", "_", Path(filename).stem)[:50]
+        ext  = Path(filename).suffix or ".mp4"
+        save_dir = UPLOAD_DIR / proj_folder / "videos"
+        save_dir.mkdir(parents=True, exist_ok=True)
+        out_path = save_dir / f"{stem}{ext}"
+        counter = 1
+        while out_path.exists():
+            out_path = save_dir / f"{stem}_{counter}{ext}"
+            counter += 1
+        out_path.write_bytes(raw)
+        self._json_resp({"ok": True, "path": f"/uploads/{proj_folder}/videos/{out_path.name}"})
+
+    def _handle_save_prompt(self, body):
+        project_id = body.get("projectId", "")
+        category   = body.get("category", "skill_prompts")
+        title      = body.get("title", "")
+        prompt     = body.get("prompt", "")
+        model      = body.get("model", "")
+        tags       = body.get("tags", [])
+
+        if not prompt:
+            return self._err(400, "prompt is required")
+
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        proj = next((p for p in data.get("projects", []) if p["id"] == project_id), None)
+        if not proj:
+            return self._err(404, "Project not found")
+
+        analysis   = body.get("analysis", "")
+        item_id  = uuid.uuid4().hex[:16]
+        new_item = {
+            "id": item_id, "title": title or "未命名提示词",
+            "prompt": prompt, "analysis": analysis, "model": model, "tags": tags,
+            "image": "", "video": "", "ref_images": [], "aspect": "",
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%S")
+        }
+        _ensure_item_schema(new_item)
+        proj.setdefault(category, []).insert(0, new_item)
+        DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        _sse_notify()
+        self._json_resp({"ok": True, "item": new_item})
+
+    def _handle_create_project(self, body):
+        name = (body.get("name") or "").strip()
+        if not name:
+            return self._err(400, "Missing name")
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        proj = {"id": uuid.uuid4().hex[:16], "name": name,
+                "image_prompts": [], "video_prompts": [], "skill_prompts": []}
+        data.setdefault("projects", []).append(proj)
+        DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        _sse_notify()
+        self._json_resp({"ok": True, "project": proj})
+
+    def _handle_delete_prompt(self, body):
+        project_id = body.get("projectId", "")
+        category = body.get("category", "")
+        prompt_id = body.get("promptId", "")
+        delete_media = bool(body.get("deleteMedia"))
+        if category not in {"image_prompts", "video_prompts", "skill_prompts"}:
+            return self._err(400, "Invalid category")
+
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        proj = next((p for p in data.get("projects", []) if p.get("id") == project_id), None)
+        if not proj:
+            return self._err(404, "Project not found")
+        items = proj.get(category, []) or []
+        idx = next((i for i, item in enumerate(items) if item.get("id") == prompt_id), -1)
+        if idx < 0:
+            return self._err(404, "Prompt not found")
+
+        media_refs = _item_upload_refs(items[idx])
+        del items[idx]
+        proj[category] = items
+
+        media_result = {"files": 0, "bytes": 0, "deleted": [], "skipped": []}
+        if delete_media and media_refs:
+            media_result = _delete_upload_refs(media_refs, _data_upload_refs(data))
+
+        DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        _sse_notify()
+        self._json_resp({"ok": True, "media": media_result})
+
+    def _handle_delete_project(self, body):
+        project_id = body.get("projectId", "")
+        delete_media = bool(body.get("deleteMedia"))
+
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        projects = data.get("projects", []) or []
+        proj = next((p for p in projects if p.get("id") == project_id), None)
+        if not proj:
+            return self._err(404, "Project not found")
+
+        media_refs = set()
+        for key in ("image_prompts", "video_prompts"):
+            for item in proj.get(key, []) or []:
+                media_refs.update(_item_upload_refs(item))
+
+        data["projects"] = [p for p in projects if p.get("id") != project_id]
+        media_result = {"files": 0, "bytes": 0, "deleted": [], "skipped": []}
+        if delete_media and media_refs:
+            media_result = _delete_upload_refs(media_refs, _data_upload_refs(data))
+
+        DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        _sse_notify()
+        self._json_resp({"ok": True, "media": media_result})
+
+    def _handle_cleanup_media(self, _body):
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        media_result = _cleanup_unreferenced_uploads(data)
+        self._json_resp({"ok": True, "media": media_result})
+
+    def _handle_search_assets(self, query):
+        q = (query.get("q", [""])[0] or "").strip()
+        project_id = (query.get("projectId", [""])[0] or "").strip()
+        item_type = (query.get("type", ["all"])[0] or "all").strip()
+        limit = _as_int((query.get("limit", ["120"])[0] or "120"), default=120, min_value=1, max_value=500)
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        docs = _collect_docs(data)
+        out = []
+        for d in docs:
+            if project_id and str(d.get("project_id", "")) != project_id:
+                continue
+            if item_type != "all" and str(d.get("type", "")) != item_type:
+                continue
+            score = _match_score(d, q) if q else 1
+            if score <= 0:
+                continue
+            out.append({
+                "id": d["id"],
+                "project_id": d["project_id"],
+                "project_name": d["project_name"],
+                "category": d["category"],
+                "type": d["type"],
+                "title": d["title"],
+                "tags": d["tags"],
+                "model": d["model"],
+                "prompt": d["prompt"][:400],
+                "analysis": d["analysis"][:220],
+                "created_at": d.get("created_at", ""),
+                "updated_at": d.get("updated_at", ""),
+                "quality": d.get("quality", {}),
+                "lineage": d.get("lineage", {}),
+                "score": score,
+            })
+        out.sort(key=lambda x: (x.get("score", 0), x.get("updated_at", "") or x.get("created_at", "")), reverse=True)
+        self._json_resp({"ok": True, "query": q, "results": out[:limit], "total": len(out)})
+
+    def _handle_detect_duplicates(self, query):
+        project_id = (query.get("projectId", [""])[0] or "").strip()
+        include_similar = (query.get("includeSimilar", ["1"])[0] or "1").strip() not in {"0", "false", "False"}
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        docs = _collect_docs(data)
+        if project_id:
+            docs = [d for d in docs if d.get("project_id") == project_id]
+
+        exact_by_path = {}
+        exact_by_sig = {}
+        for d in docs:
+            media_path = _extract_media_path(d)
+            if media_path:
+                exact_by_path.setdefault(media_path, []).append(d)
+            sig = d.get("identity_sig", "")
+            if sig:
+                exact_by_sig.setdefault(sig, []).append(d)
+
+        groups = []
+        for source_map, reason in ((exact_by_path, "same_media_path"), (exact_by_sig, "same_signature")):
+            for k, arr in source_map.items():
+                if not k or len(arr) < 2:
+                    continue
+                refs = [{
+                    "id": x["id"],
+                    "project_id": x["project_id"],
+                    "project_name": x["project_name"],
+                    "category": x["category"],
+                    "type": x["type"],
+                    "title": x["title"],
+                    "created_at": x.get("created_at", ""),
+                    "updated_at": x.get("updated_at", ""),
+                } for x in arr]
+                groups.append({"reason": reason, "key": k, "count": len(refs), "items": refs})
+
+        similar_pairs = []
+        if include_similar:
+            for i in range(len(docs)):
+                a = docs[i]
+                text_a = _normalize_text(a.get("prompt") or a.get("title"))
+                if not text_a:
+                    continue
+                for j in range(i + 1, len(docs)):
+                    b = docs[j]
+                    if a.get("type") != b.get("type"):
+                        continue
+                    text_b = _normalize_text(b.get("prompt") or b.get("title"))
+                    if not text_b:
+                        continue
+                    ratio = difflib.SequenceMatcher(None, text_a[:1800], text_b[:1800]).ratio()
+                    if ratio >= 0.9:
+                        similar_pairs.append({
+                            "similarity": round(ratio, 4),
+                            "a": {
+                                "id": a["id"], "project_id": a["project_id"], "project_name": a["project_name"],
+                                "category": a["category"], "type": a["type"], "title": a["title"],
+                            },
+                            "b": {
+                                "id": b["id"], "project_id": b["project_id"], "project_name": b["project_name"],
+                                "category": b["category"], "type": b["type"], "title": b["title"],
+                            },
+                        })
+            similar_pairs.sort(key=lambda x: x["similarity"], reverse=True)
+
+        self._json_resp({
+            "ok": True,
+            "projectId": project_id,
+            "exact_groups": groups,
+            "similar_pairs": similar_pairs[:120],
+            "summary": {
+                "items_scanned": len(docs),
+                "exact_group_count": len(groups),
+                "similar_pair_count": len(similar_pairs),
+            }
+        })
+
+    def _handle_smart_folder_preview(self, query):
+        folder_id = (query.get("id", [""])[0] or "").strip()
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        sf = _get_smart_folders()
+        folder = next((f for f in sf.get("folders", []) if f.get("id") == folder_id), None)
+        if not folder:
+            return self._err(404, "Smart folder not found")
+        docs = _collect_docs(data)
+        matched = [d for d in docs if _apply_folder_rules(d, folder.get("rules", {}))]
+        matched.sort(key=lambda x: (x.get("updated_at", "") or x.get("created_at", "")), reverse=True)
+        self._json_resp({
+            "ok": True,
+            "folder": folder,
+            "count": len(matched),
+            "items": [{
+                "id": x["id"],
+                "project_id": x["project_id"],
+                "project_name": x["project_name"],
+                "category": x["category"],
+                "type": x["type"],
+                "title": x["title"],
+                "model": x["model"],
+                "tags": x["tags"],
+                "quality": x["quality"],
+                "lineage": x["lineage"],
+                "updated_at": x.get("updated_at", ""),
+                "created_at": x.get("created_at", ""),
+            } for x in matched[:300]]
+        })
+
+    def _handle_save_smart_folders(self, body):
+        saved = _save_smart_folders(body)
+        self._json_resp({"ok": True, **saved})
+
+    def _find_item_mut(self, data, project_id, category, item_id):
+        projects = data.get("projects", []) or []
+        proj = next((p for p in projects if p.get("id") == project_id), None)
+        if not proj:
+            return None, None
+        if category not in {"image_prompts", "video_prompts", "skill_prompts"}:
+            return proj, None
+        items = proj.get(category, []) or []
+        item = next((x for x in items if x.get("id") == item_id), None)
+        return proj, item
+
+    def _handle_asset_quality(self, body):
+        project_id = body.get("projectId", "")
+        category = body.get("category", "")
+        item_id = body.get("itemId", "")
+        quality_in = body.get("quality", {}) if isinstance(body.get("quality", {}), dict) else {}
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        proj, item = self._find_item_mut(data, project_id, category, item_id)
+        if not proj or not item:
+            return self._err(404, "Item not found")
+        _ensure_item_schema(item)
+        star = bool(quality_in.get("star", item["quality"].get("star", False)))
+        rating = _as_int(quality_in.get("rating", item["quality"].get("rating", 0)), default=0, min_value=0, max_value=5)
+        status = str(quality_in.get("status", item["quality"].get("status", ""))).strip()[:24]
+        item["quality"] = {"star": star, "rating": rating, "status": status}
+        item["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        _sse_notify()
+        self._json_resp({"ok": True, "quality": item["quality"], "itemId": item_id})
+
+    def _handle_asset_lineage(self, body):
+        project_id = body.get("projectId", "")
+        category = body.get("category", "")
+        item_id = body.get("itemId", "")
+        lineage_in = body.get("lineage", {}) if isinstance(body.get("lineage", {}), dict) else {}
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        proj, item = self._find_item_mut(data, project_id, category, item_id)
+        if not proj or not item:
+            return self._err(404, "Item not found")
+        _ensure_item_schema(item)
+        lin = item.get("lineage", {})
+        if not isinstance(lin.get("history"), list):
+            lin["history"] = []
+        source_id = str(lineage_in.get("source_id", lin.get("source_id", ""))).strip()
+        version = _as_int(lineage_in.get("version", lin.get("version", 1)), default=1, min_value=1, max_value=9999)
+        note = str(lineage_in.get("note", "")).strip()
+        prev_vid = str(lin.get("version_id", ""))
+        next_vid = _item_version_id(item)
+        if note:
+            lin["history"].insert(0, {
+                "time": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "note": note[:240],
+                "from_version_id": prev_vid,
+                "to_version_id": next_vid,
+            })
+            lin["history"] = lin["history"][:100]
+        lin["source_id"] = source_id
+        lin["version"] = version
+        lin["version_id"] = next_vid
+        item["lineage"] = lin
+        item["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        _sse_notify()
+        self._json_resp({"ok": True, "lineage": lin, "itemId": item_id})
+
+    def _handle_export_bundle(self, body):
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        selected = body.get("selected", [])
+        include_data_json = bool(body.get("includeDataJson", True))
+        include_media = bool(body.get("includeMedia", True))
+        include_prompts = bool(body.get("includePrompts", True))
+        docs = _resolve_docs_by_refs(data, selected)
+        if not docs:
+            return self._err(400, "No valid selected items")
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        out_name = f"bundle-{stamp}-{uuid.uuid4().hex[:6]}.zip"
+        out_path = EXPORT_DIR / out_name
+        written_files = 0
+        with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
+            manifest = {
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "items": docs,
+                "includeMedia": include_media,
+                "includePrompts": include_prompts,
+            }
+            z.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+            written_files += 1
+            if include_prompts:
+                prompt_lines = []
+                for d in docs:
+                    prompt_lines.append(f"# {d.get('title') or d.get('id')}")
+                    prompt_lines.append(f"- 项目: {d.get('project_name')}")
+                    prompt_lines.append(f"- 类型: {d.get('type')}")
+                    prompt_lines.append(f"- 模型: {d.get('model')}")
+                    prompt_lines.append(f"- 标签: {', '.join(d.get('tags', []))}")
+                    prompt_lines.append("")
+                    prompt_lines.append(d.get("prompt", ""))
+                    prompt_lines.append("\n---\n")
+                z.writestr("prompts.md", "\n".join(prompt_lines).strip() + "\n")
+                written_files += 1
+            if include_data_json:
+                z.writestr("data.partial.json", json.dumps({"items": docs}, ensure_ascii=False, indent=2))
+                written_files += 1
+            if include_media:
+                for d in docs:
+                    media_candidates = []
+                    if d.get("image"):
+                        media_candidates.append(d.get("image"))
+                    if d.get("video"):
+                        media_candidates.append(d.get("video"))
+                    for ref in d.get("ref_images", []) or []:
+                        media_candidates.append(ref)
+                    for media_url in media_candidates:
+                        rel = _normalize_upload_ref(media_url)
+                        if not rel:
+                            continue
+                        try:
+                            target = _upload_target(rel)
+                        except Exception:
+                            continue
+                        if not target.exists() or not target.is_file():
+                            continue
+                        arcname = f"media/{rel.replace('/', '_')}"
+                        try:
+                            z.write(target, arcname=arcname)
+                            written_files += 1
+                        except Exception:
+                            continue
+        stat = out_path.stat()
+        self._json_resp({
+            "ok": True,
+            "bundle": {
+                "name": out_name,
+                "path": str(out_path),
+                "download_url": f"/exports/{out_name}",
+                "size": stat.st_size,
+                "files": written_files,
+                "items": len(docs),
+            }
+        })
+
+    def _handle_snapshot_create(self, body):
+        note = str(body.get("note", "")).strip()[:120]
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        name_core = f"snapshot-{stamp}-{uuid.uuid4().hex[:6]}"
+        out_path = SNAPSHOT_DIR / f"{name_core}.zip"
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
+            z.writestr("meta.json", json.dumps({
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "note": note,
+                "data_file": DATA_FILE.name,
+            }, ensure_ascii=False, indent=2))
+            z.writestr("data.json", json.dumps(data, ensure_ascii=False, indent=2))
+            if CONFIG_FILE.exists():
+                z.write(CONFIG_FILE, arcname="desktop_settings.json")
+            if SMART_FOLDERS_FILE.exists():
+                z.write(SMART_FOLDERS_FILE, arcname="smart_folders.json")
+            if UPLOAD_DIR.exists():
+                for fp in UPLOAD_DIR.rglob("*"):
+                    if fp.is_file():
+                        rel = fp.relative_to(UPLOAD_DIR).as_posix()
+                        z.write(fp, arcname=f"uploads/{rel}")
+        self._json_resp({"ok": True, "snapshot": {
+            "name": out_path.name,
+            "path": str(out_path),
+            "size": out_path.stat().st_size,
+            "note": note,
+        }})
+
+    def _handle_snapshot_restore(self, body):
+        name = str(body.get("name", "")).strip()
+        if not name:
+            return self._err(400, "Missing snapshot name")
+        target = (SNAPSHOT_DIR / name).resolve()
+        try:
+            target.relative_to(SNAPSHOT_DIR.resolve())
+        except Exception:
+            return self._err(400, "Invalid snapshot name")
+        if not target.exists() or not target.is_file():
+            return self._err(404, "Snapshot not found")
+        try:
+            with zipfile.ZipFile(target, "r") as z:
+                names = set(z.namelist())
+                if "data.json" not in names:
+                    return self._err(400, "Invalid snapshot package")
+                data_raw = z.read("data.json")
+                data_obj = json.loads(data_raw.decode("utf-8"))
+                data_obj, _ = _ensure_data_schema(data_obj)
+                DATA_FILE.write_text(json.dumps(data_obj, ensure_ascii=False, indent=2), encoding="utf-8")
+                if "desktop_settings.json" in names:
+                    CONFIG_FILE.write_bytes(z.read("desktop_settings.json"))
+                if "smart_folders.json" in names:
+                    SMART_FOLDERS_FILE.write_bytes(z.read("smart_folders.json"))
+                if UPLOAD_DIR.exists():
+                    shutil.rmtree(UPLOAD_DIR, ignore_errors=True)
+                UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+                for n in names:
+                    if not n.startswith("uploads/") or n.endswith("/"):
+                        continue
+                    rel = n[len("uploads/"):]
+                    out = (UPLOAD_DIR / rel).resolve()
+                    try:
+                        out.relative_to(UPLOAD_DIR.resolve())
+                    except Exception:
+                        continue
+                    out.parent.mkdir(parents=True, exist_ok=True)
+                    out.write_bytes(z.read(n))
+        except Exception as e:
+            return self._err(500, f"Restore failed: {e}")
+        _sse_notify()
+        self._json_resp({"ok": True, "restored": name})
+
+    def _handle_gen_title(self, body):
+        prompt   = (body.get("prompt") or "").strip()[:800]
+        settings = _load_settings()
+        api_key  = body.get("apiKey") or settings.get("imageApiKey") or settings.get("videoApiKey") or ""
+        api_base = (body.get("apiBase") or settings.get("imageApiBase") or "https://api.openai.com/v1").rstrip("/")
+        model    = body.get("model") or settings.get("imageModel") or settings.get("videoModel") or "gpt-4o-mini"
+        if not prompt:
+            return self._err(400, "Missing prompt")
+        if not api_key:
+            return self._err(400, "Missing apiKey")
+        payload = json.dumps({
+            "model": model,
+            "max_tokens": 30,
+            "temperature": 0.7,
+            "messages": [
+                {"role": "system", "content":
+                    "根据用户提供的 AI 绘图提示词，生成一个简短的中文标题（6-14个字）。"
+                    "只输出标题本身，不加引号、不加解释、不加标点以外的任何内容。"},
+                {"role": "user", "content": prompt}
+            ]
+        }).encode()
+        req = urllib.request.Request(
+            f"{api_base}/chat/completions",
+            data=payload,
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+            method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read())
+            title = (data["choices"][0]["message"]["content"] or "").strip().strip('"').strip("'")
+            self._json_resp({"ok": True, "title": title})
+        except urllib.error.HTTPError as e:
+            raw = e.read().decode("utf-8", errors="replace")
+            try:   msg = (json.loads(raw).get("error") or {}).get("message") or raw[:200]
+            except: msg = raw[:200]
+            self._err(502, f"AI API {e.code}: {msg}")
+        except Exception as e:
+            self._err(502, str(e))
+
+    def _handle_save_media(self, body):
+        url        = body.get("url", "")
+        media_type = body.get("mediaType", "")
+        project_id = body.get("projectId", "")
+        category   = body.get("category", "image_prompts")
+        title         = body.get("title", "")
+        prompt        = body.get("prompt", "")
+        aspect        = body.get("aspect", "")
+        analysis      = body.get("analysis", "")
+        model         = body.get("model", "")
+        tags          = body.get("tags", [])
+        outfit_prompt = body.get("outfit_prompt", "")
+        char_prompt   = body.get("char_prompt", "")
+        scene_prompt  = body.get("scene_prompt", "")
+        style_prompt  = body.get("style_prompt", "")
+        cam_prompt    = body.get("cam_prompt", "")
+        referer       = body.get("referer") or body.get("pageUrl") or ""
+        cookie        = body.get("cookie", "")
+
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        proj = next((p for p in data.get("projects", []) if p["id"] == project_id), None)
+        if not proj:
+            return self._err(404, "Project not found")
+
+        # Download media
+        try:
+            if url.startswith("/uploads/"):
+                rel_in = unquote(url[len("/uploads/"):]).replace("\\", "/")
+                local_path = (UPLOAD_DIR / rel_in).resolve()
+                local_path.relative_to(UPLOAD_DIR.resolve())
+                raw = local_path.read_bytes()
+                ct = mimetypes.guess_type(str(local_path))[0] or "application/octet-stream"
+                forced_ext = local_path.suffix.lower()
+            else:
+                if not media_type:
+                    media_type = "video" if category == "video_prompts" else "image"
+                raw, ct, forced_ext = _download_remote_media(
+                    url, media_type=media_type, referer=referer, cookie=cookie,
+                    timeout=120 if media_type == "video" else 30
+                )
+        except Exception as e:
+            return self._err(502, f"Download failed: {e}")
+
+        url_ext = _url_ext(url)
+        is_video = (
+            media_type == "video"
+            or category == "video_prompts"
+            or "video" in (ct or "")
+            or url_ext in VIDEO_EXTS
+            or forced_ext in VIDEO_EXTS
+        )
+        url_ext_ok = url_ext if url_ext in VIDEO_EXTS or url_ext in IMAGE_EXTS else ""
+        mime_ext = "" if (ct == "application/octet-stream" and is_video) else (mimetypes.guess_extension(ct) or "")
+        ext = forced_ext or url_ext_ok or mime_ext or (".mp4" if is_video else ".jpg")
+        if ext == ".m3u8":
+            ext = ".ts"
+        ext = ext.replace(".jpe", ".jpg")
+        proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", proj.get("name","default"))[:40]
+        sub = "videos" if is_video else "images"
+        save_dir = UPLOAD_DIR / proj_folder / sub
+        save_dir.mkdir(parents=True, exist_ok=True)
+        stem = f"clip_{uuid.uuid4().hex[:8]}"
+        out_path = save_dir / f"{stem}{ext}"
+        out_path.write_bytes(raw)
+        rel = f"/uploads/{proj_folder}/{sub}/{out_path.name}"
+
+        item_id = uuid.uuid4().hex[:16]
+        new_item = {
+            "id": item_id, "title": title or stem,
+            "prompt": prompt, "model": model, "tags": tags,
+            "image": rel if sub == "images" else "",
+            "video": rel if sub == "videos" else "",
+            "ref_images": [], "aspect": aspect, "analysis": analysis,
+            "outfit_prompt": outfit_prompt, "char_prompt": char_prompt,
+            "scene_prompt": scene_prompt, "style_prompt": style_prompt,
+            "cam_prompt": cam_prompt,
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%S")
+        }
+        _ensure_item_schema(new_item)
+        proj.setdefault(category, []).insert(0, new_item)
+        DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        _sse_notify()
+        self._json_resp({"ok": True, "item": new_item})
+
+    def _handle_reverse_prompt(self, body):
+        url      = body.get("url", "")
+        media_type = body.get("mediaType", "image")   # 'image' | 'video'
+        settings = _load_settings()
+        is_video = media_type == "video"
+        api_key  = body.get("apiKey") or (settings.get("videoApiKey") if is_video else settings.get("imageApiKey")) or ""
+        api_base = (
+            body.get("apiBase")
+            or (settings.get("videoApiBase") if is_video else settings.get("imageApiBase"))
+            or "https://api.openai.com/v1"
+        ).rstrip("/")
+        model    = body.get("model") or (settings.get("videoModel") if is_video else settings.get("imageModel")) or "gpt-4o"
+        lang     = body.get("lang", "zh")
+        referer  = body.get("referer") or body.get("pageUrl") or ""
+        cookie   = body.get("cookie", "")
+        video_upload_timeout = _as_int(
+            body.get("videoUploadTimeoutSec") or settings.get("videoUploadTimeoutSec") or 240,
+            default=240, min_value=60, max_value=1800
+        )
+        video_upload_retries = _as_int(
+            body.get("videoUploadRetries") or settings.get("videoUploadRetries") or 1,
+            default=1, min_value=0, max_value=5
+        )
+
+        if not api_key:
+            return self._err(400, "Missing apiKey")
+
+        img_w = int(body.get("imgWidth")  or 0)
+        img_h = int(body.get("imgHeight") or 0)
+
+        def _aspect_note(w, h):
+            if not w or not h: return ""
+            from math import gcd
+            g = gcd(w, h); rw, rh = w // g, h // g
+            # Simplify over-complex ratios to nearest common
+            common = [(1,1),(4,3),(3,2),(16,9),(21,9),(2,1),(3,4),(2,3),(9,16)]
+            best = min(common, key=lambda r: abs(r[0]/r[1] - rw/rh))
+            orient = "竖版" if h > w else ("横版" if w > h else "方形")
+            return f"【图片实际尺寸】{w}×{h}px，比例约 {best[0]}:{best[1]}，{orient}画幅。请直接使用此数据描述画幅，无需从画面猜测。\n"
+
+        dim_note = _aspect_note(img_w, img_h)
+
+        default_instruction = settings.get("videoReverseInstruction") if is_video else settings.get("imageReverseInstruction")
+        custom = (body.get("customInstruction") or default_instruction or "").strip()
+        if custom:
+            prompt_instruction = dim_note + custom
+        elif lang == "zh":
+            prompt_instruction = dim_note + (
+                "【第一步：判断图片类型】先判断这张图属于哪种类型，然后按对应规则输出提示词：\n"
+                "A. 角色设定参考图（Character Reference Sheet）：图中包含多视角立绘、表情图、道具图、配色板、数值/文字说明区块等——输出：①整体类型说明（character reference sheet, multi-view layout）②版式结构（有哪些区块、排列方式）③角色完整外观（整合所有视角信息）④画风与渲染风格⑤配色方案⑥武器/道具/配件⑦所有文字区块的内容摘要\n"
+                "B. 漫画页/分格图（Comic/Manga Page）：图中包含多个面板/格子，有对话框或叙事性连续画面——输出：①分格数量与布局②每格内容摘要③整体画风④对话框样式\n"
+                "C. 信息图/海报/UI截图（Infographic/Poster/UI）：以文字、图表、排版为主要内容——输出：①整体设计类型②版式结构③主要视觉元素④字体与配色风格\n"
+                "D. 单张插画/摄影（普通图）：单一场景、单张人像或风景——按以下5段输出：\n"
+                "请仔细分析这个媒体内容，生成一段结构化的中文AI生成提示词，按以下5个段落依次输出，段落之间空一行：\n"
+                "【画风】按以下顺序判断并输出：①【第一步：渲染真实度】是否存在真实皮肤质感（毛孔/次表面散射）、真实布料纹理、真实光源？→若是：输出 hyperrealistic anime / photorealistic anime illustration，渲染技术为 PBR-based rendering + anime aesthetics，不得误写赛璐璐/厚涂；→若否：继续下步②【第二步：描线】有明显黑色描边→thick outlines/lineart，无描边→no outlines③【第三步：着色】平涂→cel-shading/flat shading，厚涂→painterly，写实→PBR/photo-real④【第四步：作品引用】仅当明确识别时才引用具体作品/游戏/动漫/电影/艺术家，不确定则写通用风格描述，绝对不得猜测⑤绘画/摄影类型（anime/concept art/oil painting/3D CG/landscape photography等英文关键词）⑥精细度（highly detailed/photorealistic/semi-realistic/stylized等）。\n"
+                "【主体】先判断画面类型——若有人物：每个人物单独说明：①画面位置（左/中/右、前景/中景/背景）②面朝方向（正面朝向镜头/斜45度小侧脸/正侧面/斜45度背面/完全背对镜头）③若多人则描述站位关系及互动④外貌特征（发型发色/脸部/肤色/表情）⑤姿态动作——【重要：描述四肢必须用画面方位，例如：画面右侧的手握着.../画面左侧的腿踩在...，禁止说左手/右脚，因为角色面对镜头时人体左右与画面左右相反，AI容易判断错误】⑥【服装从头到脚逐部位，不得遗漏】头饰→颈部→上衣/外套/内搭→手部/臂部→下装→腰带→袜子/腿部→鞋子（每部位写款式/颜色/材质）⑦【铁律：画面中所有道具/物品一个不漏】每件物品写清：名称/颜色/款式/上面的文字标识/位置（握在画面某侧手/靠在某处/踩在某物上等），不得一笔带过。若无人物（风景/建筑/静物）：描述①主体是什么②形态特征③位置占比④受光状态⑤视觉焦点。\n"
+                "【镜头】①景别（大远景/远景/全景/中景/中近景/近景/特写/大特写）②垂直视角（仰视感→低角度仰拍；俯视感→高角度俯拍；否则→平视）③水平视角（正面/正侧面/斜45°/背面/过肩）④焦距感（鱼眼/超广角/广角/标准/中长焦/长焦/超长焦）⑤景深与散景（浅/中/深，虚化程度）⑥透视感（强透视/正常/压缩透视）⑦构图方式（居中/三分法/对角线/框架/引导线等）⑧画幅（竖版/横版/方形/宽银幕及比例）⑨镜头特效（光晕/眩光/色散/暗角，有则描述）。\n"
+                "【场景】环境类型与具体设定、前景/中景/背景的层次关系、空间纵深感、背景元素细节、主体与背景距离关系、时间/天气/季节氛围。\n"
+                "【色调光影】整体色调与主配色、光源位置与性质（硬光/软光/侧光/顶光/逆光/漫射光等）、光影对比强度、高光与暗部表现、材质质感的光效体现、整体氛围。\n"
+                "【准确性第一原则】：严格基于图片中真实可见的内容，不猜测、不补脑。直接输出提示词，不需要任何额外说明。"
+            )
+        else:
+            prompt_instruction = (
+                "Analyze this media and generate a detailed AI generation prompt that would recreate it. "
+                "Include subject, style, lighting, composition, colors, camera details. "
+                "Output only the prompt, no explanations."
+            )
+
+        # Download media
+        try:
+            if url.startswith("/uploads/"):
+                rel = unquote(url[len("/uploads/"):]).replace("\\", "/")
+                local_path = (UPLOAD_DIR / rel).resolve()
+                local_path.relative_to(UPLOAD_DIR.resolve())
+                raw = local_path.read_bytes()
+                ct = mimetypes.guess_type(str(local_path))[0] or ("video/mp4" if media_type == "video" else "image/jpeg")
+            else:
+                raw, ct, _forced_ext = _download_remote_media(
+                    url, media_type=media_type, referer=referer, cookie=cookie,
+                    timeout=120 if media_type == "video" else 60
+                )
+        except Exception as e:
+            return self._err(502, f"Download failed: {e}")
+
+        b64 = base64.b64encode(raw).decode()
+
+        # Use native Gemini API only when pointing at Google's endpoint
+        # Third-party proxies (yunwu.ai, etc.) use OpenAI-compatible path even with gemini models
+        use_gemini = "generativelanguage.googleapis.com" in api_base
+
+        try:
+            if use_gemini and media_type == "video":
+                result_text = self._gemini_reverse_video(
+                    raw, ct, api_key, model, prompt_instruction,
+                    upload_timeout=video_upload_timeout,
+                    upload_retries=video_upload_retries
+                )
+            elif use_gemini:
+                result_text = self._gemini_reverse_image(b64, ct, api_key, model, prompt_instruction)
+            else:
+                result_text = self._openai_reverse(
+                    b64, ct, api_base, api_key, model, prompt_instruction, media_type=media_type
+                )
+        except urllib.error.HTTPError as e:
+            raw = e.read().decode("utf-8", errors="replace")
+            try:
+                j = json.loads(raw)
+                # OpenAI: {"error":{"message":"..."}}
+                # Gemini: {"error":{"message":"..."}}
+                msg = (j.get("error") or {}).get("message") or raw[:400]
+            except Exception:
+                msg = raw[:400]
+            return self._err(502, f"AI API {e.code} {e.reason}: {msg}")
+        except Exception as e:
+            if is_video and _is_timeout_error(e):
+                if use_gemini:
+                    return self._err(
+                        504,
+                        f"AI API timeout: 视频反推请求超时。"
+                        f"当前上传超时阈值为 {video_upload_timeout}s，可在桌面端设置中调大，或缩短/压缩视频后重试。原始错误: {e}"
+                    )
+                return self._err(
+                    504,
+                    "AI API timeout: 非 Gemini 接口视频反推超时。"
+                    "这通常是第三方 OpenAI 兼容接口不支持视频输入、或视频体积限制导致。"
+                    "请确认该地址支持 `video_url` 输入并放宽上传限制，或改用 Gemini 官方地址。"
+                    f"原始错误: {e}"
+                )
+            return self._err(502, f"AI API error: {e}")
+
+        # If the AI returned a JSON art-brief structure, extract fields
+        final_text  = result_text
+        auto_title  = ""
+        analysis    = ""
+        stripped = result_text.strip()
+        # Strip markdown code fences (```json ... ``` or ``` ... ```)
+        if stripped.startswith("```"):
+            stripped = re.sub(r"^```[a-zA-Z]*\n?", "", stripped)
+            stripped = re.sub(r"\n?```$", "", stripped).strip()
+        if stripped.startswith("{"):
+            try:
+                obj = json.loads(stripped)
+                if "reversePrompt" in obj:
+                    final_text = obj["reversePrompt"]
+                if "title" in obj:
+                    auto_title = str(obj["title"]).strip()
+                analysis = _format_art_brief(obj)
+            except Exception:
+                pass  # not valid JSON, use raw text as-is
+
+        resp = {"ok": True, "prompt": final_text}
+        if auto_title: resp["title"]    = auto_title
+        if analysis:   resp["analysis"] = analysis
+        try:
+            self._json_resp(resp)
+        except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+            pass
+
+    def _openai_reverse(self, b64, ct, api_base, api_key, model, instruction, media_type="image"):
+        # Normalize mime for OpenAI-compatible payloads
+        if media_type == "video":
+            if not ct or ct in {"application/octet-stream", "binary/octet-stream"}:
+                ct = "video/mp4"
+            media_part = {"type": "video_url", "video_url": {"url": f"data:{ct};base64,{b64}"}}
+        else:
+            ct_map = {"image/jpg": "image/jpeg", "image/jpe": "image/jpeg"}
+            ct = ct_map.get(ct, ct)
+            media_part = {"type": "image_url", "image_url": {"url": f"data:{ct};base64,{b64}"}}
+
+        payload = json.dumps({
+            "model": model,
+            "max_tokens": 4096,
+            "messages": [{"role": "user", "content": [
+                media_part,
+                {"type": "text", "text": instruction}
+            ]}]
+        }).encode()
+        req = urllib.request.Request(
+            f"{api_base}/chat/completions", data=payload,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=90) as r:
+            data = json.loads(r.read())
+        return data["choices"][0]["message"]["content"].strip()
+
+    def _gemini_reverse_image(self, b64, ct, api_key, model, instruction):
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        payload = json.dumps({"contents": [{"parts": [
+            {"inline_data": {"mime_type": ct, "data": b64}},
+            {"text": instruction}
+        ]}], "generationConfig": {"maxOutputTokens": 4096}}).encode()
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=90) as r:
+            data = json.loads(r.read())
+        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+    def _gemini_reverse_video(self, raw, ct, api_key, model, instruction, upload_timeout=240, upload_retries=1):
+        # Step 1: upload to Gemini Files API
+        size = len(raw)
+        init_url = f"https://generativelanguage.googleapis.com/upload/v1beta/files?key={api_key}"
+        meta = json.dumps({"file": {"display_name": "clip", "mime_type": ct}}).encode()
+        upload_url = None
+        for attempt in range(upload_retries + 1):
+            req = urllib.request.Request(init_url, data=meta, headers={
+                "X-Goog-Upload-Protocol": "resumable", "X-Goog-Upload-Command": "start",
+                "X-Goog-Upload-Header-Content-Length": str(size),
+                "X-Goog-Upload-Header-Content-Type": ct, "Content-Type": "application/json"
+            }, method="POST")
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    upload_url = r.headers.get("X-Goog-Upload-URL")
+                break
+            except Exception:
+                if attempt >= upload_retries:
+                    raise
+                time.sleep(min(2 * (attempt + 1), 6))
+        if not upload_url:
+            raise RuntimeError("No upload URL from Gemini Files API")
+
+        file_info = None
+        for attempt in range(upload_retries + 1):
+            req2 = urllib.request.Request(upload_url, data=raw, headers={
+                "Content-Length": str(size),
+                "X-Goog-Upload-Offset": "0", "X-Goog-Upload-Command": "upload, finalize"
+            }, method="POST")
+            try:
+                with urllib.request.urlopen(req2, timeout=upload_timeout) as r:
+                    file_info = json.loads(r.read())
+                break
+            except Exception:
+                if attempt >= upload_retries:
+                    raise
+                time.sleep(min(2 * (attempt + 1), 6))
+        if not file_info:
+            raise RuntimeError("Gemini upload failed without response")
+        file_uri = file_info["file"]["uri"]
+
+        # Step 2: wait for file to be ACTIVE
+        for _ in range(20):
+            check_url = f"https://generativelanguage.googleapis.com/v1beta/files/{file_uri.split('/')[-1]}?key={api_key}"
+            with urllib.request.urlopen(check_url, timeout=10) as r:
+                fdata = json.loads(r.read())
+            if fdata.get("state") == "ACTIVE":
+                break
+            time.sleep(3)
+
+        # Step 3: generate content
+        gen_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        payload = json.dumps({"contents": [{"parts": [
+            {"file_data": {"mime_type": ct, "file_uri": file_uri}},
+            {"text": instruction}
+        ]}]}).encode()
+        req3 = urllib.request.Request(gen_url, data=payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req3, timeout=120) as r:
+            data = json.loads(r.read())
+        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+    def _cors_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Filename, X-Project")
+
+    def _json_resp(self, obj, status=200):
+        body = json.dumps(obj, ensure_ascii=False).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self._cors_headers()
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _err(self, code, msg):
+        self._json_resp({"ok": False, "error": msg}, status=code)
+
+
+if __name__ == "__main__":
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else PORT
+    srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    print(f"Prompt Studio running at  http://127.0.0.1:{port}/")
+    print("Press Ctrl+C to stop.")
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopped.")

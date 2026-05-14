@@ -1,0 +1,463 @@
+// dialog.js – Save / Reverse-prompt dialog logic
+const params   = new URLSearchParams(location.search);
+let launchParams = Object.fromEntries(params.entries());
+let mediaUrl    = '';
+let mediaType   = 'image';  // 'image' | 'video'
+let mode        = 'save';   // 'save' | 'reverse'
+let tabId       = '';
+let referer     = '';
+let requestCookie = '';
+
+let serverUrl = 'http://127.0.0.1:8767';
+let settings  = {};
+let selectedCategory = 'image_prompts';
+
+function readLaunchParams() {
+  mediaUrl = launchParams.mediaUrl || '';
+  mediaType = launchParams.mediaType || 'image';
+  mode = launchParams.mode || 'save';
+  tabId = launchParams.tabId || '';
+  referer = launchParams.referer || launchParams.pageUrl || '';
+  requestCookie = launchParams.cookie || '';
+  selectedCategory = mediaType === 'video' ? 'video_prompts' : 'image_prompts';
+}
+
+async function hydrateLaunchParams() {
+  const key = params.get('payloadKey');
+  if (!key) {
+    readLaunchParams();
+    return;
+  }
+  try {
+    const stored = await new Promise(r => chrome.storage.local.get(key, r));
+    if (stored && stored[key]) launchParams = { ...launchParams, ...stored[key] };
+    chrome.storage.local.remove(key, () => void chrome.runtime.lastError);
+  } catch {}
+  readLaunchParams();
+}
+
+readLaunchParams();
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  await hydrateLaunchParams();
+  // Load settings from background
+  const res = await bgMsg({ type: 'get-settings' });
+  settings  = res.settings || {};
+  serverUrl = settings.serverUrl || 'http://127.0.0.1:8767';
+  if (mediaType === 'video') await resolveVideoMedia();
+
+  // UI – media type chip
+  const chip = document.getElementById('mediaChip');
+
+  if (mediaType === 'text') {
+    // ── Skill / text mode ──────────────────────────────────
+    document.getElementById('headerTitle').textContent = '保存 Skills 提示词';
+    document.getElementById('modeIcon').textContent = '🤖';
+    chip.textContent = 'Skills'; chip.className = 'chip chip-video';
+    document.getElementById('previewBox').style.display    = 'none';
+    document.getElementById('skillTextWrap').style.display = 'flex';
+    document.getElementById('reverseToggleRow').style.display = 'none';
+    document.getElementById('aiConfig').classList.remove('visible');
+    document.getElementById('projField').style.gridColumn = '1 / -1';
+    setCategory('skill_prompts');
+    // Load captured text from storage
+    chrome.storage.local.get('_psc_skill_text', ({ _psc_skill_text }) => {
+      document.getElementById('skillTextarea').value = _psc_skill_text || '';
+      chrome.storage.local.remove('_psc_skill_text');
+    });
+  } else {
+    // ── Image / video mode ─────────────────────────────────
+    chip.textContent = mediaType === 'video' ? '视频' : '图片';
+    chip.className = `chip ${mediaType === 'video' ? 'chip-video' : 'chip-image'}`;
+    document.getElementById('previewBox').style.display    = 'flex';
+    document.getElementById('skillTextWrap').style.display = 'none';
+    document.getElementById('promptInputWrap').style.display = 'flex';
+    setCategory(selectedCategory);
+    if (mode === 'reverse') {
+      document.getElementById('headerTitle').textContent = '反推提示词 → Prompt Studio';
+      document.getElementById('modeIcon').textContent = '✨';
+      document.getElementById('reverseToggleRow').style.display = 'none';
+      document.getElementById('promptInputWrap').style.display = 'none';
+      document.getElementById('aiConfig').classList.add('visible');
+      document.getElementById('actionBtn').textContent = '✨ 开始反推并保存';
+    }
+    const displayModel = mediaType === 'video' ? (settings.videoModel || 'gemini-2.5-pro') : (settings.imageModel || 'gpt-4o');
+    const displayBase  = mediaType === 'video' ? (settings.videoApiBase || '') : (settings.imageApiBase || '');
+    document.getElementById('cfgModel').value = displayModel;
+    document.getElementById('cfgBase').value  = displayBase;
+    renderPreview();
+  }
+
+  // Fetch projects
+  await loadProjects();
+}
+
+function bgMsg(msg) {
+  return new Promise(resolve => chrome.runtime.sendMessage(msg, resolve));
+}
+
+async function resolveVideoMedia() {
+  try {
+    const res = await bgMsg({ type: 'resolve-media-url', tabId, mediaUrl, mediaType, referer });
+    if (res?.mediaUrl) mediaUrl = res.mediaUrl;
+    if (res?.referer) referer = res.referer;
+    if (res?.cookie) requestCookie = res.cookie;
+  } catch {}
+}
+
+// ── Aspect Ratio Helpers ──────────────────────────────────────────────────────────────
+function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+function calcAspect(w, h) {
+  if (!w || !h) return '';
+  const COMMON = [
+    [1,1,'1:1'],[4,3,'4:3'],[3,4,'3:4'],[3,2,'3:2'],[2,3,'2:3'],
+    [16,9,'16:9'],[9,16,'9:16'],[21,9,'21:9'],[9,21,'9:21'],[2,1,'2:1'],[1,2,'1:2']
+  ];
+  const ratio = w / h;
+  for (const [rw, rh, label] of COMMON) {
+    if (Math.abs(ratio - rw/rh) < 0.02) return label;
+  }
+  const g = gcd(Math.round(w), Math.round(h));
+  return `${Math.round(w)/g}:${Math.round(h)/g}`;
+}
+function setAspect(w, h) {
+  document.getElementById('aspectWrap').style.display = 'flex';
+  document.getElementById('aspectInput').value = calcAspect(w, h);
+  document.getElementById('aspectDims').textContent = w && h ? `${w} × ${h}` : '';
+}
+
+// ── Preview ───────────────────────────────────────────────────────────────
+function renderPreview() {
+  const box = document.getElementById('previewBox');
+  if (!mediaUrl) {
+    box.innerHTML = '<div class="preview-url">（无媒体 URL）</div>';
+    return;
+  }
+  if (mediaType === 'video') {
+    const vid = document.createElement('video');
+    vid.src = mediaUrl; vid.controls = true; vid.muted = true;
+    vid.style.cssText = 'max-width:100%;max-height:200px';
+    vid.addEventListener('loadedmetadata', () => {
+      if (vid.videoWidth) setAspect(vid.videoWidth, vid.videoHeight);
+    });
+    box.innerHTML = ''; box.appendChild(vid);
+  } else {
+    const img = new Image();
+    img.onload  = () => {
+      box.innerHTML = ''; box.appendChild(img);
+      setAspect(img.naturalWidth, img.naturalHeight);
+    };
+    img.onerror = () => { box.innerHTML = `<div class="preview-url">🖼️ 无法预览<br>${mediaUrl}</div>`; };
+    img.src = mediaUrl;
+    img.style.cssText = 'max-width:100%;max-height:200px;object-fit:contain';
+    box.innerHTML = '<div class="spinner"></div>';
+  }
+}
+
+// ── Projects ──────────────────────────────────────────────────────────────────
+async function loadProjects() {
+  const sel = document.getElementById('projectSel');
+  try {
+    const r = await fetch(`${serverUrl}/api/projects`);
+    const projects = await r.json();
+    if (!projects.length) {
+      sel.innerHTML = '<option value="">（暂无项目，请先在 Prompt Studio 创建）</option>';
+      return;
+    }
+    sel.innerHTML = projects.map(p =>
+      `<option value="${p.id}">${p.name}</option>`
+    ).join('');
+  } catch {
+    sel.innerHTML = '<option value="">❌ 无法连接服务器，请检查设置</option>';
+  }
+}
+
+// ── Category ──────────────────────────────────────────────────────────────────
+function setCategory(cat) {
+  selectedCategory = cat;
+  document.querySelectorAll('#categoryRow .radio-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.cat === cat);
+  });
+}
+document.getElementById('categoryRow').addEventListener('click', e => {
+  const btn = e.target.closest('[data-cat]');
+  if (btn) setCategory(btn.dataset.cat);
+});
+
+// ── AI Title Generation ───────────────────────────────────────────────────────────
+document.getElementById('genTitleBtn').addEventListener('click', async () => {
+  const promptText = (document.getElementById('promptInput')?.value || '').trim();
+  if (!promptText) {
+    document.getElementById('titleInput').placeholder = '请先填写提示词内容';
+    return;
+  }
+  const btn = document.getElementById('genTitleBtn');
+  btn.textContent = '…'; btn.disabled = true;
+  try {
+    const res = await fetch(`${serverUrl}/api/gen-title`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: promptText,
+        apiKey:  settings.imageApiKey  || settings.videoApiKey,
+        apiBase: settings.imageApiBase || 'https://api.openai.com/v1',
+        model:   settings.imageModel   || settings.videoModel || 'gpt-4o-mini'
+      })
+    });
+    const data = await res.json();
+    if (data.ok) document.getElementById('titleInput').value = data.title;
+    else throw new Error(data.error);
+  } catch (e) {
+    document.getElementById('titleInput').placeholder = '生成失败：' + e.message;
+  } finally {
+    btn.textContent = '✨ 生成'; btn.disabled = false;
+  }
+});
+
+// ── Reverse mode chips ───────────────────────────────────────────────────────────
+const DIALOG_REVERSE_MODES = {
+  auto:   { label: '全面',  instruction: null },
+  outfit: { label: '服装',  instruction: '请仔细分析图片中人物的穿着，【必须从头到脚逐部位覆盖，画面内可见的部位一个不能漏】：头饰/帽子→发型→颈部装饰/颈甲→上衣/外套/内搭（款式/面料/颜色/图案）→手套/臂甲/手部装饰→下装（裤子/裙子款式/长度）→腰部/腰带→袜子/腿部（丝袜/过膝袜/腿甲等）→鞋子（款式/颜色/鞋跟）。同时注明：①各部位露肤程度（如实描述）②面料质感（棉/丝绸/皮革/蕾丝/透明纱等）③整体穿搭风格与叠穿层次。直接输出描述词，不要解释。' },
+  char:   { label: '人物',  instruction: '请仔细分析图片中所有人物，每个人物单独描述，覆盖以下全部内容：①画面中的位置（画面左/中/右、前景/中景/背景）②面朝方向（正面朝向镜头/斜45°小侧脸/正侧面/斜45°背面/完全背对镜头）③若多人则描述站位关系及相互朝向④外貌特征（发型发色/脸部特征/肤色/表情/体型）⑤姿态与动作——【重要：描述四肢位置时必须用画面方位而非人体左右，例如"画面右侧的手握着…""画面左侧的腿踩在…"，禁止直接说"左手""右脚"，因为角色面对镜头时人体左右与画面左右相反，AI容易判断错误】⑥【服装从头到脚逐部位，不得遗漏】：头饰→颈部→上衣/外套/内搭→手部/臂部→下装→腰带→袜子/腿部→鞋子，每部位描述款式/颜色/图案/材质⑦【铁律：画面中所有道具/物品必须描述，一个不漏】：人物手持/接触/身旁的每一件物品都要写清楚——物品名称、颜色、款式、上面的文字或标识、放置位置（握在画面某侧手中/靠在某处/踩在某物上/放置于旁边等），不得以"滑板""水壶"等一笔带过，必须描述完整细节⑧整体人物气质。直接输出描述词，不要解释。' },
+  scene:  { label: '场景',  instruction: '请仔细分析图片场景，按以下顺序输出：【第一步：先综合判断场所类型】不要只说「室外楼梯」这种表面信息，必须根据所有视觉线索（建筑结构/地面质地/周围设施/文化背景等）判断具体地点类型（如：滑板公园/地铁入口楼梯/商展中心外境/学校进入口/城市广场/天台山小道等），越具体越好。【第二步：层次描述】前景/中景/背景的具体元素、空间纵深感、背景与主体的距离关系。【第三步：氛围与时间】时间（日间/夜晚/黄昏等）、天气、季节、整体地点文化属性。直接输出描述词，不要解释。' },
+  style:  { label: '画风',  instruction: '请仔细分析图片画风，按以下顺序判断：【第一步：先判断渲染真实度】是否存在真实皮肤质感（毛孔/血管/次表面散射）、真实布料纹理、真实环境光源？→若是：这是【超写实/写实动漯风格】，应输出 hyperrealistic anime / photorealistic anime illustration，渲染技术为 PBR-based rendering + anime aesthetics，不得证写赛璐璐/厚涂。【第二步：检查描线】富有明显黑色描边→ thick outlines/lineart，无描边→ no outlines (painterly/realistic)。【第三步：着色风格】是平涂（cel-shading/flat shading）还是厚涂（painterly）还是写实（PBR/photo-real）。【第四步：作品引用】仅当明确识别时才引用具体作品/艺术家，不確定则写通用风格描述，不得猜测。最终输出英文关键词，不要解释。' },
+  cam:    { label: '运镜',  instruction: '请仔细分析图片的镜头语言，输出完整的镜头/运镜提示词。必须覆盖：①景别（大远景/远景/全景/中景/中近景/近景/特写/大特写）②垂直视角（仰视感→低角度仰拍；俯视感→高角度俯拍；否则→平视，描述倾斜程度）③水平视角（正面/正侧面/斜45°/背面/过肩）④焦距感（鱼眼/超广角/广角/标准/中长焦/长焦/超长焦）⑤景深与散景（浅/中/深，虚化程度）⑥透视感（强透视/正常/压缩透视）⑦构图方式（居中/三分/对角线/框架/引导线等）⑧画幅（竖/横/方/宽银幕及比例）⑨推荐镜头运动方式（推/拉/摇/移/跟/环绕/固定等）⑩镜头特效（光晕/眩光/色散/暗角，有则描述）。直接输出描述词，不要解释。' },
+};
+let dialogReverseMode = 'auto';
+document.querySelectorAll('#reverseModeRow .mode-chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    dialogReverseMode = btn.dataset.mode;
+    document.querySelectorAll('#reverseModeRow .mode-chip').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+  });
+});
+
+// ── Reverse toggle ───────────────────────────────────────────────────────────────
+document.getElementById('reverseToggle').addEventListener('change', e => {
+  document.getElementById('aiConfig').classList.toggle('visible', e.target.checked);
+  document.getElementById('reverseModeRow').style.display = e.target.checked ? 'flex' : 'none';
+  document.getElementById('promptInputWrap').style.display = e.target.checked ? 'none' : 'flex';
+  document.getElementById('actionBtn').textContent = e.target.checked
+    ? '✨ 反推并保存' : '💾 保存';
+});
+
+// ── Inline project creation ───────────────────────────────────────────────────────
+document.getElementById('addProjBtn').addEventListener('click', () => {
+  document.getElementById('newProjRow').style.display = 'flex';
+  document.getElementById('newProjName').focus();
+});
+document.getElementById('cancelProjBtn').addEventListener('click', () => {
+  document.getElementById('newProjRow').style.display = 'none';
+  document.getElementById('newProjName').value = '';
+});
+document.getElementById('createProjBtn').addEventListener('click', async () => {
+  const name = document.getElementById('newProjName').value.trim();
+  if (!name) return;
+  const btn = document.getElementById('createProjBtn');
+  btn.disabled = true; btn.textContent = '创建中…';
+  try {
+    const r = await fetch(`${serverUrl}/api/create-project`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    const sel = document.getElementById('projectSel');
+    const opt = document.createElement('option');
+    opt.value = d.project.id; opt.textContent = d.project.name;
+    sel.appendChild(opt); sel.value = d.project.id;
+    document.getElementById('newProjRow').style.display = 'none';
+    document.getElementById('newProjName').value = '';
+  } catch(e) { alert('创建失败：' + e.message); }
+  btn.disabled = false; btn.textContent = '创建';
+});
+
+// ── Go to settings ────────────────────────────────────────────────────────────
+document.getElementById('goSettings').addEventListener('click', () => {
+  chrome.runtime.openOptionsPage();
+});
+
+// ── Cancel ────────────────────────────────────────────────────────────────────
+document.getElementById('cancelBtn').addEventListener('click', () => window.close());
+
+// ── Main Action ───────────────────────────────────────────────────────────────
+document.getElementById('actionBtn').addEventListener('click', async () => {
+  const projectId = document.getElementById('projectSel').value;
+  if (!projectId) { alert('请先选择一个项目'); return; }
+  if (!mediaUrl && mediaType !== 'text') { alert('没有媒体 URL'); return; }
+
+  const doReverse = mode === 'reverse' || document.getElementById('reverseToggle').checked;
+  const title     = document.getElementById('titleInput').value.trim();
+
+  setUiState('loading');
+
+  try {
+    let prompt = '';
+
+    // ── Skill text mode: direct save ──────────────────────
+    if (mediaType === 'text') {
+      const skillText = document.getElementById('skillTextarea').value.trim();
+      if (!skillText) { setUiState('error', '提示词内容不能为空'); return; }
+      setSteps([{ text: '保存到 Prompt Studio', active: true }]);
+      const res = await fetch(`${serverUrl}/api/save-prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId, category: selectedCategory,
+          title, prompt: skillText,
+          model: settings.imageModel || '', tags: []
+        })
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || '保存失败');
+      setUiState('success', '已保存到 Prompt Studio！');
+      return;
+    }
+
+    // Use manually entered prompt when reverse is off
+    const manualPrompt = (document.getElementById('promptInput')?.value || '').trim();
+    let analysis = '';
+
+    if (doReverse) {
+      const apiKey = mediaType === 'video' ? settings.videoApiKey : settings.imageApiKey;
+      const apiBase = mediaType === 'video' ? settings.videoApiBase : settings.imageApiBase;
+      const model   = mediaType === 'video' ? (settings.videoModel || 'gemini-2.5-pro') : (settings.imageModel || 'gpt-4o');
+      if (!apiKey) {
+        setUiState('error', 'API Key 未配置，请先在桌面端「设置」里填写');
+        return;
+      }
+
+      setSteps([
+        { text: '下载媒体文件', active: true },
+        { text: 'AI 分析中…' + (mediaType === 'video' ? '（视频处理较慢，请耐心等待）' : ''), active: false },
+        { text: '保存到 Prompt Studio', active: false }
+      ]);
+
+      setLoadingMsg(`正在让 <strong>${model || 'AI'}</strong> 分析${mediaType === 'video' ? '视频' : '图片'}…`);
+
+      const reverseRes = await fetch(`${serverUrl}/api/reverse-prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: mediaUrl, mediaType,
+          referer,
+          pageUrl: launchParams.pageUrl || '',
+          cookie: requestCookie,
+          apiKey, apiBase, model,
+          lang: 'zh',
+          customInstruction: DIALOG_REVERSE_MODES[dialogReverseMode]?.instruction
+            || (mediaType === 'video'
+              ? settings.videoReverseInstruction
+              : settings.imageReverseInstruction) || undefined
+        })
+      });
+      const reverseData = await reverseRes.json();
+      if (!reverseData.ok) throw new Error(reverseData.error || 'AI 反推失败');
+      prompt   = reverseData.prompt;
+      analysis = reverseData.analysis || '';
+      // Auto-fill title if AI returned one (from JSON art-brief structure)
+      if (reverseData.title) {
+        const titleEl = document.getElementById('titleInput');
+        if (titleEl && !titleEl.value.trim()) titleEl.value = reverseData.title;
+      }
+
+      setSteps([
+        { text: '下载媒体文件', done: true },
+        { text: 'AI 分析完成', done: true },
+        { text: '保存到 Prompt Studio', active: true }
+      ]);
+    } else {
+      prompt = manualPrompt;
+      setSteps([{ text: '保存到 Prompt Studio', active: true }]);
+    }
+
+    setLoadingMsg('正在保存…');
+
+    const saveRes = await fetch(`${serverUrl}/api/save-media`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: mediaUrl, mediaType, projectId,
+        category: selectedCategory,
+        title, prompt, analysis,
+        referer,
+        pageUrl: launchParams.pageUrl || '',
+        cookie: requestCookie,
+        aspect: document.getElementById('aspectInput')?.value || '',
+        model: mediaType === 'video' ? (settings.videoModel || '') : (settings.imageModel || ''),
+        tags: []
+      })
+    });
+    const saveData = await saveRes.json();
+    if (!saveData.ok) throw new Error(saveData.error || '保存失败');
+
+    setSteps([{ text: '✅ 已保存到 Prompt Studio', done: true }]);
+    setUiState('success',
+      `${doReverse ? '反推完成并已' : ''}保存到项目！`,
+      prompt ? prompt : null
+    );
+
+  } catch (err) {
+    setUiState('error', err.message || '未知错误');
+  }
+});
+
+// ── UI State Helpers ──────────────────────────────────────────────────────────
+function setUiState(state, msg = '', extra = null) {
+  document.getElementById('formBody').style.display    = state === 'form'    ? 'flex' : 'none';
+  document.getElementById('loadingState').classList.toggle('visible', state === 'loading');
+  document.getElementById('successState').classList.toggle('visible', state === 'success');
+  document.getElementById('errorState').classList.toggle('visible',   state === 'error');
+  document.getElementById('footer').style.display = (state === 'loading') ? 'none' : 'flex';
+
+  if (state === 'form') {
+    document.getElementById('formBody').style.display = 'flex';
+  }
+  if (state === 'success') {
+    document.getElementById('successMsg').innerHTML = `<strong>${msg}</strong>`;
+    const rb = document.getElementById('resultBox');
+    if (extra) { rb.textContent = extra; rb.style.display = 'block'; }
+    else { rb.style.display = 'none'; }
+    document.getElementById('actionBtn').textContent = '✕ 关闭';
+    document.getElementById('actionBtn').onclick = () => window.close();
+    document.getElementById('cancelBtn').style.display = 'none';
+  }
+  if (state === 'error') {
+    document.getElementById('errorMsg').innerHTML = `<strong>出错了</strong><br>${msg}`;
+    document.getElementById('actionBtn').textContent = '← 返回';
+    document.getElementById('actionBtn').onclick = () => {
+      setUiState('form');
+      document.getElementById('actionBtn').textContent = mode === 'reverse' ? '✨ 开始反推并保存' : '💾 保存';
+      document.getElementById('actionBtn').onclick = null;
+      document.getElementById('actionBtn').addEventListener('click', handleAction);
+    };
+  }
+}
+
+function setLoadingMsg(html) {
+  document.getElementById('loadingMsg').innerHTML = html;
+}
+
+function setSteps(steps) {
+  document.getElementById('progressSteps').innerHTML = steps.map(s => `
+    <div class="progress-step ${s.done ? 'done' : s.active ? 'active' : ''}">
+      <span class="progress-step-icon">${s.done ? '✅' : s.active ? '⏳' : '○'}</span>
+      <span>${s.text}</span>
+    </div>
+  `).join('');
+}
+
+// Needed for the error-state back button re-binding
+function handleAction() {
+  document.getElementById('actionBtn').click();
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+// Start in form state
+document.getElementById('formBody').style.display = 'flex';
+['loadingState','successState','errorState'].forEach(id => {
+  document.getElementById(id).classList.remove('visible');
+});
+
+init();

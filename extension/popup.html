@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Prompt Studio Desktop</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--primary:#1b67da;--primary-soft:#eef4ff;--border:#e4e8ef;--text:#1a2340;--subtle:#6b7a99;--bg:#f5f6f8}
+  body{font-family:Inter,system-ui,sans-serif;font-size:13px;color:var(--text);background:#fff;width:280px;padding:0}
+  .header{padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+  .header h1{font-size:14px;font-weight:800}
+  .header p{font-size:11px;color:var(--subtle);margin-top:2px}
+  .status-row{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--border)}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .dot.ok{background:#16a34a}.dot.err{background:#dc2626}.dot.checking{background:#f59e0b}
+  .status-text{font-size:12px;color:var(--subtle);flex:1}
+  .section{padding:12px 16px;border-bottom:1px solid var(--border)}
+  .section-title{font-size:11px;font-weight:700;color:var(--subtle);margin-bottom:8px}
+  .btn{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-family:inherit;color:var(--text);transition:all .12s;margin-bottom:6px}
+  .btn:last-child{margin-bottom:0}
+  .btn:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .btn-icon{font-size:16px}
+  .btn-text{flex:1;text-align:left;font-weight:600}
+  .btn-sub{font-size:11px;color:var(--subtle);font-weight:400}
+  .footer{padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
+  .link{font-size:11px;color:var(--subtle);cursor:pointer;text-decoration:underline}
+  .link:hover{color:var(--primary)}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🎨 Prompt Studio Desktop</h1>
+  <p>右键图片/视频使用完整功能</p>
+</div>
+
+<div class="status-row">
+  <div class="dot checking" id="statusDot"></div>
+  <span class="status-text" id="statusText">正在检查服务器…</span>
+  <button id="blockSiteBtn" style="display:none;background:none;border:none;cursor:pointer;font-size:17px;padding:2px 4px;border-radius:5px;line-height:1;flex-shrink:0" title="屏蔽此网站工具栏">
+    <span id="blockIcon">🚫</span>
+  </button>
+</div>
+
+<div class="section">
+  <div class="section-title">快捷操作</div>
+  <button class="btn" id="openStudioBtn">
+    <span class="btn-icon">🖥️</span>
+    <span class="btn-text">打开桌面端</span>
+  </button>
+  <button class="btn" id="openSettingsBtn">
+    <span class="btn-icon">⚙️</span>
+    <span class="btn-text">插件设置</span>
+    <span class="btn-sub">连接 · 黑名单</span>
+  </button>
+</div>
+
+<div class="section">
+  <div class="section-title">使用方法</div>
+  <div style="font-size:12px;color:var(--subtle);line-height:1.7">
+    在任意网页上 <strong style="color:var(--text)">右键点击图片或视频</strong>，选择：
+    <br>・💾 <strong style="color:var(--text)">保存到桌面端</strong>
+    <br>・✨ <strong style="color:var(--text)">反推提示词</strong> → AI 自动分析并生成
+  </div>
+</div>
+
+<div class="section" id="startSection" style="display:none">
+  <button class="btn" id="startServerBtn" style="background:var(--primary-soft);color:var(--primary);border-color:#d0e3ff;font-weight:700">
+    <span class="btn-icon">🚀</span>
+    <span class="btn-text">唤起桌面端</span>
+    <span class="btn-sub">Prompt Studio Desktop</span>
+  </button>
+</div>
+
+<div class="footer">
+  <span class="link" id="reloadBtn">刷新状态</span>
+  <span style="font-size:11px;color:var(--subtle)">v1.0.0</span>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
