@@ -529,6 +529,23 @@
     color:var(--subtle);margin-bottom:4px;
   }
 
+  /* Global drop overlay */
+  #dropOverlay{
+    position:fixed;inset:0;z-index:9999;pointer-events:none;
+    display:none;align-items:center;justify-content:center;
+    background:rgba(27,103,218,.12);backdrop-filter:blur(3px);
+  }
+  #dropOverlay.active{pointer-events:all}
+  #dropOverlayBox{
+    display:flex;flex-direction:column;align-items:center;gap:14px;
+    background:#fff;border:2.5px dashed var(--primary);border-radius:20px;
+    padding:48px 64px;box-shadow:var(--shadow-lg);
+    pointer-events:none;
+  }
+  #dropOverlayBox .drop-ico{font-size:52px}
+  #dropOverlayBox .drop-title{font-size:16px;font-weight:700;color:var(--primary)}
+  #dropOverlayBox .drop-sub{font-size:12px;color:var(--subtle)}
+
   /* Upload zone */
   .upload-zone{
     border:1.5px dashed var(--border);border-radius:10px;padding:16px;
@@ -4014,7 +4031,128 @@
     es.onerror = () => { es.close(); setTimeout(connectSSE, 5000); };
   }
   connectSSE();
+
+  // ── Global Drag-Drop (TODO1: 拖入文件自动建卡) ──────────────────────────
+  (function initDropZone() {
+    let dragCounter = 0;
+    const overlay = document.getElementById('dropOverlay');
+
+    document.addEventListener('dragenter', (e) => {
+      if (!e.dataTransfer?.types?.includes('Files')) return;
+      dragCounter++;
+      overlay.style.display = 'flex';
+      overlay.classList.add('active');
+    });
+    document.addEventListener('dragleave', () => {
+      dragCounter--;
+      if (dragCounter <= 0) { dragCounter = 0; overlay.style.display = 'none'; overlay.classList.remove('active'); }
+    });
+    document.addEventListener('dragover', (e) => {
+      if (!e.dataTransfer?.types?.includes('Files')) return;
+      e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+    });
+
+    document.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      dragCounter = 0; overlay.style.display = 'none'; overlay.classList.remove('active');
+
+      const files = [...(e.dataTransfer?.files || [])];
+      if (!files.length) return;
+
+      if (!state.projectId) { toast('⚠️ 请先进入一个项目再拖放文件'); return; }
+
+      const images = files.filter(f => f.type.startsWith('image/'));
+      const videos = files.filter(f => f.type.startsWith('video/'));
+      const texts  = files.filter(f => f.type === 'text/plain' || f.name.endsWith('.txt') || f.name.endsWith('.md'));
+
+      // Single image → open modal pre-filled
+      if (files.length === 1 && images.length === 1) {
+        const file = images[0];
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          openPromptModal(null, 'image');
+          // Re-inject after modal resets (openPromptModal clears state for new items)
+          pmImgDataUrl = ev.target.result;
+          pmImgFile = file;
+          const prev = document.getElementById('pmImgPreview');
+          prev.src = pmImgDataUrl; prev.style.display = 'block';
+          const imgEl = document.getElementById('promptModalImg');
+          const phEl  = document.getElementById('promptModalImgPh');
+          imgEl.src = pmImgDataUrl; imgEl.style.display = 'block'; phEl.style.display = 'none';
+          document.getElementById('pmReanalyzeWrap').style.display = '';
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      // Single video → open modal pre-filled
+      if (files.length === 1 && videos.length === 1) {
+        openPromptModal(null, 'video');
+        // Re-inject after modal resets
+        pmVideoFile = videos[0];
+        pmVideoPath = '';
+        const url = URL.createObjectURL(pmVideoFile);
+        const videoEl = document.getElementById('promptModalVideo');
+        const phEl    = document.getElementById('promptModalImgPh');
+        videoEl.src = url; videoEl.style.display = 'flex'; phEl.style.display = 'none';
+        document.getElementById('pmReanalyzeWrap').style.display = '';
+        return;
+      }
+
+      // Single text → open skill panel pre-filled
+      if (files.length === 1 && texts.length === 1) {
+        const text = await texts[0].text();
+        openSkillPanel(null);
+        setTimeout(() => {
+          const ta = document.getElementById('skillPromptContent');
+          if (ta) { ta.value = text; ta.dispatchEvent(new Event('input')); }
+        }, 200);
+        return;
+      }
+
+      // Multiple files → batch create silently
+      const proj = getProject(state.projectId);
+      if (!proj) return;
+      const projName = proj.name || 'default';
+      const total = images.length + videos.length;
+      if (total === 0) { toast('⚠️ 不支持的文件类型，请拖入图片或视频'); return; }
+      toast(`⏳ 正在导入 ${total} 个文件…`);
+      let count = 0;
+
+      for (const file of images) {
+        try {
+          const dataUrl = await new Promise((res, rej) => {
+            const r = new FileReader(); r.onload = ev => res(ev.target.result); r.onerror = rej; r.readAsDataURL(file);
+          });
+          const path = await uploadImage(dataUrl, file.name, projName);
+          proj.image_prompts = proj.image_prompts || [];
+          proj.image_prompts.unshift({ id:uid(), title:file.name.replace(/\.[^.]+$/,''), prompt:'', model:'GPT Image 2', aspect:'16:9', tags:[], image:path, video:'', ref_images:[], analysis:'', created_at:new Date().toISOString() });
+          count++;
+        } catch {}
+      }
+      for (const file of videos) {
+        try {
+          const path = await uploadVideo(file, projName);
+          proj.video_prompts = proj.video_prompts || [];
+          proj.video_prompts.unshift({ id:uid(), title:file.name.replace(/\.[^.]+$/,''), prompt:'', model:'Seedance 2.0', aspect:'16:9', tags:[], image:'', video:path, ref_images:[], analysis:'', created_at:new Date().toISOString() });
+          count++;
+        } catch {}
+      }
+
+      if (count > 0) { await saveData(data); renderPage(); renderSidebar(); toast(`✅ 已导入 ${count} 个文件`); }
+      else { toast('❌ 导入失败'); }
+    });
+  })();
+
 })();
 </script>
+
+<div id="dropOverlay">
+  <div id="dropOverlayBox">
+    <div class="drop-ico">📥</div>
+    <div class="drop-title">松开以导入文件</div>
+    <div class="drop-sub">图片 · 视频 · 文本</div>
+  </div>
+</div>
 </body>
 </html>
