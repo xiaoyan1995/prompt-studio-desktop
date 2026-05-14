@@ -1,98 +1,193 @@
-# Prompt Studio Desktop
+<div align="center">
 
-这是一个和原项目并行存在的桌面端版本，默认使用 `http://127.0.0.1:8767`，不会影响原来的 `8766` 版本。
+# 🎨 Prompt Studio Desktop
 
-## 开发运行
+**A local desktop app for managing AI image & video prompts — with a companion browser extension.**
 
-直接双击根目录的 `dev-start.bat`，或在终端运行：
+[![Version](https://img.shields.io/badge/version-1.0.3-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)](#build)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Electron](https://img.shields.io/badge/Electron-37-47848F.svg)](https://www.electronjs.org/)
 
-```powershell
-cd prompt_studio_desktop
-.\dev-start.bat
+[English](#english) · [中文说明](#中文说明)
+
+</div>
+
+---
+
+## English
+
+### ✨ Features
+
+- 📁 **Project-based organization** — group image & video prompts by project
+- 🖼️ **Rich media support** — attach reference images and videos to each prompt
+- 🤖 **Skills / Agent prompts** — full Markdown editor with preview
+- 🔍 **Reverse prompt** — analyze uploaded media and auto-generate prompt text
+- 🏷️ **Tags & search** — full-text search across titles, prompts, tags and analysis
+- 📦 **Export bundles** — zip selected assets with metadata for sharing
+- 💾 **Snapshot backup** — one-click local backup and restore
+- 🔁 **Duplicate detection** — find identical or similar prompts across projects
+- 🌐 **Browser extension** — floating toolbar on any page; send media to desktop instantly
+- 🚫 **Domain blacklist** — per-site block list to hide the extension toolbar
+
+### 📦 Installation (No Build Required)
+
+Download the latest distribution zip from [Releases](https://github.com/xiaoyan1995/prompt-studio-desktop/releases), unzip and run:
+
+```
+Prompt Studio Desktop/
+├── Prompt Studio Desktop.exe   ← double-click to launch
+├── studio-data/                ← your data lives here (auto-created)
+└── extension/                  ← load this folder as a browser extension
 ```
 
-开发模式会用本机 Python 启动 `desktop/studio/server.py`。
+**Load the browser extension:**
+1. Open `chrome://extensions` (Chrome / Edge)
+2. Enable **Developer mode**
+3. Click **Load unpacked** → select the `extension/` folder
 
-只检查环境不启动窗口：
+### 🛠️ Development
 
-```powershell
-.\dev-start.bat --check
-```
-
-## 安装新版浏览器插件
-
-1. 打开 Chrome / Edge 的扩展管理页。
-2. 开启开发者模式。
-3. 加载 `prompt_studio_desktop/extension`。
-
-新版插件默认连接桌面端 `http://127.0.0.1:8767`。
-
-## 设置归属
-
-桌面端「设置」是主配置：
-
-- AI Key
-- 图片/视频模型
-- 反推默认指令
-- 提示词预设库
-
-插件设置只保留：
-
-- 桌面端连接地址
-- 站点黑名单
-
-反推时插件会优先读取桌面端 `/api/desktop/settings`，所以不要在插件里维护第二套 AI 配置。
-
-## 数据目录
-
-正式包会把数据放在软件同目录的 `studio-data` 文件夹里，和原版“程序旁边存数据”的方式一致：
-
-- Windows 文件夹免安装版：`Prompt Studio Desktop/studio-data`
-- Windows 单文件便携版：`Prompt Studio Desktop 1.0.2.exe` 旁边的 `studio-data`
-- Windows 安装版：安装目录旁的 `studio-data`
-- macOS：`Prompt Studio Desktop.app` 所在目录旁的 `studio-data`，或单文件便携环境提供的同级目录
-
-迁移数据只需把旧的 `studio-data` 文件夹复制到新版软件同目录即可。
-
-## 删除与素材清理
-
-默认删除只删除项目/提示词记录，不会删除 `studio-data/uploads` 里的图片或视频。
-
-图片/视频提示词详情里可以使用「删除+素材」，它会删除当前提示词记录，并删除只被这条提示词引用的本地图片/视频；如果同一个素材还被其他提示词引用，会保留。
-
-桌面端设置里的「清理未引用素材」会扫描 `studio-data/uploads`，删除所有没有被任何提示词引用的本地图片/视频。
-
-## 打包说明
-
-正式发布前建议先用 PyInstaller 把 `desktop/studio/server.py` 打成 sidecar，并放入：
-
-```text
-prompt_studio_desktop/desktop/server-dist/prompt-studio-server.exe
-prompt_studio_desktop/desktop/server-dist/prompt-studio-server
-```
-
-Electron 启动时会优先使用 sidecar；找不到 sidecar 时才退回系统 Python。
-
-### Windows
-
-在 Windows 上运行：
-
-```powershell
-cd prompt_studio_desktop\desktop
-npm install
-python -m PyInstaller --clean --noconfirm --onefile --name prompt-studio-server --distpath server-dist --workpath server-build --specpath server-build studio\server.py
-$env:CSC_IDENTITY_AUTO_DISCOVERY='false'
-npm run build:win -- --publish never
-```
-
-产物在 `desktop/dist`。
-
-### macOS
-
-macOS 安装包必须在 macOS 上构建。把源码包拷到 Mac 后运行：
+**Requirements:** Node.js 18+, Python 3.10+
 
 ```bash
-bash build-mac.command
+# Clone
+git clone https://github.com/xiaoyan1995/prompt-studio-desktop.git
+cd prompt-studio-desktop
+
+# Install dependencies
+cd desktop && npm install
+
+# Start (Windows)
+cd ..
+dev-start.bat
+
+# Start (macOS / Linux)
+cd desktop && npm start
 ```
 
-产物在 `desktop/dist`，同一份 `extension` 可在 macOS 的 Chrome / Edge / Arc 里加载。
+Dev mode starts `studio/server.py` automatically using your system Python.
+
+### 🏗️ Build
+
+<details>
+<summary><b>Windows</b></summary>
+
+```powershell
+cd desktop
+npm install
+
+# Compile Python server (required for packaged app)
+python -m PyInstaller --clean --noconfirm --onefile `
+  --name prompt-studio-server `
+  --distpath server-dist `
+  --workpath server-build `
+  --specpath server-build `
+  studio\server.py
+
+# Build Electron app
+$env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
+npm run build:win
+```
+
+Output: `desktop/dist/`
+</details>
+
+<details>
+<summary><b>macOS</b></summary>
+
+```bash
+cd desktop && npm install
+bash ../build-mac.command
+```
+
+Output: `desktop/dist/`
+</details>
+
+### 📂 Data Directory
+
+All data is stored **next to the app**, never in hidden system folders:
+
+| Platform | Path |
+|---|---|
+| Windows (portable) | `Prompt Studio Desktop\studio-data\` |
+| macOS | `Prompt Studio Desktop.app/../studio-data\` |
+
+To migrate data, simply copy the `studio-data/` folder to the new version's directory.
+
+---
+
+## 中文说明
+
+### ✨ 功能特性
+
+- 📁 **项目式管理** — 按项目组织图片和视频提示词
+- 🖼️ **富媒体支持** — 每条提示词可附加参考图片和视频
+- 🤖 **Skills / Agent 提示词** — 全功能 Markdown 编辑器含预览
+- 🔍 **反推提示词** — 上传素材后自动分析生成提示词文本
+- 🏷️ **标签与全文搜索** — 跨标题、提示词、标签、分析报告检索
+- 📦 **一键导出包** — 将选中资产打包为 ZIP 分享
+- 💾 **快照备份** — 一键本地备份与恢复
+- 🔁 **重复检测** — 发现跨项目的相同或相似提示词
+- 🌐 **浏览器插件** — 任意页面浮动工具栏，一键发送素材到桌面端
+- 🚫 **域名黑名单** — 按站点屏蔽插件工具栏
+
+### 📦 安装使用（无需编译）
+
+从 [Releases](https://github.com/xiaoyan1995/prompt-studio-desktop/releases) 下载最新分发包，解压后直接双击 `Prompt Studio Desktop.exe` 运行。
+
+**安装浏览器插件：**
+1. 打开 `chrome://extensions`（Chrome / Edge）
+2. 开启**开发者模式**
+3. 点击**加载已解压的扩展程序** → 选择 `extension/` 文件夹
+
+### 🛠️ 开发运行
+
+**环境要求：** Node.js 18+，Python 3.10+
+
+```powershell
+# 克隆仓库
+git clone https://github.com/xiaoyan1995/prompt-studio-desktop.git
+cd prompt-studio-desktop
+
+# 安装依赖
+cd desktop
+npm install
+
+# 启动（Windows）
+cd ..
+dev-start.bat
+```
+
+开发模式会自动用本机 Python 启动 `studio/server.py`。
+
+### 📂 数据目录
+
+数据始终存储在**软件同目录**的 `studio-data/` 文件夹，迁移时直接复制该文件夹到新版目录即可。
+
+### 🏗️ 打包说明
+
+```powershell
+cd desktop
+npm install
+
+# 编译 Python 服务（打包必须）
+python -m PyInstaller --clean --noconfirm --onefile `
+  --name prompt-studio-server `
+  --distpath server-dist `
+  --workpath server-build `
+  --specpath server-build `
+  studio\server.py
+
+# 构建 Electron 应用
+$env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
+npm run build:win
+```
+
+产物在 `desktop/dist/`，macOS 在 Mac 上运行 `bash build-mac.command`。
+
+---
+
+<div align="center">
+<sub>Built with Electron · Python · Vanilla JS</sub>
+</div>
