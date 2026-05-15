@@ -254,25 +254,24 @@ function registerClipboardHandlers() {
 }
 
 // ── Native file drag-out IPC (TODO2) ─────────────────────────────────────
+let _dragIcon = null;
+function getDragIcon() {
+  if (_dragIcon) return _dragIcon;
+  const size = 48;
+  const buf  = Buffer.alloc(size * size * 4);
+  for (let i = 0; i < size * size; i++) {
+    buf[i*4]=59; buf[i*4+1]=130; buf[i*4+2]=246; buf[i*4+3]=220;
+  }
+  _dragIcon = nativeImage.createFromBuffer(buf, { width: size, height: size });
+  return _dragIcon;
+}
 function registerDragHandlers() {
-  ipcMain.on('drag:start', (event, { uploadPath, iconDataUrl }) => {
+  ipcMain.on('drag:start', (event, uploadPath) => {
     try {
       const localPath = resolveUploadPath(uploadPath);
-      if (!localPath) return;
-      let icon;
-      if (iconDataUrl && iconDataUrl.startsWith('data:image/')) {
-        icon = nativeImage.createFromDataURL(iconDataUrl).resize({ width: 64, height: 64 });
-      } else {
-        // Generic colored square as drag icon for non-image files
-        const size = 48;
-        const buf  = Buffer.alloc(size * size * 4);
-        for (let i = 0; i < size * size; i++) {
-          buf[i*4]=59; buf[i*4+1]=130; buf[i*4+2]=246; buf[i*4+3]=220;
-        }
-        icon = nativeImage.createFromBuffer(buf, { width: size, height: size });
-      }
-      event.sender.startDrag({ file: localPath, icon });
+      if (localPath) event.sender.startDrag({ file: localPath, icon: getDragIcon() });
     } catch (e) { logLine('drag:start error ' + e.message); }
+    event.returnValue = null;
   });
 }
 

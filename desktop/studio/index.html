@@ -2895,21 +2895,7 @@
         const uploadPath = dtype === 'video' ? ditem.video : ditem.image;
         if (!uploadPath) { de.preventDefault(); return; }
         de.dataTransfer.setData('text/plain', ditem.prompt || uploadPath);
-        if (dtype === 'image') {
-          // Pass a small thumbnail as drag icon via canvas
-          const thumbImg = card.querySelector('.card-thumb');
-          let iconDataUrl = null;
-          if (thumbImg && thumbImg.complete && thumbImg.naturalWidth > 0) {
-            try {
-              const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
-              cv.getContext('2d').drawImage(thumbImg, 0, 0, 64, 64);
-              iconDataUrl = cv.toDataURL('image/png');
-            } catch {}
-          }
-          window.electronAPI.startFileDrag(uploadPath, iconDataUrl);
-        } else {
-          window.electronAPI.startFileDrag(uploadPath, null);
-        }
+        window.electronAPI.startFileDrag(uploadPath);
       });
     });
     grid.querySelectorAll('[data-del-prompt]').forEach(btn => {
