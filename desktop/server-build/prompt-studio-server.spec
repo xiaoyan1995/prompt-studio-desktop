@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
-_server_py = os.path.join('..', 'studio', 'server.py')
+_server_py = os.path.join(SPECPATH, '..', 'studio', 'server.py')
 
 a = Analysis(
     [_server_py],
