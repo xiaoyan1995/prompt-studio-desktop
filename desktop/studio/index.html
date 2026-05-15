@@ -4196,6 +4196,8 @@
       // Only react to external file drags, not internal card drag-outs
       if (!e.dataTransfer?.types?.includes('Files')) return;
       if (e.dataTransfer?.types?.includes('text/plain') && !e.dataTransfer?.types?.includes('text/uri-list')) return;
+      // Don't show overlay when any modal is open (e.g. user drags .txt into prompt textarea)
+      if (document.querySelector('.modal-backdrop.open')) return;
       dragCounter++;
       overlay.style.display = 'flex';
       overlay.classList.add('active');
@@ -4212,6 +4214,8 @@
     document.addEventListener('drop', async (e) => {
       e.preventDefault();
       dragCounter = 0; overlay.style.display = 'none'; overlay.classList.remove('active');
+      // If a modal is open the drop was handled internally (e.g. textarea), skip global handling
+      if (document.querySelector('.modal-backdrop.open')) return;
 
       const files = [...(e.dataTransfer?.files || [])];
       if (!files.length) return;
