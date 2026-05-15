@@ -1,12 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
-
+import os
+_server_py = os.path.join('..', 'studio', 'server.py')
 
 a = Analysis(
-    ['..\\studio\\server.py'],
+    [_server_py],
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=['email.mime.text','email.mime.multipart','http.server','urllib.parse'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
