@@ -4,7 +4,8 @@
 
 **本地桌面端 AI 图片 & 视频提示词管理工具，配套浏览器插件。**
 
-[![版本](https://img.shields.io/badge/版本-1.0.3-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![版本](https://img.shields.io/badge/版本-1.0.4-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![构建](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml)
 [![平台](https://img.shields.io/badge/平台-Windows%20%7C%20macOS-lightgrey.svg)](#打包说明)
 [![Electron](https://img.shields.io/badge/Electron-37-47848F.svg)](https://www.electronjs.org/)
 
@@ -25,7 +26,8 @@
 - 💾 **快照备份** — 一键本地备份与恢复
 - 🔁 **重复检测** — 发现跨项目的相同或相似提示词
 - 🌐 **浏览器插件** — 任意页面浮动工具栏，一键发送素材到桌面端
-- 🚫 **域名黑名单** — 按站点屏蔽插件工具栏
+- � **文档库** — 上传并预览 PDF、Word、Excel、PPT、TXT、Markdown 等多种格式
+- �🚫 **域名黑名单** — 按站点屏蔽插件工具栏
 
 ---
 
@@ -71,29 +73,35 @@ dev-start.bat
 
 ## 🏗️ 打包说明
 
+打包已通过 **GitHub Actions 自动化** — 每次推送 `main` 分支自动构建 Windows + macOS 产物，推送版本 tag 自动创建 GitHub Release。
+
+```bash
+# 发布新版本
+git tag v1.0.4
+git push origin v1.0.4
+```
+
+<details>
+<summary>手动本地打包</summary>
+
 ```powershell
+# Windows
 cd desktop
-npm install
-
-# 编译 Python 服务（打包必须）
-python -m PyInstaller --clean --noconfirm --onefile `
-  --name prompt-studio-server `
-  --distpath server-dist `
-  --workpath server-build `
-  --specpath server-build `
-  studio\server.py
-
-# 构建 Electron 应用
-$env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
+pip install pyinstaller
+pyinstaller --clean --noconfirm server-build/prompt-studio-server.spec --distpath server-dist
 npm run build:win
 ```
 
-产物在 `desktop/dist/`。macOS 打包需在 Mac 上运行：
-
 ```bash
-cd desktop && npm install
-bash ../build-mac.command
+# macOS
+cd desktop
+pip3 install pyinstaller
+pyinstaller --clean --noconfirm server-build/prompt-studio-server.spec --distpath server-dist
+npm run build:mac
 ```
+
+产物在 `desktop/dist/`
+</details>
 
 ---
 

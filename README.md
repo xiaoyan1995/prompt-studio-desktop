@@ -4,7 +4,8 @@
 
 **A local desktop app for managing AI image & video prompts — with a companion browser extension.**
 
-[![Version](https://img.shields.io/badge/version-1.0.3-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![Version](https://img.shields.io/badge/version-1.0.4-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![Build](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)](#build)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-37-47848F.svg)](https://www.electronjs.org/)
@@ -26,7 +27,8 @@
 - 💾 **Snapshot backup** — one-click local backup and restore
 - 🔁 **Duplicate detection** — find identical or similar prompts across projects
 - 🌐 **Browser extension** — floating toolbar on any page; send media to desktop instantly
-- 🚫 **Domain blacklist** — per-site block list to hide the extension toolbar
+- � **Document library** — upload & preview PDF, Word, Excel, PPT, TXT, Markdown and more
+- �🚫 **Domain blacklist** — per-site block list to hide the extension toolbar
 
 ### 📦 Installation (No Build Required)
 
@@ -68,35 +70,31 @@ Dev mode starts `studio/server.py` automatically using your system Python.
 
 ### 🏗️ Build
 
+Builds are **automated via GitHub Actions** — every push to `main` produces Windows + macOS artifacts, and pushing a version tag creates a GitHub Release.
+
+```bash
+# Trigger a release
+git tag v1.0.4
+git push origin v1.0.4
+```
+
 <details>
-<summary><b>Windows</b></summary>
+<summary>Manual build (local)</summary>
 
 ```powershell
+# Windows
 cd desktop
-npm install
-
-# Compile Python server (required for packaged app)
-python -m PyInstaller --clean --noconfirm --onefile `
-  --name prompt-studio-server `
-  --distpath server-dist `
-  --workpath server-build `
-  --specpath server-build `
-  studio\server.py
-
-# Build Electron app
-$env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
+pip install pyinstaller
+pyinstaller --clean --noconfirm server-build/prompt-studio-server.spec --distpath server-dist
 npm run build:win
 ```
 
-Output: `desktop/dist/`
-</details>
-
-<details>
-<summary><b>macOS</b></summary>
-
 ```bash
-cd desktop && npm install
-bash ../build-mac.command
+# macOS
+cd desktop
+pip3 install pyinstaller
+pyinstaller --clean --noconfirm server-build/prompt-studio-server.spec --distpath server-dist
+npm run build:mac
 ```
 
 Output: `desktop/dist/`
