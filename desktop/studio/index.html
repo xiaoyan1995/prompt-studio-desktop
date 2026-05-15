@@ -350,6 +350,7 @@
   }
   .video-scrub-track{
     width:100%;height:4px;border-radius:99px;background:rgba(255,255,255,.28);overflow:hidden;
+    pointer-events:all;cursor:pointer;
   }
   .video-scrub-fill{
     height:100%;width:0%;background:#3b82f6;border-radius:99px;
@@ -1944,11 +1945,12 @@
     else videoEl.addEventListener('loadedmetadata', sync, { once: true });
 
     let rafId = 0;
-    const onMove = (e) => {
+    let isDragging = false;
+    const scrub = (clientX) => {
       if (!duration || !Number.isFinite(duration)) return;
       const rect = shell.getBoundingClientRect();
       if (!rect.width) return;
-      const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
       const target = duration * ratio;
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
@@ -1958,19 +1960,41 @@
       });
     };
     const onLeave = () => {
+      if (isDragging) return; // keep scrubbing if mouse button held
       if (rafId) cancelAnimationFrame(rafId);
       fill.style.width = '0%';
       curr.textContent = '00:00';
       try { videoEl.currentTime = 0; } catch {}
       videoEl.pause();
     };
-    shell.addEventListener('mousemove', onMove);
+    shell.addEventListener('mousemove', (e) => { if (!isDragging) scrub(e.clientX); });
     shell.addEventListener('mouseleave', onLeave);
     shell.addEventListener('mouseenter', () => {
       videoEl.muted = true;
       videoEl.pause();
       if (duration > 0) total.textContent = formatSec(duration);
     });
+    // Fix: prevent browser drag-start so mousemove keeps firing during click-drag
+    const startDrag = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      isDragging = true;
+      scrub(e.clientX);
+      const onGlobalMove = (ev) => scrub(ev.clientX);
+      const onGlobalUp = () => {
+        isDragging = false;
+        document.removeEventListener('mousemove', onGlobalMove);
+        document.removeEventListener('mouseup', onGlobalUp);
+        if (!shell.matches(':hover')) onLeave();
+      };
+      document.addEventListener('mousemove', onGlobalMove);
+      document.addEventListener('mouseup', onGlobalUp);
+    };
+    const track = card.querySelector('.video-scrub-track');
+    if (track) {
+      track.addEventListener('mousedown', startDrag);
+      track.addEventListener('dragstart', (e) => e.preventDefault());
+    }
   }
   function extractPaletteFromImage(src, swatches=8) {
     // RGB → CIE L*a*b* for perceptual distance clustering

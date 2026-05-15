@@ -740,13 +740,54 @@ class Handler(SimpleHTTPRequestHandler):
         if not target.exists() or not target.is_file():
             return self._err(404, "Not found")
         ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
-        self.send_response(200)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(target.stat().st_size))
-        self._cors_headers()
-        self.end_headers()
-        with target.open("rb") as f:
-            shutil.copyfileobj(f, self.wfile)
+        file_size = target.stat().st_size
+        range_header = self.headers.get("Range")
+        if range_header:
+            try:
+                spec = range_header.replace("bytes=", "").strip()
+                parts = spec.split("-")
+                start = int(parts[0]) if parts[0] else 0
+                end = int(parts[1]) if len(parts) > 1 and parts[1] else file_size - 1
+                end = min(end, file_size - 1)
+            except (ValueError, IndexError):
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{file_size}")
+                self.end_headers()
+                return
+            if start >= file_size:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{file_size}")
+                self.end_headers()
+                return
+            length = end - start + 1
+            self.send_response(206)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(length))
+            self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
+            self.send_header("Accept-Ranges", "bytes")
+            self._cors_headers()
+            self.end_headers()
+            with target.open("rb") as f:
+                f.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = f.read(min(65536, remaining))
+                    if not chunk:
+                        break
+                    try:
+                        self.wfile.write(chunk)
+                    except Exception:
+                        break
+                    remaining -= len(chunk)
+        else:
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(file_size))
+            self.send_header("Accept-Ranges", "bytes")
+            self._cors_headers()
+            self.end_headers()
+            with target.open("rb") as f:
+                shutil.copyfileobj(f, self.wfile)
 
     def _serve_export(self, path):
         rel = unquote(path[len("/exports/"):]).replace("\\", "/").strip()
