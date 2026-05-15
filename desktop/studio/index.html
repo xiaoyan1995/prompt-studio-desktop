@@ -2886,6 +2886,31 @@
       if (vid) attachVideoScrubberPreview(card, vid);
       const selectKey = `${card.dataset.promptType}:${card.dataset.promptId}`;
       card.classList.toggle('selected', uiState.selectedIds.has(selectKey));
+      // ── Drag-Out (TODO2) ──────────────────────────────────────────────
+      card.setAttribute('draggable', 'true');
+      card.addEventListener('dragstart', (de) => {
+        const dtype = card.dataset.promptType;
+        const ditem = prompts.find(p => p.id === card.dataset.promptId && p.__type === dtype);
+        if (!ditem || !window.electronAPI) return;
+        const uploadPath = dtype === 'video' ? ditem.video : ditem.image;
+        if (!uploadPath) { de.preventDefault(); return; }
+        de.dataTransfer.setData('text/plain', ditem.prompt || uploadPath);
+        if (dtype === 'image') {
+          // Pass a small thumbnail as drag icon via canvas
+          const thumbImg = card.querySelector('.card-thumb');
+          let iconDataUrl = null;
+          if (thumbImg && thumbImg.complete && thumbImg.naturalWidth > 0) {
+            try {
+              const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
+              cv.getContext('2d').drawImage(thumbImg, 0, 0, 64, 64);
+              iconDataUrl = cv.toDataURL('image/png');
+            } catch {}
+          }
+          window.electronAPI.startFileDrag(uploadPath, iconDataUrl);
+        } else {
+          window.electronAPI.startFileDrag(uploadPath, null);
+        }
+      });
     });
     grid.querySelectorAll('[data-del-prompt]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -4056,13 +4081,85 @@
   }
   connectSSE();
 
+  // ── Clipboard Copy-Out (TODO3: Ctrl+C 复制卡片内容) ────────────────────
+  document.addEventListener('keydown', async (ev) => {
+    if (!(ev.ctrlKey || ev.metaKey) || ev.key.toLowerCase() !== 'c') return;
+    if (ev.target.matches('input,textarea,[contenteditable]')) return;
+    const item = uiState.selectedItem;
+    if (!item) return;
+    const api = window.electronAPI;
+    if (!api) return;
+    ev.preventDefault();
+    const type = item.__type;
+    if (type === 'image') {
+      if (item.image) {
+        const ok = await api.copyImage(item.image);
+        toast(ok ? '✅ 图片已复制到剪贴板' : '⚠️ 复制失败，已复制路径');
+        if (!ok) await api.copyText(item.image);
+      } else {
+        await api.copyText(item.prompt || ''); toast('✅ 提示词已复制');
+      }
+    } else if (type === 'video') {
+      if (item.video) {
+        await api.copyFiles([item.video]); toast('✅ 视频文件已复制（可粘贴到资源管理器）');
+      } else {
+        await api.copyText(item.prompt || ''); toast('✅ 提示词已复制');
+      }
+    } else {
+      await api.copyText(item.prompt || ''); toast('✅ 提示词已复制');
+    }
+  });
+
+  // ── Clipboard Paste-In (TODO3: Ctrl+V 粘贴进应用) ───────────────────────
+  document.addEventListener('paste', async (ev) => {
+    if (ev.target.matches('input,textarea,[contenteditable]')) return;
+    if (!state.projectId) { toast('⚠️ 请先进入一个项目'); return; }
+    const items = [...(ev.clipboardData?.items || [])];
+    const imgItem = items.find(i => i.type.startsWith('image/'));
+    if (imgItem) {
+      ev.preventDefault();
+      const file = imgItem.getAsFile(); if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        openPromptModal(null, 'image');
+        pmImgDataUrl = e.target.result; pmImgFile = file;
+        const prev = document.getElementById('pmImgPreview');
+        prev.src = pmImgDataUrl; prev.style.display = 'block';
+        const imgEl = document.getElementById('promptModalImg');
+        const phEl  = document.getElementById('promptModalImgPh');
+        imgEl.src = pmImgDataUrl; imgEl.style.display = 'block'; phEl.style.display = 'none';
+        document.getElementById('pmReanalyzeWrap').style.display = '';
+        toast('📋 已从剪贴板粘贴图片');
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+    // Text paste → only if a text/skill card is selected, fill prompt field
+    const textItem = items.find(i => i.type === 'text/plain');
+    if (textItem) {
+      textItem.getAsString(async (txt) => {
+        if (!txt.trim()) return;
+        const item = uiState.selectedItem;
+        if (item?.__type === 'skill') {
+          openSkillPanel(item.id);
+          setTimeout(() => {
+            const ta = document.getElementById('skillPromptContent');
+            if (ta) { ta.value = txt; ta.dispatchEvent(new Event('input')); }
+          }, 200);
+        }
+      });
+    }
+  });
+
   // ── Global Drag-Drop (TODO1: 拖入文件自动建卡) ──────────────────────────
   (function initDropZone() {
     let dragCounter = 0;
     const overlay = document.getElementById('dropOverlay');
 
     document.addEventListener('dragenter', (e) => {
+      // Only react to external file drags, not internal card drag-outs
       if (!e.dataTransfer?.types?.includes('Files')) return;
+      if (e.dataTransfer?.types?.includes('text/plain') && !e.dataTransfer?.types?.includes('text/uri-list')) return;
       dragCounter++;
       overlay.style.display = 'flex';
       overlay.classList.add('active');

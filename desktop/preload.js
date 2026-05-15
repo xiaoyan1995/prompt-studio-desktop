@@ -5,3 +5,13 @@ contextBridge.exposeInMainWorld('promptStudioWindow', {
   toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
   close: () => ipcRenderer.invoke('window:close'),
 });
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  // ── Clipboard write ───────────────────────────────────────────────────
+  copyImage : (uploadPath)  => ipcRenderer.invoke('clipboard:copy-image',  uploadPath),
+  copyText  : (text)        => ipcRenderer.invoke('clipboard:copy-text',   text),
+  copyFiles : (uploadPaths) => ipcRenderer.invoke('clipboard:copy-files',  uploadPaths),
+  // ── Native file drag-out (TODO2) ──────────────────────────────────────
+  startFileDrag: (uploadPath, iconDataUrl) =>
+    ipcRenderer.send('drag:start', { uploadPath, iconDataUrl }),
+});
