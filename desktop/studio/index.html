@@ -1585,7 +1585,7 @@
         </div>
 
         <div class="field" id="pmPromptFieldOuter">
-          <label id="pmPromptLabel">提示词内容 *</label>
+          <label id="pmPromptLabel" style="display:flex;align-items:center;justify-content:space-between">提示词内容 *<label title="从 .txt / .md 文件导入" style="cursor:pointer;font-size:11px;font-weight:500;color:var(--primary);background:var(--primary-soft);border-radius:5px;padding:2px 8px;white-space:nowrap">📄 导入文档<input type="file" id="pmImportTextFile" accept=".txt,.md,.markdown,.mdx" style="display:none"></label></label>
           <div id="mdEditorWrap" style="display:none">
             <div class="md-editor-header">
               <button class="md-tab active" id="mdTabEditBtn">✏️ 编辑</button>
@@ -3566,6 +3566,20 @@
       if (v && !pmTags.includes(v)) { pmTags.push(v); renderPmTags(); }
       e.target.value = '';
     }
+  });
+
+  // Import text/md file into prompt textarea
+  document.getElementById('pmImportTextFile').addEventListener('change', (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const ta = document.getElementById('pmPrompt');
+      ta.value = ev.target.result;
+      ta.dispatchEvent(new Event('input'));
+      toast('✅ 已导入：' + file.name);
+    };
+    reader.readAsText(file, 'utf-8');
+    e.target.value = '';
   });
 
   // Copy
