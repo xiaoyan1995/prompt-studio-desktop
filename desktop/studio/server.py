@@ -836,6 +836,14 @@ class Handler(SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/upload-video":
             return self._handle_video_upload()
+        if path == "/api/upload-pdf":
+            return self._handle_pdf_upload()
+        if path == "/api/preview-doc":
+            try:
+                body = self._read_body()
+            except Exception as e:
+                return self._err(400, str(e))
+            return self._handle_preview_doc(body)
         try:
             body = self._read_body()
         except Exception as e:
@@ -875,6 +883,8 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_snapshot_restore(body)
         elif path == "/api/smart-folders":
             self._handle_save_smart_folders(body)
+        elif path == "/api/delete-pdf":
+            self._handle_delete_pdf(body)
         elif path == "/api/asset/quality":
             self._handle_asset_quality(body)
         elif path == "/api/asset/lineage":
@@ -930,6 +940,92 @@ class Handler(SimpleHTTPRequestHandler):
             counter += 1
         out_path.write_bytes(raw)
         self._json_resp({"ok": True, "path": f"/uploads/{proj_folder}/videos/{out_path.name}"})
+
+    def _handle_pdf_upload(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length)
+            if not raw:
+                return self._err(400, "Empty file")
+            filename  = unquote(self.headers.get("X-Filename", "document.bin") or "document.bin")
+            proj_raw  = unquote(self.headers.get("X-Project",  "default") or "default")
+            proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", proj_raw)[:40] if proj_raw else "default"
+            stem = re.sub(r"[^\w\u4e00-\u9fff.\-]", "_", Path(filename).stem)[:50] or "document"
+            ext  = Path(filename).suffix or ".bin"
+            save_dir = UPLOAD_DIR / proj_folder / "docs"
+            save_dir.mkdir(parents=True, exist_ok=True)
+            out_path = save_dir / f"{stem}{ext}"
+            counter = 1
+            while out_path.exists():
+                out_path = save_dir / f"{stem}_{counter}{ext}"
+                counter += 1
+            out_path.write_bytes(raw)
+            self._json_resp({
+                "ok": True,
+                "path": f"/uploads/{proj_folder}/docs/{out_path.name}",
+                "filename": out_path.name,
+                "size": len(raw)
+            })
+        except Exception as e:
+            self._err(500, f"Upload failed: {e}")
+
+    def _handle_preview_doc(self, body):
+        try:
+            rel = (body.get("path") or "").lstrip("/")
+            file_path = (DATA_DIR / rel).resolve()
+            if not file_path.exists():
+                return self._err(404, "File not found")
+            ext = file_path.suffix.lower()
+            # Try mammoth (Python) for .docx first
+            try:
+                import mammoth as _mammoth
+                with open(file_path, "rb") as f:
+                    result = _mammoth.convert_to_html(f)
+                return self._json_resp({"ok": True, "html": result.value})
+            except ImportError:
+                pass
+            except Exception:
+                pass
+            # Fallback: win32com Word automation (Windows only)
+            import tempfile
+            try:
+                import win32com.client
+                word = win32com.client.Dispatch("Word.Application")
+                word.Visible = False
+                doc = word.Documents.Open(str(file_path))
+                tmp = Path(tempfile.mktemp(suffix=".html"))
+                doc.SaveAs2(str(tmp), FileFormat=10)  # wdFormatFilteredHTML
+                doc.Close(False)
+                word.Quit()
+                html = tmp.read_text(encoding="utf-8", errors="replace")
+                tmp.unlink(missing_ok=True)
+                return self._json_resp({"ok": True, "html": html})
+            except Exception as e:
+                return self._err(500, f"Word conversion failed: {e}")
+        except Exception as e:
+            return self._err(500, str(e))
+
+    def _handle_delete_pdf(self, body):
+        project_id = body.get("projectId", "")
+        pdf_id     = body.get("pdfId", "")
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        proj = next((p for p in data.get("projects", []) if p["id"] == project_id), None)
+        if not proj:
+            return self._err(404, "Project not found")
+        pdfs = proj.get("pdf_files", [])
+        item = next((p for p in pdfs if p["id"] == pdf_id), None)
+        if item:
+            try:
+                rel = item.get("path", "").lstrip("/")[len("uploads/"):]
+                full = (UPLOAD_DIR / rel).resolve()
+                if UPLOAD_DIR.resolve() in full.parents and full.exists():
+                    full.unlink()
+            except Exception:
+                pass
+        proj["pdf_files"] = [p for p in pdfs if p["id"] != pdf_id]
+        DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        _sse_notify()
+        self._json_resp({"ok": True})
 
     def _handle_save_prompt(self, body):
         project_id = body.get("projectId", "")

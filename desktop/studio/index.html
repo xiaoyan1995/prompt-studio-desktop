@@ -7,6 +7,9 @@
 <link rel="icon" href="/prompt_studio_icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="/mammoth.min.js"></script>
+<script src="/xlsx.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -407,6 +410,33 @@
   .label-video{background:#fff3e0;color:#b45a00}
   .label-project{background:#eef4ff;color:#1b67da}
   .label-skill{background:#f3e5f5;color:#7b1fa2}
+  .label-pdf{background:#fff8e1;color:#f57f17}
+  .card-thumb-pdf{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#fff8e1,#ffecb3);display:flex;align-items:center;justify-content:center;font-size:36px;color:#f57f17;flex-direction:column;gap:4px}
+  .card-thumb-pdf .pdf-fn{font-size:11px;color:#e65100;max-width:85%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pdf-upload-bar{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--surface);border:1.5px dashed var(--border);border-radius:12px;margin-bottom:18px;cursor:pointer;transition:border-color .15s,background .15s}
+  .pdf-upload-bar:hover{border-color:var(--primary);background:var(--primary-soft)}
+  .pdf-upload-bar input{display:none}
+  .pdf-upload-icon{font-size:28px;flex-shrink:0}
+  .pdf-upload-text{font-size:13px;color:var(--subtle)}
+  .pdf-upload-text strong{color:var(--text);font-weight:700}
+  /* ── Category bar ── */
+  .cat-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 0 4px;}
+  .cat-btn{padding:5px 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:12.5px;font-weight:500;color:#555;cursor:pointer;white-space:nowrap;transition:.15s}
+  .cat-btn:hover{border-color:#4a9eff;color:#4a9eff;background:#f0f7ff}
+  .cat-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+  .cat-btn .cat-count{font-size:10px;opacity:.7;margin-left:3px}
+  /* ── Quick tag buttons in modal ── */
+  .quick-cat-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+  .quick-cat-btn{padding:3px 11px;border-radius:14px;border:1px solid #d0d5dd;background:#f8fafc;font-size:11.5px;color:#555;cursor:pointer;transition:.15s}
+  .quick-cat-btn:hover{border-color:#4a9eff;color:#4a9eff;background:#eef6ff}
+  .quick-cat-btn.added{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8}
+  /* ── PDF modal viewer ── */
+  .modal-pdf-preview{flex:1;display:flex;flex-direction:column;min-height:0;overflow:auto;background:#525659;border-radius:8px;position:relative}
+  .modal-pdf-preview canvas{display:block;margin:0 auto;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+  .pdf-zoom-bar{position:absolute;top:8px;right:8px;z-index:3;display:flex;gap:4px;background:rgba(255,255,255,.9);border-radius:6px;padding:4px 8px;font-size:11px;color:#334155;align-items:center;box-shadow:0 1px 6px rgba(0,0,0,.15)}
+  .pdf-zoom-bar button{cursor:pointer;background:none;border:none;font-size:14px;color:#3b82f6;padding:2px 6px;border-radius:4px}
+  .pdf-zoom-bar button:hover{background:#e2e8f0}
+  .pdf-zoom-bar span{min-width:38px;text-align:center;font-weight:600;font-size:11px}
   .card-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .card-meta{font-size:12px;color:var(--subtle);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical}
   .card-footer{
@@ -1148,6 +1178,33 @@
   /* Skills view: no inspector, full width */
   .content.view-skills .inspector{display:none !important}
   .content.view-skills{grid-template-columns:1fr !important}
+  /* Docs view: no inspector, full width */
+  .content.view-pdfs .inspector{display:none !important}
+  .content.view-pdfs{grid-template-columns:1fr !important}
+  /* Doc right-side panel */
+  #pdfModal{position:fixed;inset:0;background:rgba(26,35,64,.4);z-index:100;display:none;backdrop-filter:blur(3px)}
+  #pdfModal.open{display:block}
+  .doc-panel{
+    position:fixed;top:0;right:0;width:55%;min-width:620px;
+    height:calc(100vh / var(--ui-zoom,1));
+    background:var(--surface);box-shadow:-8px 0 40px rgba(26,35,64,.18);
+    display:flex;flex-direction:column;z-index:101;
+    transform:translateX(102%);transition:transform .3s cubic-bezier(.4,0,.2,1);
+  }
+  #pdfModal.open .doc-panel{transform:translateX(0)}
+  .doc-meta{
+    padding:10px 18px 12px;border-bottom:1px solid var(--border);
+    flex-shrink:0;display:grid;gap:8px;overflow-y:auto;max-height:28vh;
+  }
+  .doc-preview-flex{
+    flex:1;display:flex;flex-direction:column;min-height:0;overflow:auto;
+    background:#525659;position:relative;
+  }
+  /* Doc rich-text preview inside modal */
+  .doc-richtext-preview{flex:1;overflow:auto;background:#fff;padding:24px 32px;font-size:14px;line-height:1.7;color:#1e293b;border-radius:8px}
+  .doc-richtext-preview table{border-collapse:collapse;width:100%;font-size:13px}
+  .doc-richtext-preview th,.doc-richtext-preview td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left}
+  .doc-richtext-preview th{background:#f1f5f9;font-weight:600}
 
   /* ── Dark theme (toggled via body.dark) ─────────────── */
   body.dark{
@@ -1322,6 +1379,7 @@
 
     <div class="workspace-shell">
       <section class="workspace-main">
+        <div class="cat-bar" id="catBar" style="display:none"></div>
         <div class="grid" id="mainGrid"></div>
         <div class="empty" id="emptyState" style="display:none">
           <div class="empty-icon">📂</div>
@@ -1444,6 +1502,61 @@
           <button class="btn btn-primary" id="desktopSettingsSave">保存设置</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="pdfUploadInput" accept=".pdf,.docx,.doc,.txt,.md,.markdown,.xlsx,.xls,.csv,.pptx,.ppt,.rtf,.odt,.ods,.odp" style="display:none">
+
+<!-- Panel: PDF / document detail (right drawer) -->
+<div id="pdfModal">
+  <div class="doc-panel">
+    <!-- Header -->
+    <div class="sp-head">
+      <span id="pdfModalChip" class="chip label-pdf">📄 文档</span>
+      <h2 id="pdfModalTitle" style="font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></h2>
+      <button class="modal-close" id="pdfModalClose">✕</button>
+    </div>
+    <!-- Metadata (top) -->
+    <div class="doc-meta">
+      <div class="field" style="margin:0"><label>标题</label><input type="text" id="pdfTitleInput" placeholder="文档标题（选填）"></div>
+      <div class="field" style="margin:0">
+        <label>标签</label>
+        <div class="tags-row" id="pdfTagsRow" style="min-height:22px"></div>
+        <input type="text" id="pdfTagInput" placeholder="输入后按 Enter 添加" style="margin-top:6px">
+      </div>
+    </div>
+    <!-- hidden fields still needed by JS -->
+    <input type="hidden" id="pdfFilenameDisplay">
+    <input type="hidden" id="pdfSizeDisplay">
+    <input type="hidden" id="pdfDateDisplay">
+    <input type="hidden" id="pdfNotesInput">
+    <!-- Document preview (bottom, fills remaining space) -->
+    <div class="doc-preview-flex modal-pdf-preview">
+      <div class="pdf-zoom-bar">
+        <button id="pdfZoomOut" title="缩小">−</button>
+        <span id="pdfZoomLevel">100%</span>
+        <button id="pdfZoomIn" title="放大">+</button>
+        <button id="pdfZoomFit" title="适应宽度" style="margin-left:4px;border-left:1px solid #cbd5e1;padding-left:8px">⊡</button>
+      </div>
+      <div id="pdfLoading" style="position:absolute;inset:0;background:#525659;z-index:2;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px">
+        <div style="width:32px;height:32px;border:4px solid rgba(255,255,255,.3);border-top-color:#3b82f6;border-radius:50%;animation:spin .7s linear infinite"></div>
+        <span style="color:#ccc;font-size:13px">加载中…</span>
+      </div>
+      <canvas id="pdfCanvas" style="width:100%;display:block"></canvas>
+    </div>
+    <!-- Page nav row (outside scroll area) -->
+    <div id="pdfPageNav" style="display:none;justify-content:center;align-items:center;gap:10px;padding:6px 0;font-size:12px;color:var(--subtle);border-top:1px solid var(--border);flex-shrink:0;background:var(--surface)">
+      <button id="pdfPrevBtn" style="cursor:pointer;background:none;border:none;color:#3b82f6;font-size:16px">◀</button>
+      <span id="pdfPageInfo">1 / 1</span>
+      <button id="pdfNextBtn" style="cursor:pointer;background:none;border:none;color:#3b82f6;font-size:16px">▶</button>
+    </div>
+    <!-- Footer -->
+    <div class="sp-footer">
+      <button class="btn btn-secondary btn-sm" id="pdfDownloadBtn">⬇️ 下载</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-danger btn-sm" id="pdfDeleteBtn">🗑️ 删除</button>
+      <button class="btn btn-primary" id="pdfSaveMetaBtn">💾 保存</button>
     </div>
   </div>
 </div>
@@ -1684,7 +1797,8 @@
 
         <div class="field">
           <label>标签</label>
-          <input type="text" id="pmTagInput" placeholder="输入后按 Enter 添加">
+          <div class="quick-cat-row" id="pmQuickCats"></div>
+          <input type="text" id="pmTagInput" placeholder="输入后按 Enter / 逗号 添加">
           <div class="tags-row" id="pmTagsRow"></div>
         </div>
 
@@ -1879,10 +1993,51 @@
     ['#fce4ec','#f8bbd0'],['#e0f2f1','#b2dfdb'],['#f3e5f5','#e1bee7'],
     ['#e8eaf6','#c5cae9'],['#fafafa','#e0e0e0'],
   ];
-  const GRADIENT_EMOJIS = ['💙','💚','🧡','💗','🩵','💜','🫐','🩶'];
+  const GRADIENT_EMOJIS = ['\ud83d\udc99','\ud83d\udc9a','\ud83e\udde1','\ud83d\udc97','\ud83e\udeb5','\ud83d\udc9c','\ud83e\uded0','\ud83e\udeb6'];
+  const CAT_PRESETS = {
+    image_prompts: ['女性','男性','场景','道具'],
+    video_prompts: ['动作','特效','转场','空镜'],
+    skill_prompts: []
+  };
+  let activeCategory = null;
 
   // ── Helpers ───────────────────────────────────────────────────────────
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function formatFileSize(bytes) {
+    if (!bytes) return '';
+    const units = ['B','KB','MB','GB'];
+    let i = 0, size = bytes;
+    while (size >= 1024 && i < units.length - 1) { size /= 1024; i++; }
+    return size.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
+  }
+  const DOC_EXTS = ['pdf','docx','doc','txt','md','markdown','xlsx','xls','csv','pptx','ppt','rtf','odt','ods','odp'];
+  function docIcon(filename) {
+    const ext = (filename||'').split('.').pop().toLowerCase();
+    return {pdf:'\ud83d\udcc4',docx:'\ud83d\udcdd',doc:'\ud83d\udcdd',txt:'\ud83d\udcc3',md:'\ud83d\udcc3',markdown:'\ud83d\udcc3',
+            xlsx:'\ud83d\udcca',xls:'\ud83d\udcca',csv:'\ud83d\udccb',pptx:'\ud83d\udcf0',ppt:'\ud83d\udcf0',
+            rtf:'\ud83d\udcdd',odt:'\ud83d\udcdd',ods:'\ud83d\udcca',odp:'\ud83d\udcf0'}[ext] || '\ud83d\udcc1';
+  }
+  function isPdfFile(filename) { return (filename||'').split('.').pop().toLowerCase() === 'pdf'; }
+  async function uploadPdf(file, projectName) {
+    try {
+      const r = await fetch('/api/upload-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+          'X-Filename': encodeURIComponent(file.name),
+          'X-Project': encodeURIComponent(projectName || 'default'),
+        },
+        body: file,
+      });
+      let res = {};
+      try { res = await r.json(); } catch {}
+      if (res.ok && res.path) return res;
+      toast(`⚠️ 文档上传失败：${res.error || ('HTTP ' + r.status)}`, 4000);
+    } catch (err) {
+      toast(`⚠️ 文档上传失败：${err.message}`, 4000);
+    }
+    return null;
+  }
   function h(v) {
     return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
@@ -2630,6 +2785,7 @@
     state.view = view;
     state.projectId = projectId;
     state.promptId = null;
+    activeCategory = null;
     clearSelection();
     pickItem(null);
     renderSidebar();
@@ -2670,6 +2826,10 @@
           <span class="nav-icon">🤖</span><span class="nav-label">Skills 提示词</span>
           <span class="nav-badge">${(proj?.skill_prompts||[]).length}</span>
         </div>
+        <div class="nav-item ${state.view==='pdf_files'?'active':''}" data-view="pdf_files">
+          <span class="nav-icon">📄</span><span class="nav-label">文档库</span>
+          <span class="nav-badge">${(proj?.pdf_files||[]).length}</span>
+        </div>
       `;
     }
 
@@ -2686,8 +2846,11 @@
     const contentEl = document.getElementById('content');
     if (contentEl) contentEl.classList.toggle('view-projects', state.view === 'projects');
     if (contentEl) contentEl.classList.toggle('view-skills', state.view === 'skill_prompts');
+    if (contentEl) contentEl.classList.toggle('view-pdfs', state.view === 'pdf_files');
     syncToolbarControls();
     applyGridMode();
+    const _catBarEl = document.getElementById('catBar');
+    if (_catBarEl && state.view === 'projects') _catBarEl.style.display = 'none';
     if (state.view === 'projects') {
       document.getElementById('pageTitle').textContent = '项目管理';
       document.getElementById('pageSubtitle').textContent = '管理你的项目库与资产规模';
@@ -2699,14 +2862,18 @@
       const isImg = state.view === 'image_prompts';
       const isSkill = state.view === 'skill_prompts';
       const isAll = state.view === 'all_assets';
-      const pageTitle = isAll ? '全部资产' : (isImg ? '图片提示词' : (isSkill ? 'Skills / Agent 提示词' : '视频提示词'));
+      const isPdf = state.view === 'pdf_files';
+      const pageTitle = isPdf ? '文档库' : (isAll ? '全部资产' : (isImg ? '图片提示词' : (isSkill ? 'Skills / Agent 提示词' : '视频提示词')));
       const folder = (uiState.smartFolders || []).find(f => f.id === uiState.smartFolderId);
-      const pageSub = isAll ? '资产' : (isImg ? '图像' : (isSkill ? 'Skills' : '视频'));
+      const pageSub = isPdf ? '文档' : (isAll ? '资产' : (isImg ? '图像' : (isSkill ? 'Skills' : '视频')));
       const promptType = isImg ? 'image' : (isSkill ? 'skill' : 'video');
       document.getElementById('pageTitle').textContent = pageTitle;
       const folderText = folder ? ` · 智能文件夹：${folder.name}` : '';
-      document.getElementById('pageSubtitle').textContent = proj ? `${proj.name} 的${pageSub}提示词库${folderText}` : '';
-      if (isAll) {
+      document.getElementById('pageSubtitle').textContent = proj ? `${proj.name} 的${pageSub}${isPdf ? '' : '提示词库' + folderText}` : '';
+      if (isPdf) {
+        document.getElementById('primaryBtn').textContent = '上传文档';
+        document.getElementById('primaryBtn').onclick = () => document.getElementById('pdfUploadInput')?.click();
+      } else if (isAll) {
         document.getElementById('primaryBtn').textContent = '新建';
         document.getElementById('primaryBtn').onclick = () => openPromptModal(null, 'image');
       } else {
@@ -2738,6 +2905,7 @@
       const imgCount = (proj.image_prompts||[]).length;
       const vidCount = (proj.video_prompts||[]).length;
       const skillCount = (proj.skill_prompts||[]).length;
+      const pdfCount = (proj.pdf_files||[]).length;
       return `
         <div class="card" data-proj-id="${h(proj.id)}">
           <div class="proj-card-cover" style="--c1:${g[0]};--c2:${g[1]}">${GRADIENT_EMOJIS[proj.colorIdx||0]}</div>
@@ -2750,6 +2918,7 @@
             <span class="card-stat">🖼️ ${imgCount}</span>
             <span class="card-stat" style="margin-left:8px">🎬 ${vidCount}</span>
             <span class="card-stat" style="margin-left:8px">🤖 ${skillCount}</span>
+            ${pdfCount ? `<span class="card-stat" style="margin-left:8px">📄 ${pdfCount}</span>` : ''}
             <span style="margin-left:auto;font-size:11px">${proj.updated_at ? proj.updated_at.slice(0,10) : (proj.created_at ? proj.created_at.slice(0,10) : '')}</span>
           </div>
           <button class="card-del" data-del-proj="${h(proj.id)}">✕</button>
@@ -2786,6 +2955,43 @@
     const empty = document.getElementById('emptyState');
     if (!proj) { navigate('projects'); return; }
 
+    const catBarEl = document.getElementById('catBar');
+
+    // ── PDF files view ──────────────────────────────────────────────────
+    if (state.view === 'pdf_files') {
+      catBarEl.style.display = 'none';
+      renderPdfGrid(proj, q);
+      return;
+    }
+
+    // ── Category bar ────────────────────────────────────────────────────
+    const catKey = { image_prompts:'image_prompts', video_prompts:'video_prompts', skill_prompts:'skill_prompts' }[state.view];
+    if (catKey) {
+      const allTags = new Set();
+      (proj[catKey]||[]).forEach(p => (p.tags||[]).forEach(t => allTags.add(t)));
+      const presets = CAT_PRESETS[catKey] || [];
+      const customCats = [...allTags].filter(t => !presets.includes(t)).sort();
+      // only show preset/custom cats that have at least 1 item
+      const catListRaw = [...presets, ...customCats].filter(c => (proj[catKey]||[]).some(p => (p.tags||[]).includes(c)));
+      if (!catListRaw.length) {
+        catBarEl.style.display = 'none'; catBarEl.innerHTML = '';
+      } else {
+        catBarEl.style.display = 'flex';
+      }
+      catBarEl.innerHTML = catListRaw.length === 0 ? '' : ['全部', ...catListRaw].map(c => {
+        const count = c === '全部' ? (proj[catKey]||[]).length : (proj[catKey]||[]).filter(p => (p.tags||[]).includes(c)).length;
+        return `<button class="cat-btn${(activeCategory===c||(activeCategory===null&&c==='全部'))?' active':''}" data-cat="${h(c)}">${h(c)}<span class="cat-count">${count}</span></button>`;
+      }).join('');
+      catBarEl.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeCategory = btn.dataset.cat === '全部' ? null : btn.dataset.cat;
+          renderPage();
+        });
+      });
+    } else {
+      catBarEl.style.display = 'none';
+    }
+
     const viewTypeMap = {
       all_assets: 'all',
       image_prompts: 'image',
@@ -2795,6 +3001,7 @@
     const activeType = viewTypeMap[state.view] || 'all';
     let prompts = buildProjectAssets(proj);
     if (activeType !== 'all') prompts = prompts.filter(p => p.__type === activeType);
+    if (activeCategory && catKey) prompts = prompts.filter(p => (p.tags||[]).includes(activeCategory));
     if (uiState.filterType !== 'all') prompts = prompts.filter(p => p.__type === uiState.filterType);
     if (uiState.filterModel !== 'all') prompts = prompts.filter(p => (p.model || '') === uiState.filterModel);
     if (uiState.filterTag !== 'all') prompts = prompts.filter(p => Array.isArray(p.tags) && p.tags.includes(uiState.filterTag));
@@ -2919,6 +3126,249 @@
       });
     });
     if (!uiState.selectedItem && prompts.length) pickItem(prompts[0], prompts[0].__type);
+  }
+
+  // ── PDF grid ───────────────────────────────────────────────────────────
+  function renderPdfGrid(proj, q='') {
+    const grid = document.getElementById('mainGrid');
+    const empty = document.getElementById('emptyState');
+    let pdfs = proj.pdf_files || [];
+    if (q) pdfs = pdfs.filter(p =>
+      (p.title||'').toLowerCase().includes(q) ||
+      (p.filename||'').toLowerCase().includes(q) ||
+      (p.notes||'').toLowerCase().includes(q)
+    );
+    if (!pdfs.length) {
+      grid.innerHTML = '';
+      empty.style.display = 'flex';
+      empty.innerHTML = `<div class="empty-icon">📁</div><h3>还没有文档</h3><p>点击右上角「上传文档」或拖放文件到此处</p>`;
+    } else {
+      empty.style.display = 'none';
+      grid.innerHTML = pdfs.map(p => {
+        const sizeStr = p.size ? formatFileSize(p.size) : '';
+        const icon = docIcon(p.filename||p.title||'');
+        return `
+          <div class="card" data-pdf-id="${h(p.id)}">
+            <div class="card-thumb-pdf">${icon}<div class="pdf-fn">${h(p.filename||'')}</div></div>
+            <div class="card-body">
+              <div class="card-label label-pdf">文档</div>
+              <div class="card-title">${h(p.title||'未命名文档')}</div>
+              <div class="card-meta">${h((sizeStr?sizeStr+' · ':'')+((p.notes||'').replace(/\s+/g,' ').trim().slice(0,60)))}</div>
+            </div>
+            <div class="card-footer">
+              ${sizeStr?`<span class="card-stat">📦 ${sizeStr}</span>`:''}
+              <span style="margin-left:auto;font-size:11px">${p.created_at?p.created_at.slice(0,10):''}</span>
+            </div>
+            <button class="card-del" data-del-pdf="${h(p.id)}">✕</button>
+          </div>`;
+      }).join('');
+    }
+    // drag-drop onto grid
+    grid.ondragover = e => { if (state.view === 'pdf_files') { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } };
+    grid.ondrop = async (e) => {
+      if (state.view !== 'pdf_files') return;
+      e.preventDefault();
+      const file = [...(e.dataTransfer.files||[])].find(f => DOC_EXTS.includes(f.name.split('.').pop().toLowerCase()));
+      if (!file) { toast('⚠️ 不支持的文件格式'); return; }
+      await handleDocUpload(file);
+    };
+    grid.querySelectorAll('.card[data-pdf-id]').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.card-del')) return;
+        openPdfModal(card.dataset.pdfId);
+      });
+    });
+    grid.querySelectorAll('[data-del-pdf]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm('确认删除此文档？文件将被永久删除。')) return;
+        try {
+          await postJson('/api/delete-pdf', { projectId: state.projectId, pdfId: btn.dataset.delPdf });
+        } catch {}
+        data = await loadData(); renderPage(); renderSidebar(); toast('✅ 已删除');
+      });
+    });
+  }
+
+  // ── PDF Modal ──────────────────────────────────────────────────────────
+  let pdfEditId = null, pdfTags = [];
+  let _pdfDoc = null, _pdfPageNum = 1, _pdfScale = 1.0, _pdfDefaultW = 0;
+
+  function openPdfModal(pdfId) {
+    pdfEditId = pdfId;
+    const proj = getProject(state.projectId);
+    const item = pdfId ? (proj.pdf_files||[]).find(p => p.id === pdfId) : null;
+    if (!item) return;
+    pdfTags = [...(item.tags||[])];
+    const chip = document.getElementById('pdfModalChip');
+    if (chip) chip.innerHTML = `${docIcon(item.filename||'')} 文档`;
+    document.getElementById('pdfModalTitle').textContent = item.title || item.filename || '';
+    document.getElementById('pdfTitleInput').value = item.title || '';
+    document.getElementById('pdfFilenameDisplay').value = item.filename || '';
+    document.getElementById('pdfSizeDisplay').value = formatFileSize(item.size || 0);
+    document.getElementById('pdfDateDisplay').value = (item.created_at||'').slice(0,19);
+    document.getElementById('pdfNotesInput').value = item.notes || '';
+    loadPdfViewer(item.path || '');
+    renderPdfTags();
+    document.getElementById('pdfModal').classList.add('open');
+  }
+
+  function closePdfModal() {
+    document.getElementById('pdfModal').classList.remove('open');
+    if (_pdfDoc) { try { _pdfDoc.destroy(); } catch {} _pdfDoc = null; }
+    const canvas = document.getElementById('pdfCanvas');
+    canvas.width = 0; canvas.height = 0;
+  }
+
+  async function loadPdfViewer(urlPath) {
+    const canvas = document.getElementById('pdfCanvas');
+    const loading = document.getElementById('pdfLoading');
+    const pageNav = document.getElementById('pdfPageNav');
+    const previewBox = canvas.closest('.modal-pdf-preview');
+    const zoomBar = document.querySelector('.pdf-zoom-bar');
+    // reset
+    canvas.width = 0; canvas.height = 0; canvas.style.display = 'none';
+    pageNav.style.display = 'none'; loading.style.display = 'none';
+    _pdfDoc = null; _pdfPageNum = 1; _pdfScale = 1.0; _pdfDefaultW = 0;
+    document.getElementById('pdfZoomLevel').textContent = '100%';
+    previewBox.querySelectorAll('.doc-richtext-preview,.doc-no-preview').forEach(el => el.remove());
+
+    const item = getProject(state.projectId)?.pdf_files?.find(p => p.id === pdfEditId);
+    const filename = item?.filename || urlPath || '';
+    const ext = filename.split('.').pop().toLowerCase();
+    const fullUrl = `http://127.0.0.1:8767${urlPath}`;
+
+    // ── PDF ──────────────────────────────────────────────────────────────
+    if (ext === 'pdf') {
+      zoomBar.style.visibility = '';
+      canvas.style.display = 'block';
+      loading.style.display = 'flex';
+      if (typeof pdfjsLib === 'undefined') { loading.style.display = 'none'; return; }
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+      try {
+        const doc = await pdfjsLib.getDocument(fullUrl).promise;
+        _pdfDoc = doc;
+        if (doc.numPages > 1) {
+          pageNav.style.display = 'flex';
+          document.getElementById('pdfPageInfo').textContent = `1 / ${doc.numPages}`;
+        }
+        const firstPage = await doc.getPage(1);
+        const vp1 = firstPage.getViewport({ scale: 1 });
+        _pdfDefaultW = vp1.width;
+        _pdfScale = Math.max(0.5, Math.min(3.0, ((previewBox.clientWidth||700) - 24) / vp1.width));
+        document.getElementById('pdfZoomLevel').textContent = Math.round(_pdfScale * 100) + '%';
+        await renderPdfPage(1);
+        previewBox.scrollTop = 0;
+      } catch (err) { console.error('PDF load error:', err); }
+      finally { loading.style.display = 'none'; }
+      return;
+    }
+
+    // 非 PDF：隐藏缩放栏，创建富文本容器
+    zoomBar.style.visibility = 'hidden';
+    const richDiv = document.createElement('div');
+    richDiv.className = 'doc-richtext-preview';
+    previewBox.appendChild(richDiv);
+    loading.style.display = 'flex';
+
+    // ── TXT / MD ─────────────────────────────────────────────────────────
+    if (['txt','md','markdown'].includes(ext)) {
+      try {
+        const text = await (await fetch(fullUrl)).text();
+        richDiv.innerHTML = ext === 'txt'
+          ? `<pre style="white-space:pre-wrap;font-family:inherit">${h(text)}</pre>`
+          : (typeof marked !== 'undefined' ? marked.parse(text) : `<pre style="white-space:pre-wrap">${h(text)}</pre>`);
+      } catch { richDiv.textContent = '加载失败'; }
+      finally { loading.style.display = 'none'; }
+      return;
+    }
+
+    // ── CSV ───────────────────────────────────────────────────────────────
+    if (ext === 'csv') {
+      try {
+        const text = await (await fetch(fullUrl)).text();
+        const rows = text.trim().split('\n').map(r => r.split(','));
+        richDiv.innerHTML = '<table>' +
+          rows.map((cols, i) => `<tr>${cols.map(c => i===0 ? `<th>${h(c.trim())}</th>` : `<td>${h(c.trim())}</td>`).join('')}</tr>`).join('') +
+          '</table>';
+      } catch { richDiv.textContent = '加载失败'; }
+      finally { loading.style.display = 'none'; }
+      return;
+    }
+
+    // ── DOCX (browser-side mammoth) ───────────────────────────────────────
+    if (['docx','odt'].includes(ext)) {
+      try {
+        if (typeof mammoth === 'undefined') throw new Error('mammoth not loaded');
+        const buf = await (await fetch(fullUrl)).arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer: buf });
+        richDiv.innerHTML = result.value || '（空文档）';
+      } catch {
+        richDiv.innerHTML = `<div style="text-align:center;padding:40px;color:#94a3b8;font-size:32px">${docIcon(filename)}<br><br><span style="font-size:14px">预览加载失败，请下载后查看</span></div>`;
+      }
+      finally { loading.style.display = 'none'; }
+      return;
+    }
+    // ── DOC (server-side Word conversion) ────────────────────────────────
+    if (ext === 'doc') {
+      try {
+        const res = await postJson('/api/preview-doc', { path: urlPath });
+        richDiv.innerHTML = res.html || '（空文档）';
+      } catch (err) {
+        richDiv.innerHTML = `<div style="text-align:center;padding:40px;color:#94a3b8;font-size:32px">${docIcon(filename)}<br><br><span style="font-size:14px">Word 转换失败，请下载后查看</span></div>`;
+      }
+      finally { loading.style.display = 'none'; }
+      return;
+    }
+
+    // ── XLSX / XLS / ODS ─────────────────────────────────────────────────
+    if (['xlsx','xls','ods'].includes(ext)) {
+      try {
+        if (typeof XLSX === 'undefined') throw new Error('XLSX not loaded');
+        const buf = await (await fetch(fullUrl)).arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        richDiv.innerHTML = XLSX.utils.sheet_to_html(ws, { editable: false });
+      } catch {
+        richDiv.innerHTML = `<div style="text-align:center;padding:40px;color:#94a3b8;font-size:32px">${docIcon(filename)}<br><br><span style="font-size:14px">表格预览加载失败，请下载后查看</span></div>`;
+      }
+      finally { loading.style.display = 'none'; }
+      return;
+    }
+
+    // ── 不支持预览 ────────────────────────────────────────────────────────
+    loading.style.display = 'none';
+    richDiv.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:#94a3b8">
+      <div style="font-size:52px">${docIcon(filename)}</div>
+      <div style="font-size:14px">此格式暂不支持预览，请点击下载查看</div>
+    </div>`;
+  }
+
+  async function renderPdfPage(num) {
+    if (!_pdfDoc) return;
+    const canvas = document.getElementById('pdfCanvas');
+    const page = await _pdfDoc.getPage(num);
+    const vp = page.getViewport({ scale: _pdfScale });
+    canvas.width = vp.width; canvas.height = vp.height;
+    canvas.style.width = vp.width + 'px'; canvas.style.height = vp.height + 'px';
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    _pdfPageNum = num;
+    if (_pdfDoc.numPages > 1) document.getElementById('pdfPageInfo').textContent = `${num} / ${_pdfDoc.numPages}`;
+  }
+
+  function renderPdfTags() {
+    const row = document.getElementById('pdfTagsRow');
+    row.innerHTML = pdfTags.map((t,i) =>
+      `<span class="tag">${h(t)}<button class="tag-rm" data-pi="${i}">×</button></span>`
+    ).join('');
+    row.querySelectorAll('.tag-rm').forEach(b => b.addEventListener('click', () => { pdfTags.splice(+b.dataset.pi, 1); renderPdfTags(); }));
+  }
+
+  // ── Quick-cat helpers ─────────────────────────────────────────────────
+  function updateQuickCatState() {
+    document.querySelectorAll('#pmQuickCats .quick-cat-btn').forEach(btn => {
+      btn.classList.toggle('added', pmTags.includes(btn.dataset.tag));
+    });
   }
 
   // ── Project modal ─────────────────────────────────────────────────────
@@ -3455,6 +3905,25 @@
 
     // Tags
     renderPmTags();
+    // Quick category buttons — only tags already used in this project
+    const qcKey = pmType === 'image' ? 'image_prompts' : (pmType === 'skill' ? 'skill_prompts' : 'video_prompts');
+    const projForQc = getProject(state.projectId);
+    const usedTags = [...new Set((projForQc?.[qcKey]||[]).flatMap(p => p.tags||[]))].sort();
+    const qcRow = document.getElementById('pmQuickCats');
+    if (usedTags.length) {
+      qcRow.innerHTML = usedTags.map(t =>
+        `<button class="quick-cat-btn${pmTags.includes(t)?' added':''}" data-tag="${h(t)}">${h(t)}</button>`
+      ).join('');
+      qcRow.querySelectorAll('.quick-cat-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tag = btn.dataset.tag;
+          if (!pmTags.includes(tag)) { pmTags.push(tag); } else { pmTags.splice(pmTags.indexOf(tag), 1); }
+          renderPmTags();
+        });
+      });
+    } else {
+      qcRow.innerHTML = '';
+    }
 
     // Chip & title
     const typeLabel = type === 'image' ? '🖼️ 图片提示词' : (type === 'skill' ? '🤖 Skills 提示词' : '🎬 视频提示词');
@@ -3544,11 +4013,12 @@
     document.getElementById('pmTagsRow').querySelectorAll('[data-ti]').forEach(btn => {
       btn.onclick = () => { pmTags.splice(parseInt(btn.dataset.ti),1); renderPmTags(); };
     });
+    updateQuickCatState();
   }
   document.getElementById('pmTagInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
-      const v = e.target.value.trim();
+      const v = e.target.value.replace(/,/g,'').trim();
       if (v && !pmTags.includes(v)) { pmTags.push(v); renderPmTags(); }
       e.target.value = '';
     }
@@ -3962,6 +4432,8 @@
     const reader = new FileReader();
     reader.onload = ev => {
       document.getElementById('spPrompt').value = ev.target.result;
+      const ti = document.getElementById('spTitleInput');
+      if (ti && !ti.value) ti.value = file.name.replace(/\.[^.]+$/, '');
       document.getElementById('spTabEdit').click();
       toast('✅ 文件已导入');
     };
@@ -4006,6 +4478,96 @@
       e.preventDefault();
       const v = e.target.value.trim();
       if (v && !spTags.includes(v)) { spTags.push(v); renderSpTags(); }
+      e.target.value = '';
+    }
+  });
+
+  // ── Doc upload shared handler ─────────────────────────────────────────
+  async function handleDocUpload(file) {
+    const fext = file.name.split('.').pop().toLowerCase();
+    if (!DOC_EXTS.includes(fext)) { toast('⚠️ 不支持的文件格式'); return; }
+    toast('⏳ 上传中…');
+    const projName = getProject(state.projectId)?.name || 'default';
+    const result = await uploadPdf(file, projName);
+    if (!result) return;
+    const proj = getProject(state.projectId);
+    if (!proj) return;
+    proj.pdf_files = proj.pdf_files || [];
+    proj.pdf_files.unshift({
+      id: uid(), title: file.name.replace(/\.[^.]+$/, ''),
+      filename: file.name, path: result.path,
+      size: result.size, tags: [], notes: '',
+      created_at: new Date().toISOString()
+    });
+    await saveData(data); renderPage(); renderSidebar(); toast('✅ 文档已保存');
+  }
+  document.getElementById('pdfUploadInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    await handleDocUpload(file);
+    e.target.value = '';
+  });
+
+  // ── PDF modal events ──────────────────────────────────────────────────
+  document.getElementById('pdfModalClose').onclick = closePdfModal;
+  document.getElementById('pdfModal').addEventListener('click', e => { if (e.target === document.getElementById('pdfModal')) closePdfModal(); });
+
+  document.getElementById('pdfZoomIn').addEventListener('click', () => {
+    if (_pdfScale >= 3.0) return;
+    _pdfScale = Math.min(3.0, _pdfScale * 1.25);
+    document.getElementById('pdfZoomLevel').textContent = Math.round(_pdfScale*100)+'%';
+    if (_pdfDoc) renderPdfPage(_pdfPageNum);
+  });
+  document.getElementById('pdfZoomOut').addEventListener('click', () => {
+    if (_pdfScale <= 0.25) return;
+    _pdfScale = Math.max(0.25, _pdfScale / 1.25);
+    document.getElementById('pdfZoomLevel').textContent = Math.round(_pdfScale*100)+'%';
+    if (_pdfDoc) renderPdfPage(_pdfPageNum);
+  });
+  document.getElementById('pdfZoomFit').addEventListener('click', () => {
+    if (!_pdfDefaultW || !_pdfDoc) return;
+    const previewBox = document.getElementById('pdfCanvas').closest('.modal-pdf-preview');
+    _pdfScale = Math.max(0.25, Math.min(3.0, (previewBox.clientWidth - 24) / _pdfDefaultW));
+    document.getElementById('pdfZoomLevel').textContent = Math.round(_pdfScale*100)+'%';
+    renderPdfPage(_pdfPageNum);
+  });
+  document.getElementById('pdfPrevBtn').addEventListener('click', () => { if (_pdfPageNum > 1) renderPdfPage(_pdfPageNum - 1); });
+  document.getElementById('pdfNextBtn').addEventListener('click', () => { if (_pdfDoc && _pdfPageNum < _pdfDoc.numPages) renderPdfPage(_pdfPageNum + 1); });
+
+  document.getElementById('pdfSaveMetaBtn').addEventListener('click', async () => {
+    const proj = getProject(state.projectId);
+    const idx = (proj.pdf_files||[]).findIndex(p => p.id === pdfEditId);
+    if (idx === -1) return;
+    proj.pdf_files[idx] = {
+      ...proj.pdf_files[idx],
+      title: document.getElementById('pdfTitleInput').value.trim(),
+      notes: document.getElementById('pdfNotesInput').value.trim(),
+      tags: [...pdfTags],
+      updated_at: new Date().toISOString()
+    };
+    await saveData(data); renderPage(); renderSidebar(); toast('✅ 已保存');
+  });
+
+  document.getElementById('pdfDeleteBtn').addEventListener('click', async () => {
+    if (!confirm('确认删除此文档？文件将被永久删除。')) return;
+    try { await postJson('/api/delete-pdf', { projectId: state.projectId, pdfId: pdfEditId }); } catch {}
+    data = await loadData(); closePdfModal(); renderPage(); renderSidebar(); toast('✅ 已删除');
+  });
+
+  document.getElementById('pdfDownloadBtn').addEventListener('click', async () => {
+    const proj = getProject(state.projectId);
+    const item = (proj.pdf_files||[]).find(p => p.id === pdfEditId);
+    if (!item?.path) return;
+    const a = document.createElement('a');
+    a.href = `http://127.0.0.1:8767${item.path}`;
+    a.download = item.filename || 'document.pdf';
+    a.click();
+  });
+
+  document.getElementById('pdfTagInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const v = e.target.value.trim();
+      if (v && !pdfTags.includes(v)) { pdfTags.push(v); renderPdfTags(); }
       e.target.value = '';
     }
   });
@@ -4065,6 +4627,7 @@
   window.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       if (document.getElementById('skillPanel').classList.contains('open')) closeSkillPanel();
+      else if (document.getElementById('pdfModal').classList.contains('open')) closePdfModal();
       else if (document.getElementById('desktopSettingsModal').classList.contains('open')) closeDesktopSettings();
       else if (document.getElementById('promptModal').classList.contains('open')) closePromptModal();
       else if (document.getElementById('projModal').classList.contains('open')) closeProjModal();
@@ -4183,8 +4746,11 @@
       if (!e.dataTransfer?.types?.includes('Files')) return;
       if (e.dataTransfer?.types?.includes('text/plain') && !e.dataTransfer?.types?.includes('text/uri-list')) return;
       // Don't show overlay when any modal is open (e.g. user drags .txt into prompt textarea)
-      if (document.querySelector('.modal-backdrop.open')) return;
+      if (document.querySelector('.modal-backdrop.open, #pdfModal.open')) return;
       dragCounter++;
+      // Context-aware overlay text
+      const dropSub = document.querySelector('#dropOverlayBox .drop-sub');
+      if (dropSub) dropSub.textContent = state.view === 'pdf_files' ? 'PDF · Word · Excel · PPT · TXT · MD' : '图片 · 视频 · 文本';
       overlay.style.display = 'flex';
       overlay.classList.add('active');
     });
@@ -4201,12 +4767,20 @@
       e.preventDefault();
       dragCounter = 0; overlay.style.display = 'none'; overlay.classList.remove('active');
       // If a modal is open the drop was handled internally (e.g. textarea), skip global handling
-      if (document.querySelector('.modal-backdrop.open')) return;
+      if (document.querySelector('.modal-backdrop.open, #pdfModal.open')) return;
 
       const files = [...(e.dataTransfer?.files || [])];
       if (!files.length) return;
 
       if (!state.projectId) { toast('⚠️ 请先进入一个项目再拖放文件'); return; }
+
+      // ── 文档库视图：所有文件走文档上传 ──────────────────────────────────
+      if (state.view === 'pdf_files') {
+        const docFile = files.find(f => DOC_EXTS.includes(f.name.split('.').pop().toLowerCase()));
+        if (docFile) { await handleDocUpload(docFile); }
+        else { toast('⚠️ 不支持的文件格式'); }
+        return;
+      }
 
       const images = files.filter(f => f.type.startsWith('image/'));
       const videos = files.filter(f => f.type.startsWith('video/'));
@@ -4248,11 +4822,15 @@
 
       // Single text → open skill panel pre-filled
       if (files.length === 1 && texts.length === 1) {
-        const text = await texts[0].text();
+        const file = texts[0];
+        const text = await file.text();
+        const defaultTitle = file.name.replace(/\.[^.]+$/, '');
         openSkillPanel(null);
         setTimeout(() => {
-          const ta = document.getElementById('skillPromptContent');
+          const ta = document.getElementById('spPrompt');
           if (ta) { ta.value = text; ta.dispatchEvent(new Event('input')); }
+          const ti = document.getElementById('spTitleInput');
+          if (ti && !ti.value) ti.value = defaultTitle;
         }, 200);
         return;
       }

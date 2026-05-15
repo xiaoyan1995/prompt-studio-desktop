@@ -83,9 +83,39 @@ function bundledServerCommand() {
   return command ? { command, args: [String(PORT)] } : null;
 }
 
+function findPython() {
+  const { execSync } = require('child_process');
+  // Try Windows py launcher first, then where python
+  const candidates = process.platform === 'win32'
+    ? ['py', 'python', 'python3']
+    : ['python3', 'python'];
+  for (const cmd of candidates) {
+    try {
+      const full = execSync(
+        process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`,
+        { timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }
+      ).toString().trim().split(/\r?\n/)[0];
+      if (full && fs.existsSync(full)) return full;
+    } catch {}
+  }
+  // Last resort: common install paths
+  const fallbacks = process.platform === 'win32'
+    ? [
+        'C:\\Python312\\python.exe', 'C:\\Python311\\python.exe',
+        'C:\\Python310\\python.exe',
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python312', 'python.exe'),
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python311', 'python.exe'),
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python310', 'python.exe'),
+      ]
+    : ['/usr/bin/python3', '/usr/local/bin/python3'];
+  for (const p of fallbacks) { if (fs.existsSync(p)) return p; }
+  return process.platform === 'win32' ? 'python' : 'python3';
+}
+
 function pythonServerCommand() {
   const serverPy = resourcePath('studio', 'server.py');
-  const python = process.platform === 'win32' ? 'python' : 'python3';
+  const python = findPython();
+  logLine(`python executable: ${python}`);
   return { command: python, args: [serverPy, String(PORT)] };
 }
 
@@ -317,7 +347,9 @@ async function createWindow() {
   });
   mainWindow.setMenuBarVisibility(false);
 
-  await mainWindow.loadURL(SERVER_URL);
+  // Clear HTTP cache so a freshly installed version always loads new files
+  await mainWindow.webContents.session.clearCache();
+  await mainWindow.loadURL(SERVER_URL, { extraHeaders: 'pragma: no-cache\n' });
   logLine('main window loaded');
   if (process.argv.some((arg) => arg.startsWith(`${PROTOCOL}://`))) {
     mainWindow.webContents.once('did-finish-load', () => {
