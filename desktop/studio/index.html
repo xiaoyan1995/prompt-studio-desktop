@@ -3568,9 +3568,11 @@
     }
   });
 
-  // Import text/md file into prompt textarea
-  document.getElementById('pmImportTextFile').addEventListener('change', (e) => {
-    const file = e.target.files[0]; if (!file) return;
+  // Import text/md file into prompt textarea (via file picker or drag-drop)
+  function importTextFileIntoPrompt(file) {
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['txt','md','markdown','mdx'].includes(ext)) { toast('⚠️ 仅支持 .txt / .md 文件'); return; }
     const reader = new FileReader();
     reader.onload = (ev) => {
       const ta = document.getElementById('pmPrompt');
@@ -3579,7 +3581,27 @@
       toast('✅ 已导入：' + file.name);
     };
     reader.readAsText(file, 'utf-8');
+  }
+  document.getElementById('pmImportTextFile').addEventListener('change', (e) => {
+    importTextFileIntoPrompt(e.target.files[0]);
     e.target.value = '';
+  });
+  // Drag a .txt/.md file directly onto the textarea
+  const pmPromptTa = document.getElementById('pmPrompt');
+  pmPromptTa.addEventListener('dragover', (e) => {
+    const hasFile = [...(e.dataTransfer?.items||[])].some(i => i.kind === 'file');
+    if (!hasFile) return;
+    e.preventDefault(); e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+    pmPromptTa.style.outline = '2px solid var(--primary)';
+  });
+  pmPromptTa.addEventListener('dragleave', () => { pmPromptTa.style.outline = ''; });
+  pmPromptTa.addEventListener('drop', (e) => {
+    pmPromptTa.style.outline = '';
+    const files = [...(e.dataTransfer?.files||[])];
+    if (!files.length) return;
+    e.preventDefault(); e.stopPropagation();
+    importTextFileIntoPrompt(files[0]);
   });
 
   // Copy
