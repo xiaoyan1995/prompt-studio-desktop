@@ -22,14 +22,14 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python deps
-        run: pip install pyinstaller
+        run: python -m pip install pyinstaller
 
       - name: Install Node deps
         run: npm install
         working-directory: desktop
 
       - name: Compile Python server
-        run: pyinstaller --clean --noconfirm server-build/prompt-studio-server.spec --distpath server-dist
+        run: python -m PyInstaller --clean --noconfirm server-build/prompt-studio-server.spec --distpath server-dist
         working-directory: desktop
 
       - name: Build Electron (Windows)
@@ -61,14 +61,14 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python deps
-        run: pip install pyinstaller
+        run: python -m pip install pyinstaller
 
       - name: Install Node deps
         run: npm install
         working-directory: desktop
 
       - name: Compile Python server
-        run: pyinstaller --clean --noconfirm server-build/prompt-studio-server.spec --distpath server-dist --exclude-module win32com --exclude-module win32api
+        run: python -m PyInstaller --clean --noconfirm server-build/prompt-studio-server.spec --distpath server-dist
         working-directory: desktop
 
       - name: Generate icns icon
