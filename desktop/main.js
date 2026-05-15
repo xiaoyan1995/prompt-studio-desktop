@@ -209,14 +209,26 @@ function resolveUploadPath(uploadPath) {
 
 // ── Clipboard IPC handlers (TODO3) ────────────────────────────────────────
 function registerClipboardHandlers() {
-  // Copy image bitmap to system clipboard
+  // Copy image to clipboard: write bitmap (for image editors/apps) + CF_HDROP (for Explorer paste)
   ipcMain.handle('clipboard:copy-image', (_event, uploadPath) => {
     try {
       const localPath = resolveUploadPath(uploadPath);
       if (!localPath) return false;
       const img = nativeImage.createFromPath(localPath);
       if (img.isEmpty()) return false;
+      // Primary: bitmap for image editors / chat apps
       clipboard.writeImage(img);
+      // Also write CF_HDROP so Ctrl+V works in Windows Explorer / Desktop
+      if (process.platform === 'win32') {
+        const p = localPath;
+        const filesBuf = Buffer.concat([
+          (() => { const b = Buffer.alloc((p.length + 1) * 2); b.write(p, 0, 'utf16le'); return b; })(),
+          Buffer.alloc(2), // double-null terminator
+        ]);
+        const header = Buffer.alloc(20);
+        header.writeUInt32LE(20, 0); header.writeUInt32LE(1, 16);
+        clipboard.writeBuffer('CF_HDROP', Buffer.concat([header, filesBuf]));
+      }
       return true;
     } catch { return false; }
   });
