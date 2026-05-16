@@ -36,15 +36,15 @@
 ## 📋 Changelog
 
 ### v1.0.8
-- 🖼️ Image gallery strip — multiple generated images per prompt, click to select main
-- 🔎 Fullscreen lightbox — click main image to view at full resolution
+- Image gallery strip — multiple generated images per prompt, click to select main
+- Fullscreen lightbox — click main image to view at full resolution
 - @ image picker — type `@` in prompt textarea to reference attached images
-- 🤝 Agent HTTP API — `/api/cli/*` endpoints for list / get / search / push
-- 📦 `pstudio-cli.py` — CLI wrapper for agent integration
-- 🤖 `skills/prompt-studio/` — ready-to-use agent skill with full API reference
+- Agent HTTP API — `/api/cli/*` endpoints for list / get / search / push
+- `pstudio-cli.py` — CLI wrapper for agent integration
+- `skills/prompt-studio/` — ready-to-use agent skill with full API reference
 - Agents can push AI-generated images & videos via URL or base64
 - Reference image and gallery images now stored separately (`ref_image` vs `gallery`)
-- 📸 **Batch image collection** — scan, filter and batch-send page images to desktop; smart CDN cleanup for full-resolution URLs
+- **Batch image collection** — scan, filter and batch-send page images to desktop; smart CDN cleanup for full-resolution URLs
 
 ### v1.0.7
 - PDF / document library with multi-format preview

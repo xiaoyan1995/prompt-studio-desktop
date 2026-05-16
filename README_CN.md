@@ -37,15 +37,15 @@
 ## � 版本记录
 
 ### v1.0.8
-- 🖼️ 图片画廊条 — 每条提示词支持多张生成图，点击缩略图设为主图
-- 🔎 大图查看 — 点击主图全屏 lightbox 浏览
+- 图片画廊条 — 每条提示词支持多张生成图，点击缩略图设为主图
+- 大图查看 — 点击主图全屏 lightbox 浏览
 - @ 图片引用 — 提示词输入框输入 `@` 弹出图片选择面板
-- 🤝 Agent HTTP API — `/api/cli/*` 端点支持 list / get / search / push
--  `pstudio-cli.py` — Agent 集成 CLI 工具
-- 🤖 `skills/prompt-studio/` — 开箱即用的 agent skill，含完整 API 说明
+- Agent HTTP API — `/api/cli/*` 端点支持 list / get / search / push
+- `pstudio-cli.py` — Agent 集成 CLI 工具
+- `skills/prompt-studio/` — 开箱即用的 agent skill，含完整 API 说明
 - Agent 可通过 URL 或 base64 推送 AI 生成的图片和视频
 - 参考图与画廊图分离存储（`ref_image` vs `gallery`）
-- 📸 **批量采集图片** — 一键扫描页面图片，智能 CDN 清洗获取大图，按格式/尺寸筛选后批量发送到桌面端
+- **批量采集图片** — 一键扫描页面图片，智能 CDN 清洗获取大图，按格式/尺寸筛选后批量发送到桌面端
 
 ### v1.0.7
 - 文档库（PDF / Word / Excel / PPT / TXT / Markdown 多格式预览）
