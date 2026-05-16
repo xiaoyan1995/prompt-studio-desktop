@@ -4478,7 +4478,7 @@
   document.getElementById('promptModalImg').addEventListener('click', () => {
     if (pmDisplaySrc) openLightbox(pmDisplaySrc);
   });
-  _lb.addEventListener('click', e => { if (e.target === _lb || e.target === document.getElementById('lbClose')) closeLightbox(); });
+  _lb.addEventListener('click', () => closeLightbox());
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
   // Image file change – show preview immediately, upload on save
