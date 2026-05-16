@@ -1585,7 +1585,7 @@
           <div class="ops-panel">
             <h3>📁 数据存储目录</h3>
             <div class="hint">data.json、uploads、exports 等都保存在这里。更改路径后需重启应用生效，原数据不会自动迁移。</div>
-            <div class="field"><label>当前路径</label><input id="dataDirInput" placeholder="加载中…" spellcheck="false"></div>
+            <div class="field"><label>当前路径</label><div style="display:flex;gap:6px"><input id="dataDirInput" placeholder="加载中…" spellcheck="false" style="flex:1"><button class="btn btn-secondary btn-sm" id="browseDataDirBtn" style="white-space:nowrap">浏览…</button></div></div>
             <div style="display:flex;gap:8px;align-items:center">
               <button class="btn btn-primary btn-sm" id="saveDataDirBtn">保存路径</button>
               <span id="dataDirStatus" style="font-size:12px;color:var(--subtle)"></span>
@@ -3794,6 +3794,11 @@
       if (status) status.textContent = '⚠️ ' + e.message;
     }
   }
+  document.getElementById('browseDataDirBtn').addEventListener('click', async () => {
+    if (!window.electronAPI?.pickFolder) return;
+    const folder = await window.electronAPI.pickFolder();
+    if (folder) document.getElementById('dataDirInput').value = folder;
+  });
   document.getElementById('saveDataDirBtn').addEventListener('click', async () => {
     const inp = document.getElementById('dataDirInput');
     const status = document.getElementById('dataDirStatus');

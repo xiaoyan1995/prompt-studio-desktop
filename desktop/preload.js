@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   copyImage : (uploadPath)  => ipcRenderer.invoke('clipboard:copy-image',  uploadPath),
   copyText  : (text)        => ipcRenderer.invoke('clipboard:copy-text',   text),
   copyFiles : (uploadPaths) => ipcRenderer.invoke('clipboard:copy-files',  uploadPaths),
+  pickFolder : ()            => ipcRenderer.invoke('dialog:pick-folder'),
   // ── Native file drag-out (TODO2) ──────────────────────────────────────
   startFileDrag: (uploadPath) =>
     ipcRenderer.sendSync('drag:start', uploadPath),

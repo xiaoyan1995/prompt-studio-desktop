@@ -214,6 +214,17 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+function registerDialogHandlers() {
+  ipcMain.handle('dialog:pick-folder', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const result = await dialog.showOpenDialog(win, {
+      properties: ['openDirectory', 'createDirectory'],
+      title: '选择数据存储目录',
+    });
+    return result.canceled ? null : result.filePaths[0];
+  });
+}
+
 function registerWindowControls() {
   ipcMain.handle('window:minimize', (event) => {
     BrowserWindow.fromWebContents(event.sender)?.minimize();
@@ -399,6 +410,7 @@ if (!gotLock) {
     logLine('app ready');
     registerProtocol();
     registerWindowControls();
+    registerDialogHandlers();
     registerClipboardHandlers();
     registerDragHandlers();
     buildMenu();
