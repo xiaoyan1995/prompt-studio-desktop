@@ -320,13 +320,16 @@
   function probeImageSize(originalUrl) {
     return new Promise(resolve => {
       const img = new Image();
-      const timer = setTimeout(() => resolve(null), 8000);
-      img.onload = () => {
-        clearTimeout(timer);
-        resolve({ w: img.naturalWidth, h: img.naturalHeight });
-      };
-      img.onerror = () => { clearTimeout(timer); resolve(null); };
-      img.src = originalUrl; // use original, not cleaned URL
+      const done = (result) => { clearTimeout(timer); resolve(result); };
+      const timer = setTimeout(() => done(null), 8000);
+      img.addEventListener('load', () => done({ w: img.naturalWidth, h: img.naturalHeight }));
+      // Capture + stop propagation so page-level error handlers (e.g. XHS "Network Error") don't fire
+      img.addEventListener('error', (e) => {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        done(null);
+      }, true);
+      img.src = originalUrl;
     });
   }
 
