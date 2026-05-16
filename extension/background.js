@@ -363,4 +363,37 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     });
     return false;
   }
+
+  // ── Referer injection for image probing (same mechanism as Download All Images) ──
+  if (msg.type === 'apply-referer') {
+    const id = Math.floor(Math.random() * 1000000);
+    const rule = {
+      id,
+      priority: 2,
+      action: {
+        type: 'modifyHeaders',
+        requestHeaders: [
+          { operation: 'set', header: 'referer', value: msg.referer || '' },
+          { operation: 'remove', header: 'origin' }
+        ]
+      },
+      condition: {
+        urlFilter: msg.src,
+        resourceTypes: ['xmlhttprequest', 'image'],
+        tabIds: [sender.tab?.id].filter(Boolean)
+      }
+    };
+    chrome.declarativeNetRequest.updateSessionRules({ addRules: [rule] })
+      .then(() => sendResponse(id))
+      .catch(() => sendResponse(-1));
+    return true;
+  }
+
+  if (msg.type === 'revoke-referer') {
+    if (msg.id > 0) {
+      chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [msg.id] }).catch(() => {});
+    }
+    sendResponse();
+    return false;
+  }
 });
