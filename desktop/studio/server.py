@@ -31,7 +31,15 @@ elif getattr(sys, "frozen", False):
     BASE_DIR = Path.cwd().resolve()
 else:
     BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR   = Path(os.environ.get("PROMPT_STUDIO_DATA_DIR", BASE_DIR)).resolve()
+_STUDIO_CONFIG_FILE = BASE_DIR / "studio-config.json"
+def _load_studio_config():
+    try:
+        return json.loads(_STUDIO_CONFIG_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+_studio_cfg = _load_studio_config()
+_env_data_dir = os.environ.get("PROMPT_STUDIO_DATA_DIR")
+DATA_DIR   = Path(_env_data_dir or _studio_cfg.get("data_dir") or BASE_DIR).resolve()
 DATA_FILE  = DATA_DIR / "data.json"
 UPLOAD_DIR = DATA_DIR / "uploads"
 CONFIG_FILE = DATA_DIR / "desktop_settings.json"
@@ -768,6 +776,8 @@ class Handler(SimpleHTTPRequestHandler):
             self._json_resp(data.get("projects", []))
         elif path == "/api/desktop/settings":
             self._json_resp({"ok": True, "settings": _load_settings()})
+        elif path == "/api/studio-config":
+            self._json_resp({"ok": True, "data_dir": str(DATA_DIR), "config_file": str(_STUDIO_CONFIG_FILE)})
         elif path == "/api/smart-folders":
             self._json_resp({"ok": True, **_get_smart_folders()})
         elif path == "/api/snapshot/list":
@@ -953,6 +963,16 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_asset_lineage(body)
         elif path == "/api/import-bundle":
             return self._handle_import_bundle()
+        elif path == "/api/studio-config":
+            cfg = _load_studio_config()
+            cfg["data_dir"] = str(DATA_DIR)
+            new_dir = body.get("data_dir", "").strip()
+            if new_dir:
+                cfg["data_dir"] = new_dir
+                _STUDIO_CONFIG_FILE.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+                self._json_resp({"ok": True, "saved": new_dir, "restart_required": True})
+            else:
+                self._json_resp({"ok": True, "data_dir": str(DATA_DIR), "config_file": str(_STUDIO_CONFIG_FILE)})
         elif path == "/api/install-ffmpeg":
             if _ffmpeg_install.get("status") not in ("downloading", "extracting"):
                 threading.Thread(target=_do_install_ffmpeg, daemon=True).start()

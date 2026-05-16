@@ -1583,6 +1583,15 @@
         <!-- 数据备份 -->
         <div id="settingsSec-data" style="display:none;flex-direction:column;gap:14px">
           <div class="ops-panel">
+            <h3>📁 数据存储目录</h3>
+            <div class="hint">data.json、uploads、exports 等都保存在这里。更改路径后需重启应用生效，原数据不会自动迁移。</div>
+            <div class="field"><label>当前路径</label><input id="dataDirInput" placeholder="加载中…" spellcheck="false"></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-primary btn-sm" id="saveDataDirBtn">保存路径</button>
+              <span id="dataDirStatus" style="font-size:12px;color:var(--subtle)"></span>
+            </div>
+          </div>
+          <div class="ops-panel">
             <h3>💾 本地快照备份与恢复</h3>
             <div class="hint">备份 data + settings + 智能文件夹 + uploads。恢复前请确认当前数据已保存。</div>
             <div class="field"><label>快照备注（可选）</label><input id="opsSnapshotNote" placeholder="例如：35条改造前备份"></div>
@@ -3777,13 +3786,45 @@
     });
   }
   document.querySelectorAll('.settings-nav-btn').forEach(btn => {
-    btn.addEventListener('click', () => switchSettingsSection(btn.dataset.sec));
+    btn.addEventListener('click', () => {
+      switchSettingsSection(btn.dataset.sec);
+      if (btn.dataset.sec === 'data') loadDataDirInfo();
+    });
+  });
+
+  async function loadDataDirInfo() {
+    try {
+      const res = await fetch('/api/studio-config');
+      const cfg = await res.json();
+      const inp = document.getElementById('dataDirInput');
+      if (inp) inp.value = cfg.data_dir || '';
+      document.getElementById('dataDirStatus').textContent = '';
+    } catch (_) {}
+  }
+  document.getElementById('saveDataDirBtn').addEventListener('click', async () => {
+    const inp = document.getElementById('dataDirInput');
+    const status = document.getElementById('dataDirStatus');
+    const newDir = inp.value.trim();
+    if (!newDir) { status.textContent = '⚠️ 路径不能为空'; return; }
+    status.textContent = '保存中…';
+    try {
+      const res = await postJson('/api/studio-config', { data_dir: newDir });
+      if (res.ok) {
+        status.textContent = '✅ 已保存，重启后生效';
+      } else {
+        status.textContent = '❌ ' + (res.error || '保存失败');
+      }
+    } catch (err) {
+      status.textContent = '❌ ' + err.message;
+    }
   });
 
   // ── Resource Ops modal (merged) ──────────────────────────────────────
   async function openLibraryOps(sec) {
     document.getElementById('desktopSettingsModal').classList.add('open');
-    switchSettingsSection(sec || 'tools');
+    const s = sec || 'tools';
+    switchSettingsSection(s);
+    if (s === 'data') loadDataDirInfo();
     await loadSmartFolders();
     await refreshSnapshotList();
     renderFolderList();
