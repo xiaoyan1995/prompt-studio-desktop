@@ -30,29 +30,11 @@ const STAGE = path.join(require('os').tmpdir(), `psd-source-${Date.now()}`);
 if (fs.existsSync(STAGE)) fs.rmSync(STAGE, { recursive: true });
 fs.mkdirSync(STAGE, { recursive: true });
 
-// 1. Specific desktop/ files only (whitelist)
-console.log('Copying desktop source files...');
-const destDesktop = path.join(STAGE, 'desktop');
-fs.mkdirSync(destDesktop, { recursive: true });
-for (const f of ['main.js', 'preload.js', 'package.json']) {
-  const src = path.join(DESKTOP, f);
-  if (fs.existsSync(src)) fs.copyFileSync(src, path.join(destDesktop, f));
-}
-// desktop/studio/  (server.py + index.html only)
-const studioSrc  = path.join(DESKTOP, 'studio');
-const studioDest = path.join(destDesktop, 'studio');
-fs.mkdirSync(studioDest, { recursive: true });
-for (const f of ['server.py', 'index.html']) {
-  const src = path.join(studioSrc, f);
-  if (fs.existsSync(src)) fs.copyFileSync(src, path.join(studioDest, f));
-}
-// desktop/scripts/start-electron.js (needed for npm start)
-const scriptsDest = path.join(destDesktop, 'scripts');
-fs.mkdirSync(scriptsDest, { recursive: true });
-for (const f of ['start-electron.js']) {
-  const src = path.join(DESKTOP, 'scripts', f);
-  if (fs.existsSync(src)) fs.copyFileSync(src, path.join(scriptsDest, f));
-}
+// 1. desktop/ — everything except build artifacts
+// 'prompt-studio-server' = PyInstaller build cache inside build/
+const SKIP_DESKTOP = new Set(['node_modules', 'dist', 'server-dist', 'server-build', 'prompt-studio-server', '.cache', '__pycache__']);
+console.log('Copying desktop source...');
+copyDir(DESKTOP, path.join(STAGE, 'desktop'), SKIP_DESKTOP);
 
 // 2. extension/
 const extSrc = path.join(ROOT, 'extension');
@@ -88,12 +70,13 @@ const sizeMB = (fs.statSync(zipOut).size / 1024 / 1024).toFixed(1);
 console.log(`\nDone! ${zipName} (${sizeMB} MB)`);
 console.log(`Path: ${zipOut}`);
 
-function copyDir(src, dest) {
+function copyDir(src, dest, skip = new Set()) {
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    if (skip.has(entry.name)) continue;
     const s = path.join(src, entry.name);
     const d = path.join(dest, entry.name);
-    if (entry.isDirectory()) copyDir(s, d);
+    if (entry.isDirectory()) copyDir(s, d, skip);
     else fs.copyFileSync(s, d);
   }
 }
