@@ -367,10 +367,15 @@ function getDragIcon() {
   return _dragIcon;
 }
 function registerDragHandlers() {
-  ipcMain.on('drag:start', (event, uploadPath) => {
+  ipcMain.on('drag:start', (event, uploadPathOrPaths) => {
     try {
-      const localPath = resolveUploadPath(uploadPath);
-      if (localPath) event.sender.startDrag({ file: localPath, icon: getDragIcon() });
+      const paths = Array.isArray(uploadPathOrPaths) ? uploadPathOrPaths : [uploadPathOrPaths];
+      const localPaths = paths.map(resolveUploadPath).filter(Boolean);
+      if (localPaths.length === 1) {
+        event.sender.startDrag({ file: localPaths[0], icon: getDragIcon() });
+      } else if (localPaths.length > 1) {
+        event.sender.startDrag({ files: localPaths, icon: getDragIcon() });
+      }
     } catch (e) { logLine('drag:start error ' + e.message); }
     event.returnValue = null;
   });

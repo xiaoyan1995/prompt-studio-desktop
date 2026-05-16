@@ -3273,13 +3273,43 @@
       // ── Drag-Out (TODO2) ──────────────────────────────────────────────
       card.setAttribute('draggable', 'true');
       card.addEventListener('dragstart', (de) => {
+        if (!window.electronAPI) return;
         const dtype = card.dataset.promptType;
         const ditem = prompts.find(p => p.id === card.dataset.promptId && p.__type === dtype);
-        if (!ditem || !window.electronAPI) return;
-        const uploadPath = dtype === 'video' ? ditem.video : ditem.image;
-        if (!uploadPath) { de.preventDefault(); return; }
-        de.dataTransfer.setData('text/plain', ditem.prompt || uploadPath);
-        window.electronAPI.startFileDrag(uploadPath);
+        if (!ditem) { de.preventDefault(); return; }
+
+        // Collect paths: if this card is selected and there are other selections, drag all selected
+        const thisKey = `${dtype}:${ditem.id}`;
+        let dragPaths = [];
+        if (uiState.selectedIds.has(thisKey) && uiState.selectedIds.size > 1) {
+          // Drag all selected items
+          uiState.selectedIds.forEach(key => {
+            const [t, id] = key.split(':');
+            const item = prompts.find(p => p.id === id && p.__type === t);
+            if (item) {
+              const p = t === 'video' ? item.video : item.image;
+              if (p) dragPaths.push(p);
+            }
+          });
+        } else {
+          // Drag single item
+          const p = dtype === 'video' ? ditem.video : ditem.image;
+          if (p) dragPaths.push(p);
+        }
+        if (!dragPaths.length) { de.preventDefault(); return; }
+
+        // DataTransfer: text fallback + DownloadURL for browser upload zones
+        de.dataTransfer.effectAllowed = 'copyMove';
+        de.dataTransfer.setData('text/plain', ditem.prompt || dragPaths[0]);
+        // DownloadURL format: mime:filename:url (helps browser upload zones recognize the file)
+        const fname = dragPaths[0].split('/').pop();
+        const ext = (fname.split('.').pop() || '').toLowerCase();
+        const mimeMap = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp', mp4:'video/mp4', mov:'video/quicktime' };
+        const mime = mimeMap[ext] || 'application/octet-stream';
+        de.dataTransfer.setData('DownloadURL', `${mime}:${fname}:${location.origin}${dragPaths[0]}`);
+
+        // Native OS drag (works for Explorer/Finder/desktop and some browsers)
+        window.electronAPI.startFileDrag(dragPaths.length === 1 ? dragPaths[0] : dragPaths);
       });
     });
     grid.querySelectorAll('[data-del-prompt]').forEach(btn => {

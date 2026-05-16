@@ -13,6 +13,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   copyFiles : (uploadPaths) => ipcRenderer.invoke('clipboard:copy-files',  uploadPaths),
   pickFolder : ()            => ipcRenderer.invoke('dialog:pick-folder'),
   // ── Native file drag-out (TODO2) ──────────────────────────────────────
-  startFileDrag: (uploadPath) =>
-    ipcRenderer.sendSync('drag:start', uploadPath),
+  startFileDrag: (uploadPathOrPaths) =>
+    ipcRenderer.sendSync('drag:start', uploadPathOrPaths),
 });
