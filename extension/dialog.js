@@ -483,8 +483,14 @@ function isStreamUrl(url) {
 
 async function checkAndDownloadViaFfmpeg(projectId) {
   // 1. check server has ffmpeg
-  const statusRes = await fetch(`${serverUrl}/api/ffmpeg-status`);
-  const status = await statusRes.json();
+  let status;
+  try {
+    const statusRes = await fetch(`${serverUrl}/api/ffmpeg-status`);
+    if (!statusRes.ok) return 'skip'; // server doesn't support endpoint yet
+    status = await statusRes.json();
+  } catch {
+    return 'skip'; // server unreachable or old version
+  }
   if (!status.ok) {
     // Show ffmpeg install UI
     return new Promise((resolve) => {
