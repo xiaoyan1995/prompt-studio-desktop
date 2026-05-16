@@ -2907,7 +2907,7 @@
     const folderBtn = document.getElementById('importSkillFolderBtn');
     if (folderBtn) folderBtn.style.display = state.view === 'skill_prompts' ? '' : 'none';
     const newFolderBtn = document.getElementById('newAssetFolderBtn');
-    if (newFolderBtn) newFolderBtn.style.display = (state.view === 'image_prompts' || state.view === 'video_prompts') && !state.folderFilter ? '' : 'none';
+    if (newFolderBtn) newFolderBtn.style.display = 'none';
     const smartSel = document.getElementById('smartFolderFilter');
     if (smartSel) smartSel.disabled = isProjects;
     typeSel.value = uiState.filterType;
