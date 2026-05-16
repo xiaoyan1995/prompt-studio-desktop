@@ -1506,7 +1506,7 @@
   </div>
 </div>
 
-<input type="file" id="pdfUploadInput" accept=".pdf,.docx,.doc,.txt,.md,.markdown,.xlsx,.xls,.csv,.pptx,.ppt,.rtf,.odt,.ods,.odp" style="display:none">
+<input type="file" id="pdfUploadInput" accept=".pdf,.docx,.doc,.txt,.md,.markdown,.xlsx,.xls,.csv,.pptx,.ppt,.rtf,.odt,.ods,.odp" multiple style="display:none">
 
 <!-- Panel: PDF / document detail (right drawer) -->
 <div id="pdfModal">
@@ -3168,9 +3168,9 @@
     grid.ondrop = async (e) => {
       if (state.view !== 'pdf_files') return;
       e.preventDefault();
-      const file = [...(e.dataTransfer.files||[])].find(f => DOC_EXTS.includes(f.name.split('.').pop().toLowerCase()));
-      if (!file) { toast('⚠️ 不支持的文件格式'); return; }
-      await handleDocUpload(file);
+      const docFiles = [...(e.dataTransfer.files||[])].filter(f => DOC_EXTS.includes(f.name.split('.').pop().toLowerCase()));
+      if (!docFiles.length) { toast('⚠️ 不支持的文件格式'); return; }
+      for (const f of docFiles) await handleDocUpload(f);
     };
     grid.querySelectorAll('.card[data-pdf-id]').forEach(card => {
       card.addEventListener('click', (e) => {
@@ -4502,8 +4502,8 @@
     await saveData(data); renderPage(); renderSidebar(); toast('✅ 文档已保存');
   }
   document.getElementById('pdfUploadInput').addEventListener('change', async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    await handleDocUpload(file);
+    const files = [...(e.target.files||[])]; if (!files.length) return;
+    for (const f of files) await handleDocUpload(f);
     e.target.value = '';
   });
 
@@ -4774,11 +4774,11 @@
 
       if (!state.projectId) { toast('⚠️ 请先进入一个项目再拖放文件'); return; }
 
-      // ── 文档库视图：所有文件走文档上传 ──────────────────────────────────
+      // ── 文档库视图：所有文件走文档上传（支持多选） ─────────────────────
       if (state.view === 'pdf_files') {
-        const docFile = files.find(f => DOC_EXTS.includes(f.name.split('.').pop().toLowerCase()));
-        if (docFile) { await handleDocUpload(docFile); }
-        else { toast('⚠️ 不支持的文件格式'); }
+        const docFiles = files.filter(f => DOC_EXTS.includes(f.name.split('.').pop().toLowerCase()));
+        if (!docFiles.length) { toast('⚠️ 不支持的文件格式'); return; }
+        for (const f of docFiles) await handleDocUpload(f);
         return;
       }
 
