@@ -782,6 +782,10 @@ class Handler(SimpleHTTPRequestHandler):
             self._json_resp({"ok": True, **_get_smart_folders()})
         elif path == "/api/snapshot/list":
             self._json_resp({"ok": True, "snapshots": _snapshot_manifest()})
+        elif path == "/api/cli/projects":
+            data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+            projs = [{"id": p["id"], "name": p["name"]} for p in data.get("projects", [])]
+            self._json_resp({"ok": True, "projects": projs})
         elif path == "/api/search-assets":
             self._handle_search_assets(query)
         elif path == "/api/detect-duplicates":
@@ -996,6 +1000,8 @@ class Handler(SimpleHTTPRequestHandler):
             self._json_resp({"ok": True, "status": _ffmpeg_install["status"]})
         elif path == "/api/download-video":
             self._handle_download_video(body)
+        elif path == "/api/cli/push":
+            self._handle_cli_push(body)
         else:
             self._err(404, "Not found")
 
@@ -1171,6 +1177,53 @@ class Handler(SimpleHTTPRequestHandler):
         DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         _sse_notify()
         self._json_resp({"ok": True})
+
+    def _handle_cli_push(self, body):
+        """CLI / agent endpoint: push a prompt into Prompt Studio."""
+        project_name = (body.get("project_name") or "").strip()
+        project_id   = (body.get("project_id") or "").strip()
+        type_        = body.get("type", "skill")   # image | video | skill
+        title        = (body.get("title") or "").strip()
+        prompt       = (body.get("prompt") or "").strip()
+        model        = body.get("model", "")
+        tags         = body.get("tags", [])
+        if isinstance(tags, str):
+            tags = [t.strip() for t in tags.split(",") if t.strip()]
+        if not prompt:
+            return self._err(400, "prompt is required")
+        cat_map = {"image": "image_prompts", "video": "video_prompts", "skill": "skill_prompts"}
+        category = cat_map.get(type_, "skill_prompts")
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, _ = _ensure_data_schema(data)
+        proj = None
+        if project_id:
+            proj = next((p for p in data.get("projects", []) if p["id"] == project_id), None)
+        elif project_name:
+            proj = next((p for p in data.get("projects", []) if p["name"] == project_name), None)
+            if not proj:  # auto-create
+                proj = {"id": uuid.uuid4().hex[:16], "name": project_name,
+                        "image_prompts": [], "video_prompts": [], "skill_prompts": []}
+                data.setdefault("projects", []).append(proj)
+        else:
+            projs = data.get("projects", [])
+            if not projs:
+                return self._err(400, "No projects found. Provide project_name.")
+            proj = projs[0]
+        item_id  = uuid.uuid4().hex[:16]
+        new_item = {
+            "id": item_id, "title": title or "Agent 推送",
+            "prompt": prompt, "analysis": body.get("analysis", ""),
+            "model": model, "tags": tags,
+            "image": "", "gallery": [], "ref_image": "",
+            "video": "", "ref_images": [], "aspect": body.get("aspect", ""),
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%S")
+        }
+        _ensure_item_schema(new_item)
+        proj.setdefault(category, []).insert(0, new_item)
+        DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        _sse_notify()
+        self._json_resp({"ok": True, "id": item_id,
+                         "project_id": proj["id"], "project_name": proj["name"], "type": type_})
 
     def _handle_save_prompt(self, body):
         project_id = body.get("projectId", "")
