@@ -214,16 +214,17 @@
 
   // ── Message Handler ───────────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (msg.type === 'get-selection') sendResponse(window.getSelection().toString());
+    if (msg.type === 'get-selection') { sendResponse(window.getSelection().toString()); return; }
     if (msg.type === 'psc-show-panel') {
       resolveMedia(msg.mediaUrl, msg.mediaType).then(res => {
         showCard(res.mediaUrl, msg.mediaType, null, res.referer || msg.referer, res.cookie || msg.cookie);
       });
+      return;
     }
-    if (msg.type === 'psc-reverse-result') deliverResult(msg);
+    if (msg.type === 'psc-reverse-result') { deliverResult(msg); return; }
     if (msg.type === 'scan-images') {
-      sendResponse({ images: scanPageImages() });
-      return true;
+      scanPageImages().then(images => sendResponse({ images }));
+      return true; // keep channel open for async response
     }
   });
 
@@ -315,24 +316,56 @@
     }
   }
 
-  function scanPageImages() {
+  function probeImageSize(url) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      const timer = setTimeout(() => resolve(null), 6000);
+      img.onload = () => {
+        clearTimeout(timer);
+        resolve({ w: img.naturalWidth, h: img.naturalHeight });
+      };
+      img.onerror = () => { clearTimeout(timer); resolve(null); };
+      img.src = url;
+    });
+  }
+
+  async function scanPageImages() {
     const seen = new Set();
-    const results = [];
+    const draft = [];
     document.querySelectorAll('img').forEach(img => {
       if (img.naturalWidth < 2 || img.naturalHeight < 2) return;
       const raw = getBestUrl(img);
       if (!raw) return;
       const url = cleanCdnUrl(raw);
-      const key = url;
-      if (seen.has(key)) return;
-      seen.add(key);
-      results.push({
+      if (seen.has(url)) return;
+      seen.add(url);
+      draft.push({
         url,
-        width:  img.naturalWidth,
+        width:  img.naturalWidth,   // thumbnail size (shown initially)
         height: img.naturalHeight,
+        rawWidth:  img.naturalWidth,
+        rawHeight: img.naturalHeight,
+        probed: url === raw,         // no need to probe if URL didn't change
       });
     });
-    return results;
+
+    // Probe cleaned URLs in parallel (max 8 at a time) to get real dimensions
+    const needProbe = draft.filter(d => !d.probed);
+    const BATCH = 8;
+    for (let i = 0; i < needProbe.length; i += BATCH) {
+      const batch = needProbe.slice(i, i + BATCH);
+      const sizes = await Promise.all(batch.map(d => probeImageSize(d.url)));
+      sizes.forEach((sz, j) => {
+        if (sz && sz.w > batch[j].width) {
+          batch[j].width  = sz.w;
+          batch[j].height = sz.h;
+        }
+        batch[j].probed = true;
+      });
+    }
+
+    return draft;
   }
 
   // ── Floating Reverse Card ─────────────────────────────────────────────────────
