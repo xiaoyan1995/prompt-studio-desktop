@@ -889,6 +889,8 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_asset_quality(body)
         elif path == "/api/asset/lineage":
             self._handle_asset_lineage(body)
+        elif path == "/api/import-bundle":
+            return self._handle_import_bundle()
         else:
             self._err(404, "Not found")
 
@@ -960,11 +962,49 @@ class Handler(SimpleHTTPRequestHandler):
                 out_path = save_dir / f"{stem}_{counter}{ext}"
                 counter += 1
             out_path.write_bytes(raw)
+            # Extract text content for full-text search
+            content_text = ""
+            try:
+                ext_lower = ext.lower()
+                if ext_lower == ".txt" or ext_lower in (".md", ".markdown"):
+                    content_text = raw.decode("utf-8", errors="replace")[:50000]
+                elif ext_lower == ".csv":
+                    content_text = raw.decode("utf-8", errors="replace")[:50000]
+                elif ext_lower == ".pdf":
+                    # Try pdfminer
+                    try:
+                        from pdfminer.high_level import extract_text as _pdf_extract
+                        content_text = _pdf_extract(str(out_path))[:50000]
+                    except ImportError:
+                        pass
+                elif ext_lower == ".docx":
+                    try:
+                        import zipfile as _zf, xml.etree.ElementTree as _ET
+                        with _zf.ZipFile(out_path) as zf:
+                            xml_content = zf.read("word/document.xml")
+                        root = _ET.fromstring(xml_content)
+                        ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+                        content_text = "\n".join(t.text for t in root.iter("{%s}t" % ns["w"]) if t.text)[:50000]
+                    except Exception:
+                        pass
+                elif ext_lower in (".xlsx", ".xls"):
+                    try:
+                        import zipfile as _zf, xml.etree.ElementTree as _ET
+                        if ext_lower == ".xlsx":
+                            with _zf.ZipFile(out_path) as zf:
+                                shared = _ET.fromstring(zf.read("xl/sharedStrings.xml"))
+                            ns = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+                            content_text = "\n".join(t.text for t in shared.iter("{%s}t" % ns["s"]) if t.text)[:50000]
+                    except Exception:
+                        pass
+            except Exception:
+                pass
             self._json_resp({
                 "ok": True,
                 "path": f"/uploads/{proj_folder}/docs/{out_path.name}",
                 "filename": out_path.name,
-                "size": len(raw)
+                "size": len(raw),
+                "content_text": content_text
             })
         except Exception as e:
             self._err(500, f"Upload failed: {e}")
@@ -1905,6 +1945,39 @@ class Handler(SimpleHTTPRequestHandler):
         with urllib.request.urlopen(req3, timeout=120) as r:
             data = json.loads(r.read())
         return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+    def _handle_import_bundle(self):
+        """Import a ZIP bundle exported by export-bundle. Extracts media, returns metadata for client merge."""
+        import zipfile, io
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length)
+            proj_raw = unquote(self.headers.get("X-Project", "default") or "default")
+            proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", proj_raw)[:40] or "default"
+            zf = zipfile.ZipFile(io.BytesIO(raw))
+            meta = None
+            extracted_files = {}
+            for name in zf.namelist():
+                if name.endswith("metadata.json"):
+                    meta = json.loads(zf.read(name))
+                elif not name.endswith("/"):
+                    # extract uploads
+                    parts = name.split("/")
+                    # remove leading folder (bundle root)
+                    rel = "/".join(parts[1:]) if len(parts) > 1 else name
+                    if not rel:
+                        continue
+                    out_dir = UPLOAD_DIR / proj_folder
+                    out_path = out_dir / rel
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                    out_path.write_bytes(zf.read(name))
+                    old_rel = "/" + "/".join(parts[1:]) if len(parts) > 1 else "/" + name
+                    new_rel = f"/uploads/{proj_folder}/{rel}"
+                    extracted_files[old_rel] = new_rel
+            zf.close()
+            self._json_resp({"ok": True, "meta": meta, "file_map": extracted_files})
+        except Exception as e:
+            self._err(500, f"Import failed: {e}")
 
     def _cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")

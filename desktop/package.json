@@ -1,6 +1,6 @@
 {
   "name": "prompt-studio-desktop",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Prompt Studio desktop shell with companion browser extension support.",
   "main": "main.js",
   "private": true,

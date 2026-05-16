@@ -362,7 +362,20 @@ function stopServer() {
   if (!serverProcess) return;
   const proc = serverProcess;
   serverProcess = null;
-  proc.kill();
+  try {
+    if (process.platform === 'win32') {
+      // Kill the entire process tree (covers py.exe → python.exe chains)
+      const { execSync } = require('child_process');
+      try { execSync(`taskkill /pid ${proc.pid} /T /F`, { timeout: 4000, stdio: 'ignore' }); } catch {}
+    } else {
+      // Unix: SIGTERM first, then SIGKILL
+      try { proc.kill('SIGTERM'); } catch {}
+      setTimeout(() => { try { proc.kill('SIGKILL'); } catch {} }, 1500);
+    }
+  } catch {}
+  // Fallback: always try direct kill too
+  try { proc.kill(); } catch {}
+  logLine('stopServer called, pid=' + proc.pid);
 }
 
 const gotLock = app.requestSingleInstanceLock();
@@ -401,4 +414,21 @@ if (!gotLock) {
   });
 
   app.on('before-quit', stopServer);
+  app.on('will-quit', stopServer);
+
+  // Final safety net: if Node process itself exits for any reason
+  process.on('exit', () => {
+    if (serverProcess) {
+      try {
+        if (process.platform === 'win32') {
+          require('child_process').execSync(
+            `taskkill /pid ${serverProcess.pid} /T /F`,
+            { timeout: 2000, stdio: 'ignore' }
+          );
+        } else {
+          serverProcess.kill('SIGKILL');
+        }
+      } catch {}
+    }
+  });
 }

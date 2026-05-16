@@ -297,31 +297,6 @@
     padding:10px 4px;
   }
 
-  .batch-bar-removed{
-    flex-shrink:0;
-    display:none;
-    align-items:center;
-    gap:8px;
-    background:#1b2438;
-    color:#eaf1ff;
-    border-radius:9px;
-    padding:9px 12px;
-    box-shadow:0 10px 30px rgba(20,28,45,.24);
-  }
-  .batch-count{font-size:12px;font-weight:700;margin-right:8px}
-  .batch-spacer{flex:1}
-  .batch-btn{
-    border:1px solid rgba(255,255,255,.2);
-    background:rgba(255,255,255,.06);
-    color:#eaf1ff;
-    border-radius:7px;
-    padding:6px 10px;
-    font-size:12px;
-    font-weight:600;
-    cursor:pointer;
-  }
-  .batch-btn:hover{background:rgba(255,255,255,.13)}
-
   /* ── Cards grid ───────────────────────────────────── */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-min-w),var(--card-min-w)));gap:16px;align-items:start}
   .scale-btn{border:none;background:var(--surface-2);border:1px solid var(--border);color:var(--subtle);padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;border-radius:5px;transition:background .12s}
@@ -1282,6 +1257,58 @@
     color:#69788d;border-radius:6px;transition:background .15s;
   }
   .theme-toggle:hover{background:var(--surface-2)}
+
+  /* ── Rubber-band selection rect ─────────────────── */
+  .selection-rect{
+    position:fixed;pointer-events:none;z-index:150;
+    border:1.5px solid var(--primary);
+    background:rgba(27,103,218,.08);
+    border-radius:3px;display:none;
+  }
+  #mainGrid{user-select:none;min-height:200px}
+
+  /* ── Color dots ──────────────────────────────────── */
+  .color-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}
+  .card .color-dot{position:absolute;top:8px;left:8px;z-index:2;box-shadow:0 0 0 2px rgba(255,255,255,.7)}
+  .color-filter-row{display:flex;gap:6px;align-items:center;padding:0 2px}
+  .color-filter-dot{width:18px;height:18px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:border-color .15s,transform .1s}
+  .color-filter-dot:hover{transform:scale(1.2)}
+  .color-filter-dot.active{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
+  .color-filter-dot[data-color="all"]{background:conic-gradient(#ef4444,#f97316,#eab308,#22c55e,#3b82f6,#a855f7,#ef4444);position:relative}
+  .color-filter-dot[data-color="all"]::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--surface)}
+  .color-picker-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .color-pick{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);cursor:pointer;transition:border-color .15s,transform .1s}
+  .color-pick:hover{transform:scale(1.15)}
+  .color-pick.active{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
+
+  /* ── Batch bar (fixed bottom) ────────────────────── */
+  .batch-bar{position:fixed;bottom:0;left:var(--sidebar-w);right:0;height:48px;background:#172033;color:#eaf1ff;
+    display:none;align-items:center;padding:0 16px;gap:10px;z-index:200;border-top:1px solid rgba(47,111,189,.18)}
+  .batch-bar.show{display:flex}
+  .batch-count{font-size:12px;font-weight:700;margin-right:8px}
+  .batch-spacer{flex:1}
+  .batch-btn{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#eaf1ff;
+    border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer}
+  .batch-btn:hover{background:rgba(255,255,255,.13)}
+  .batch-btn.danger{border-color:rgba(239,68,68,.4);color:#fca5a5}
+  .batch-btn.danger:hover{background:rgba(239,68,68,.15)}
+  body.dark .batch-bar{background:#0f151d;border-color:rgba(214,161,93,.22)}
+
+  /* ── Context menu ────────────────────────────────── */
+  .ctx-menu{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    box-shadow:var(--shadow-lg);min-width:160px;padding:4px 0;font-size:13px}
+  .ctx-menu-item{padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .ctx-menu-item:hover{background:var(--primary-soft);color:var(--primary)}
+  .ctx-menu-sep{height:1px;background:var(--border);margin:3px 0}
+  .ctx-menu-label{padding:5px 14px 2px;font-size:11px;font-weight:700;color:var(--primary);letter-spacing:.03em}
+  .ctx-menu-item.danger{color:var(--danger)}
+  .ctx-menu-item.danger:hover{background:var(--danger-soft)}
+
+  /* ── Move-to-project modal ───────────────────────── */
+  .move-proj-list{display:grid;gap:6px;max-height:300px;overflow-y:auto;padding:4px 0}
+  .move-proj-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:background .12s}
+  .move-proj-item:hover{background:var(--primary-soft)}
+  .move-proj-item.current{opacity:.4;pointer-events:none}
 </style>
 </head>
 <body>
@@ -1401,6 +1428,39 @@
 
   </div>
 </div>
+</div>
+
+<!-- Batch bar (fixed bottom) -->
+<div class="batch-bar" id="batchBar">
+  <span class="batch-count" id="batchCount">已选择 0 项</span>
+  <button class="batch-btn" id="batchTagBtn">🏷️ 打标签</button>
+  <button class="batch-btn" id="batchMoveBtn">📦 移到项目</button>
+  <button class="batch-btn" id="batchStarBtn">⭐ 星标</button>
+  <div class="batch-spacer"></div>
+  <button class="batch-btn danger" id="batchDeleteBtn">🗑️ 删除</button>
+  <button class="batch-btn" id="batchCancelBtn">取消</button>
+</div>
+
+<!-- Context menu -->
+<div class="ctx-menu" id="ctxMenu" style="display:none"></div>
+
+<!-- Rubber-band selection rect -->
+<div class="selection-rect" id="selectionRect"></div>
+
+<!-- Modal: Move to project -->
+<div class="modal-backdrop" id="moveModal" style="display:none">
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <h2 id="moveModalTitle">移动到项目</h2>
+      <button class="modal-close" id="moveModalClose">✕</button>
+    </div>
+    <div style="padding:20px;display:grid;gap:12px">
+      <div class="field"><label>操作方式</label>
+        <select id="moveMode" style="width:100%"><option value="move">移动（从当前项目删除）</option><option value="copy">复制（保留在当前项目）</option></select>
+      </div>
+      <div class="move-proj-list" id="moveProjList"></div>
+    </div>
+  </div>
 </div>
 
 <!-- Toast -->
@@ -1525,6 +1585,10 @@
         <div class="tags-row" id="pdfTagsRow" style="min-height:22px"></div>
         <input type="text" id="pdfTagInput" placeholder="输入后按 Enter 添加" style="margin-top:6px">
       </div>
+      <div class="field" style="margin:0">
+        <label>颜色标记</label>
+        <div class="color-picker-row" id="pdfColorPicker"></div>
+      </div>
     </div>
     <!-- hidden fields still needed by JS -->
     <input type="hidden" id="pdfFilenameDisplay">
@@ -1605,6 +1669,17 @@
           <button class="btn btn-secondary" id="opsDetectDupBtn">开始检测</button>
         </div>
         <div id="opsDupResult" class="hint">尚未检测</div>
+      </div>
+
+      <div class="ops-panel">
+        <h3>📥 导入资源包</h3>
+        <div class="hint">从导出的 ZIP 包中导入提示词和素材到当前项目。</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label class="btn btn-primary btn-sm" style="cursor:pointer">
+            选择 ZIP 文件<input type="file" id="opsImportZip" accept=".zip" style="display:none">
+          </label>
+          <span id="opsImportStatus" style="font-size:12px;color:var(--subtle)"></span>
+        </div>
       </div>
 
       <div class="ops-panel">
@@ -1986,7 +2061,14 @@
     smartFolders: [],
     selectedIds: new Set(),
     selectedItem: null,
+    pdfColorFilter: 'all',
+    starFilter: false,
   };
+  const DOC_COLORS = [
+    {id:'red',color:'#ef4444'},{id:'orange',color:'#f97316'},{id:'yellow',color:'#eab308'},
+    {id:'green',color:'#22c55e'},{id:'blue',color:'#3b82f6'},{id:'purple',color:'#a855f7'},
+    {id:'pink',color:'#ec4899'},
+  ];
 
   const GRADIENTS = [
     ['#e8eef8','#d3dff5'],['#e8f4e8','#c8eacc'],['#fff3e0','#ffe0b2'],
@@ -2959,7 +3041,41 @@
 
     // ── PDF files view ──────────────────────────────────────────────────
     if (state.view === 'pdf_files') {
-      catBarEl.style.display = 'none';
+      // build tag bar + color filter for docs
+      const allDocTags = new Set();
+      (proj.pdf_files||[]).forEach(p => (p.tags||[]).forEach(t => allDocTags.add(t)));
+      const docTagList = [...allDocTags].sort();
+      const hasColoredDocs = (proj.pdf_files||[]).some(p => p.color);
+      if (!docTagList.length && !hasColoredDocs) {
+        catBarEl.style.display = 'none'; catBarEl.innerHTML = '';
+      } else {
+        catBarEl.style.display = 'flex';
+        let barHtml = '';
+        // tag buttons
+        if (docTagList.length) {
+          barHtml += ['全部', ...docTagList].map(c => {
+            const count = c === '全部' ? (proj.pdf_files||[]).length : (proj.pdf_files||[]).filter(p => (p.tags||[]).includes(c)).length;
+            return `<button class="cat-btn${(activeCategory===c||(activeCategory===null&&c==='全部'))?' active':''}" data-cat="${h(c)}">${h(c)}<span class="cat-count">${count}</span></button>`;
+          }).join('');
+        }
+        // color filter dots
+        if (hasColoredDocs) {
+          barHtml += `<span style="margin-left:auto;display:flex;gap:5px;align-items:center">`;
+          barHtml += `<span class="color-filter-dot${uiState.pdfColorFilter==='all'?' active':''}" data-color="all" title="全部颜色"></span>`;
+          DOC_COLORS.forEach(dc => {
+            if ((proj.pdf_files||[]).some(p => p.color === dc.id))
+              barHtml += `<span class="color-filter-dot${uiState.pdfColorFilter===dc.id?' active':''}" data-color="${dc.id}" style="background:${dc.color}" title="${dc.id}"></span>`;
+          });
+          barHtml += `</span>`;
+        }
+        catBarEl.innerHTML = barHtml;
+        catBarEl.querySelectorAll('.cat-btn').forEach(btn => {
+          btn.addEventListener('click', () => { activeCategory = btn.dataset.cat === '全部' ? null : btn.dataset.cat; renderPage(); });
+        });
+        catBarEl.querySelectorAll('.color-filter-dot').forEach(dot => {
+          dot.addEventListener('click', () => { uiState.pdfColorFilter = dot.dataset.color; renderPage(); });
+        });
+      }
       renderPdfGrid(proj, q);
       return;
     }
@@ -3093,6 +3209,7 @@
       if (vid) attachVideoScrubberPreview(card, vid);
       const selectKey = `${card.dataset.promptType}:${card.dataset.promptId}`;
       card.classList.toggle('selected', uiState.selectedIds.has(selectKey));
+      attachPromptCtxMenu(card, prompts);
       // ── Drag-Out (TODO2) ──────────────────────────────────────────────
       card.setAttribute('draggable', 'true');
       card.addEventListener('dragstart', (de) => {
@@ -3133,11 +3250,19 @@
     const grid = document.getElementById('mainGrid');
     const empty = document.getElementById('emptyState');
     let pdfs = proj.pdf_files || [];
+    // full-text search (title + filename + notes + content_text)
     if (q) pdfs = pdfs.filter(p =>
       (p.title||'').toLowerCase().includes(q) ||
       (p.filename||'').toLowerCase().includes(q) ||
-      (p.notes||'').toLowerCase().includes(q)
+      (p.notes||'').toLowerCase().includes(q) ||
+      (p.content_text||'').toLowerCase().includes(q)
     );
+    // tag filter
+    if (activeCategory) pdfs = pdfs.filter(p => (p.tags||[]).includes(activeCategory));
+    // color filter
+    if (uiState.pdfColorFilter !== 'all') pdfs = pdfs.filter(p => p.color === uiState.pdfColorFilter);
+    // sort
+    pdfs = sortByUi(pdfs);
     if (!pdfs.length) {
       grid.innerHTML = '';
       empty.style.display = 'flex';
@@ -3147,8 +3272,12 @@
       grid.innerHTML = pdfs.map(p => {
         const sizeStr = p.size ? formatFileSize(p.size) : '';
         const icon = docIcon(p.filename||p.title||'');
+        const colorDot = p.color ? `<span class="color-dot" style="background:${(DOC_COLORS.find(c=>c.id===p.color)||{}).color||'transparent'}"></span>` : '';
+        const selKey = `pdf:${p.id}`;
+        const selected = uiState.selectedIds.has(selKey);
         return `
-          <div class="card" data-pdf-id="${h(p.id)}">
+          <div class="card${selected?' selected':''}" data-pdf-id="${h(p.id)}">
+            ${colorDot}
             <div class="card-thumb-pdf">${icon}<div class="pdf-fn">${h(p.filename||'')}</div></div>
             <div class="card-body">
               <div class="card-label label-pdf">文档</div>
@@ -3175,7 +3304,18 @@
     grid.querySelectorAll('.card[data-pdf-id]').forEach(card => {
       card.addEventListener('click', (e) => {
         if (e.target.closest('.card-del')) return;
+        const selKey = `pdf:${card.dataset.pdfId}`;
+        if (e.ctrlKey || e.metaKey) {
+          toggleSelect(selKey, card);
+          return;
+        }
         openPdfModal(card.dataset.pdfId);
+      });
+      // right-click context menu
+      card.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const pdfItem = pdfs.find(p => p.id === card.dataset.pdfId);
+        if (pdfItem) showCtxMenu(e.clientX, e.clientY, pdfItem, 'pdf');
       });
     });
     grid.querySelectorAll('[data-del-pdf]').forEach(btn => {
@@ -3191,7 +3331,7 @@
   }
 
   // ── PDF Modal ──────────────────────────────────────────────────────────
-  let pdfEditId = null, pdfTags = [];
+  let pdfEditId = null, pdfTags = [], pdfColor = '';
   let _pdfDoc = null, _pdfPageNum = 1, _pdfScale = 1.0, _pdfDefaultW = 0;
 
   function openPdfModal(pdfId) {
@@ -3200,6 +3340,7 @@
     const item = pdfId ? (proj.pdf_files||[]).find(p => p.id === pdfId) : null;
     if (!item) return;
     pdfTags = [...(item.tags||[])];
+    pdfColor = item.color || '';
     const chip = document.getElementById('pdfModalChip');
     if (chip) chip.innerHTML = `${docIcon(item.filename||'')} 文档`;
     document.getElementById('pdfModalTitle').textContent = item.title || item.filename || '';
@@ -3210,7 +3351,16 @@
     document.getElementById('pdfNotesInput').value = item.notes || '';
     loadPdfViewer(item.path || '');
     renderPdfTags();
+    renderPdfColorPicker();
     document.getElementById('pdfModal').classList.add('open');
+  }
+  function renderPdfColorPicker() {
+    const row = document.getElementById('pdfColorPicker');
+    row.innerHTML = `<span class="color-pick${!pdfColor?' active':''}" data-c="" style="background:var(--border)" title="无颜色"></span>`
+      + DOC_COLORS.map(dc => `<span class="color-pick${pdfColor===dc.id?' active':''}" data-c="${dc.id}" style="background:${dc.color}" title="${dc.id}"></span>`).join('');
+    row.querySelectorAll('.color-pick').forEach(el => {
+      el.addEventListener('click', () => { pdfColor = el.dataset.c; renderPdfColorPicker(); });
+    });
   }
 
   function closePdfModal() {
@@ -4496,7 +4646,8 @@
     proj.pdf_files.unshift({
       id: uid(), title: file.name.replace(/\.[^.]+$/, ''),
       filename: file.name, path: result.path,
-      size: result.size, tags: [], notes: '',
+      size: result.size, tags: [], notes: '', color: '',
+      content_text: result.content_text || '',
       created_at: new Date().toISOString()
     });
     await saveData(data); renderPage(); renderSidebar(); toast('✅ 文档已保存');
@@ -4542,6 +4693,7 @@
       title: document.getElementById('pdfTitleInput').value.trim(),
       notes: document.getElementById('pdfNotesInput').value.trim(),
       tags: [...pdfTags],
+      color: pdfColor || '',
       updated_at: new Date().toISOString()
     };
     await saveData(data); renderPage(); renderSidebar(); toast('✅ 已保存');
@@ -4868,6 +5020,431 @@
       else { toast('❌ 导入失败'); }
     });
   })();
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ── Rubber-band (Lasso) Multi-select ────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  (function() {
+    const selRect = document.getElementById('selectionRect');
+    if (!selRect) return;
+    let dragging = false, sx = 0, sy = 0, moved = false;
+
+    // Interactive elements — clicking on these must NOT start lasso
+    function isInteractive(el) {
+      return !!el.closest('button,input,select,textarea,a,[role="button"],label,' +
+        '.card,.cat-btn,.batch-bar,.ctx-menu,.modal-backdrop,.doc-panel,' +
+        '#skillPanel,#pdfModal,.workspace-toolbar,#workspaceToolbar,' +
+        '.sidebar,.inspector');
+    }
+
+    // Is coordinate inside the main grid workspace?
+    function inWorkspace(cx, cy) {
+      const ws = document.querySelector('.workspace-main');
+      if (!ws) return false;
+      const r = ws.getBoundingClientRect();
+      return cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom;
+    }
+
+    document.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      if (isInteractive(e.target)) return;
+      if (!inWorkspace(e.clientX, e.clientY)) return;
+      // Skip if panel/modal is open
+      if (document.getElementById('pdfModal')?.classList.contains('open')) return;
+      if (document.getElementById('skillPanel')?.classList.contains('open')) return;
+      if (document.querySelector('.modal-backdrop.open')) return;
+
+      dragging = true; moved = false;
+      sx = e.clientX; sy = e.clientY;
+      if (!e.ctrlKey && !e.metaKey) clearSelection();
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (!moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      moved = true;
+
+      // Show rect on first meaningful move
+      if (selRect.style.display !== 'block') selRect.style.display = 'block';
+
+      const x = Math.min(e.clientX, sx), y = Math.min(e.clientY, sy);
+      const w = Math.abs(dx), h = Math.abs(dy);
+      selRect.style.left = x + 'px'; selRect.style.top = y + 'px';
+      selRect.style.width = w + 'px'; selRect.style.height = h + 'px';
+
+      const sb = { x, y, r: x + w, b: y + h };
+      document.querySelectorAll('#mainGrid .card').forEach(card => {
+        const cb = card.getBoundingClientRect();
+        const hit = cb.left < sb.r && cb.right > sb.x && cb.top < sb.b && cb.bottom > sb.y;
+        const key = card.dataset.pdfId
+          ? `pdf:${card.dataset.pdfId}`
+          : `${card.dataset.promptType}:${card.dataset.promptId}`;
+        if (!key || key.includes('undefined')) return;
+        if (hit) { uiState.selectedIds.add(key); card.classList.add('selected'); }
+        else if (!e.ctrlKey && !e.metaKey) { uiState.selectedIds.delete(key); card.classList.remove('selected'); }
+      });
+      updateBatchBar();
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      selRect.style.display = 'none';
+    });
+  })();
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ── Context Menu ────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  let _ctxItem = null, _ctxType = null;
+  function showCtxMenu(x, y, item, type) {
+    _ctxItem = item; _ctxType = type;
+    const m = document.getElementById('ctxMenu');
+    const isPdf = type === 'pdf';
+    const ctxKey = isPdf ? `pdf:${item.id}` : `${type}:${item.id}`;
+    const multiCount = uiState.selectedIds.size > 1 && uiState.selectedIds.has(ctxKey) ? uiState.selectedIds.size : 0;
+    const delLabel = multiCount > 1 ? `🗑️ 删除 ${multiCount} 项` : '🗑️ 删除';
+    const starLabel = multiCount > 1 ? '⭐ 批量星标' : (item.quality?.star ? '☆ 取消星标' : '⭐ 添加星标');
+    m.innerHTML = [
+      multiCount > 1 ? `<div class="ctx-menu-label">已选 ${multiCount} 项</div><div class="ctx-menu-sep"></div>` : '',
+      multiCount <= 1 ? `<div class="ctx-menu-item" data-act="open">${isPdf ? '📄 打开预览' : '✏️ 编辑'}</div>` : '',
+      `<div class="ctx-menu-item" data-act="star">${starLabel}</div>`,
+      `<div class="ctx-menu-sep"></div>`,
+      `<div class="ctx-menu-item" data-act="move">📦 移到其他项目…</div>`,
+      `<div class="ctx-menu-item" data-act="copy">📋 复制到其他项目…</div>`,
+      `<div class="ctx-menu-sep"></div>`,
+      `<div class="ctx-menu-item danger" data-act="delete">${delLabel}</div>`,
+    ].join('');
+    m.style.display = 'block'; m.style.left = Math.min(x, innerWidth - 180) + 'px'; m.style.top = Math.min(y, innerHeight - 240) + 'px';
+    m.querySelectorAll('.ctx-menu-item').forEach(el => el.addEventListener('click', () => handleCtxAction(el.dataset.act)));
+  }
+  document.addEventListener('click', () => { document.getElementById('ctxMenu').style.display = 'none'; });
+
+  // Build effective target list: if right-clicked item is in multi-selection,
+  // operate on ALL selected items (standard file-manager behaviour).
+  function ctxEffectiveItems() {
+    const isPdf = _ctxType === 'pdf';
+    const ctxKey = isPdf ? `pdf:${_ctxItem.id}` : `${_ctxType}:${_ctxItem.id}`;
+    const proj = getProject(state.projectId);
+    if (uiState.selectedIds.size > 1 && uiState.selectedIds.has(ctxKey)) {
+      const items = [];
+      for (const key of uiState.selectedIds) {
+        const [type, id] = key.split(':');
+        let cat, arr;
+        if (type === 'pdf') { cat = 'pdf_files'; arr = proj.pdf_files || []; }
+        else { cat = {image:'image_prompts',video:'video_prompts',skill:'skill_prompts'}[type]; arr = proj[cat] || []; }
+        const item = arr.find(p => p.id === id);
+        if (item) items.push({ item, type, category: cat });
+      }
+      return items;
+    }
+    // Single item fallback
+    const cat = isPdf ? 'pdf_files' : {image:'image_prompts',video:'video_prompts',skill:'skill_prompts'}[_ctxType];
+    return [{ item: _ctxItem, type: _ctxType, category: cat }];
+  }
+
+  async function handleCtxAction(act) {
+    document.getElementById('ctxMenu').style.display = 'none';
+    if (!_ctxItem) return;
+    const proj = getProject(state.projectId);
+    if (!proj) return;
+
+    // 'open' always acts on the single right-clicked item only
+    if (act === 'open') {
+      if (_ctxType === 'pdf') openPdfModal(_ctxItem.id);
+      else if (_ctxType === 'skill') openSkillPanel(_ctxItem.id);
+      else openPromptModal(_ctxItem.id, _ctxType);
+      return;
+    }
+
+    const targets = ctxEffectiveItems();
+    const count = targets.length;
+
+    if (act === 'star') {
+      for (const { item, type, category } of targets) {
+        if (type === 'pdf') {
+          const it = (proj.pdf_files||[]).find(p => p.id === item.id);
+          if (it) { it.quality = it.quality || {}; it.quality.star = !it.quality.star; }
+        } else {
+          try { await postJson('/api/asset/quality', { projectId: state.projectId, category, promptId: item.id, star: !(item.quality?.star) }); } catch {}
+        }
+      }
+      await saveData(data); data = await loadData(); renderPage();
+      toast(`✅ 已更新 ${count} 项星标`);
+    } else if (act === 'delete') {
+      const msg = count > 1
+        ? `确认删除选中的 ${count} 项？`
+        : `确认删除「${_ctxItem.title || '未命名'}」？`;
+      if (!confirm(msg)) return;
+      for (const { item, type } of targets) {
+        if (type === 'pdf') {
+          try { await postJson('/api/delete-pdf', { projectId: state.projectId, pdfId: item.id }); } catch {}
+        } else {
+          const cat = {image:'image_prompts',video:'video_prompts',skill:'skill_prompts'}[type];
+          try { await postJson('/api/delete-prompt', { projectId: state.projectId, category: cat, promptId: item.id, deleteMedia: false }); } catch {}
+        }
+      }
+      clearSelection(); data = await loadData(); renderPage(); renderSidebar();
+      toast(`✅ 已删除 ${count} 项`);
+    } else if (act === 'move' || act === 'copy') {
+      openMoveModal(act, targets);
+    }
+  }
+
+  // also add right-click for prompt cards
+  function attachPromptCtxMenu(card, prompts) {
+    card.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const type = card.dataset.promptType;
+      const item = prompts.find(p => p.id === card.dataset.promptId && p.__type === type);
+      if (item) showCtxMenu(e.clientX, e.clientY, item, type);
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ── Cross-project Move / Copy ───────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  let _moveItems = [];
+  function openMoveModal(mode, items) {
+    _moveItems = items;
+    document.getElementById('moveMode').value = mode;
+    document.getElementById('moveModalTitle').textContent = mode === 'copy' ? '复制到项目' : '移动到项目';
+    const list = document.getElementById('moveProjList');
+    list.innerHTML = data.projects.map(p => {
+      const isCurrent = p.id === state.projectId;
+      return `<div class="move-proj-item${isCurrent?' current':''}" data-pid="${h(p.id)}">
+        <span>${GRADIENT_EMOJIS[p.colorIdx||0]}</span>
+        <span style="flex:1">${h(p.name)}</span>
+        ${isCurrent ? '<span style="font-size:11px;color:var(--subtle)">当前</span>' : ''}
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.move-proj-item:not(.current)').forEach(el => {
+      el.addEventListener('click', () => execMove(el.dataset.pid));
+    });
+    document.getElementById('moveModal').style.display = '';
+    document.getElementById('moveModal').classList.add('open');
+  }
+  document.getElementById('moveModalClose').addEventListener('click', () => {
+    document.getElementById('moveModal').classList.remove('open');
+    document.getElementById('moveModal').style.display = 'none';
+  });
+  async function execMove(targetProjId) {
+    const mode = document.getElementById('moveMode').value;
+    const srcProj = getProject(state.projectId);
+    const tgtProj = getProject(targetProjId);
+    if (!srcProj || !tgtProj) return;
+    for (const {item, category} of _moveItems) {
+      const clone = JSON.parse(JSON.stringify(item));
+      clone.id = uid();
+      clone.created_at = new Date().toISOString();
+      tgtProj[category] = tgtProj[category] || [];
+      tgtProj[category].unshift(clone);
+      if (mode === 'move') {
+        srcProj[category] = (srcProj[category]||[]).filter(p => p.id !== item.id);
+      }
+    }
+    await saveData(data); renderPage(); renderSidebar();
+    document.getElementById('moveModal').classList.remove('open');
+    document.getElementById('moveModal').style.display = 'none';
+    toast(`✅ 已${mode === 'copy' ? '复制' : '移动'} ${_moveItems.length} 个项目`);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ── Batch Operations ────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  document.getElementById('batchCancelBtn').addEventListener('click', () => clearSelection());
+  document.getElementById('batchDeleteBtn').addEventListener('click', async () => {
+    const count = uiState.selectedIds.size;
+    if (!count) return;
+    if (!confirm(`确认批量删除 ${count} 项？`)) return;
+    const proj = getProject(state.projectId);
+    if (!proj) return;
+    for (const key of uiState.selectedIds) {
+      const [type, id] = key.split(':');
+      if (type === 'pdf') {
+        try { await postJson('/api/delete-pdf', { projectId: state.projectId, pdfId: id }); } catch {}
+      } else {
+        const cat = { image:'image_prompts', video:'video_prompts', skill:'skill_prompts' }[type];
+        if (cat) {
+          try { await postJson('/api/delete-prompt', { projectId: state.projectId, category: cat, promptId: id, deleteMedia: false }); } catch {}
+        }
+      }
+    }
+    clearSelection(); data = await loadData(); renderPage(); renderSidebar(); toast(`✅ 已删除 ${count} 项`);
+  });
+
+  document.getElementById('batchTagBtn').addEventListener('click', async () => {
+    const tag = prompt('输入要添加的标签：');
+    if (!tag || !tag.trim()) return;
+    const proj = getProject(state.projectId);
+    if (!proj) return;
+    for (const key of uiState.selectedIds) {
+      const [type, id] = key.split(':');
+      let arr;
+      if (type === 'pdf') arr = proj.pdf_files || [];
+      else arr = proj[{image:'image_prompts',video:'video_prompts',skill:'skill_prompts'}[type]] || [];
+      const item = arr.find(p => p.id === id);
+      if (item) {
+        item.tags = item.tags || [];
+        if (!item.tags.includes(tag.trim())) item.tags.push(tag.trim());
+      }
+    }
+    await saveData(data); renderPage(); toast(`✅ 已为 ${uiState.selectedIds.size} 项添加标签「${tag.trim()}」`);
+  });
+
+  document.getElementById('batchMoveBtn').addEventListener('click', () => {
+    if (!uiState.selectedIds.size) return;
+    const items = [];
+    const proj = getProject(state.projectId);
+    for (const key of uiState.selectedIds) {
+      const [type, id] = key.split(':');
+      let cat, arr;
+      if (type === 'pdf') { cat = 'pdf_files'; arr = proj.pdf_files || []; }
+      else { cat = {image:'image_prompts',video:'video_prompts',skill:'skill_prompts'}[type]; arr = proj[cat] || []; }
+      const item = arr.find(p => p.id === id);
+      if (item) items.push({ item, type, category: cat });
+    }
+    if (items.length) openMoveModal('move', items);
+  });
+
+  document.getElementById('batchStarBtn').addEventListener('click', async () => {
+    const proj = getProject(state.projectId);
+    if (!proj) return;
+    for (const key of uiState.selectedIds) {
+      const [type, id] = key.split(':');
+      let arr;
+      if (type === 'pdf') arr = proj.pdf_files || [];
+      else arr = proj[{image:'image_prompts',video:'video_prompts',skill:'skill_prompts'}[type]] || [];
+      const item = arr.find(p => p.id === id);
+      if (item) { item.quality = item.quality || {}; item.quality.star = true; }
+    }
+    await saveData(data); renderPage(); toast(`✅ 已星标 ${uiState.selectedIds.size} 项`);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ── Keyboard Shortcuts ──────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  document.addEventListener('keydown', (e) => {
+    // Ignore when inside input/textarea/select
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (['input','textarea','select'].includes(tag)) return;
+    // Escape → close modals
+    if (e.key === 'Escape') {
+      const ctx = document.getElementById('ctxMenu');
+      if (ctx.style.display !== 'none') { ctx.style.display = 'none'; return; }
+      if (document.getElementById('pdfModal').classList.contains('open')) { closePdfModal(); return; }
+      if (document.getElementById('skillPanel').classList.contains('open')) { closeSkillPanel(); return; }
+      if (document.querySelector('.modal-backdrop.open')) {
+        document.querySelector('.modal-backdrop.open')?.querySelector('.modal-close')?.click(); return;
+      }
+      if (uiState.selectedIds.size) { clearSelection(); return; }
+    }
+    // Delete → delete selected
+    if (e.key === 'Delete' && uiState.selectedIds.size) {
+      document.getElementById('batchDeleteBtn').click();
+      return;
+    }
+    // Ctrl+A → select all visible cards
+    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+      e.preventDefault();
+      document.querySelectorAll('#mainGrid .card[data-prompt-id], #mainGrid .card[data-pdf-id]').forEach(card => {
+        const key = card.dataset.pdfId ? `pdf:${card.dataset.pdfId}` : `${card.dataset.promptType}:${card.dataset.promptId}`;
+        uiState.selectedIds.add(key);
+        card.classList.add('selected');
+      });
+      updateBatchBar();
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ── Star Filter Toggle ──────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  // Hook into the filterTag select to add a star filter option
+  const _origSyncToolbar = syncToolbarControls;
+  syncToolbarControls = function() {
+    _origSyncToolbar();
+    // Inject star filter button into toolbar if not present
+    const tb = document.querySelector('.toolbar-filters');
+    if (!tb) return;
+    let starBtn = document.getElementById('starFilterBtn');
+    if (!starBtn) {
+      starBtn = document.createElement('button');
+      starBtn.id = 'starFilterBtn';
+      starBtn.className = 'toolbar-select';
+      starBtn.style.cssText = 'cursor:pointer;border:1px solid var(--border);border-radius:7px;padding:4px 10px;font-size:12px;background:var(--surface)';
+      tb.appendChild(starBtn);
+    }
+    starBtn.textContent = uiState.starFilter ? '⭐ 星标 ✕' : '☆ 星标';
+    starBtn.style.color = uiState.starFilter ? 'var(--primary)' : '';
+    starBtn.style.fontWeight = uiState.starFilter ? '700' : '';
+    starBtn.onclick = () => { uiState.starFilter = !uiState.starFilter; renderPage(); };
+  };
+
+  // Patch buildProjectAssets to support star filter
+  const _origBuildAssets = buildProjectAssets;
+  buildProjectAssets = function(proj) {
+    let items = _origBuildAssets(proj);
+    if (uiState.starFilter) items = items.filter(p => p.quality?.star);
+    return items;
+  };
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ── ZIP Import ──────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  document.getElementById('opsImportZip').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    const status = document.getElementById('opsImportStatus');
+    status.textContent = '⏳ 正在导入…';
+    try {
+      const proj = getProject(state.projectId);
+      const projName = proj?.name || 'default';
+      const r = await fetch('/api/import-bundle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/zip', 'X-Project': encodeURIComponent(projName) },
+        body: file,
+      });
+      const res = await r.json();
+      if (!res.ok) { status.textContent = '❌ ' + (res.error || '导入失败'); return; }
+      const meta = res.meta;
+      const fmap = res.file_map || {};
+      if (!meta || !proj) { status.textContent = '❌ 无法解析元数据'; return; }
+      let count = 0;
+      // remap file paths and merge items
+      for (const cat of ['image_prompts', 'video_prompts', 'skill_prompts', 'pdf_files']) {
+        const items = meta[cat] || meta.items?.filter(i => i.__category === cat) || [];
+        for (const item of items) {
+          const clone = { ...item, id: uid(), created_at: new Date().toISOString() };
+          delete clone.__type; delete clone.__category;
+          // remap media paths
+          for (const key of ['image', 'video', 'path']) {
+            if (clone[key] && fmap[clone[key]]) clone[key] = fmap[clone[key]];
+          }
+          if (Array.isArray(clone.ref_images)) {
+            clone.ref_images = clone.ref_images.map(p => fmap[p] || p);
+          }
+          proj[cat] = proj[cat] || [];
+          proj[cat].unshift(clone);
+          count++;
+        }
+      }
+      if (count) { await saveData(data); renderPage(); renderSidebar(); }
+      status.textContent = `✅ 已导入 ${count} 项`;
+    } catch (err) {
+      status.textContent = '❌ ' + err.message;
+    }
+  });
+
+  // Also apply star filter in pdf grid
+  const _origRenderPdfGrid = renderPdfGrid;
+  renderPdfGrid = function(proj, q) {
+    if (uiState.starFilter) {
+      proj = { ...proj, pdf_files: (proj.pdf_files||[]).filter(p => p.quality?.star) };
+    }
+    return _origRenderPdfGrid(proj, q);
+  };
 
 })();
 </script>
