@@ -1737,8 +1737,11 @@
           📹 上传视频<input type="file" id="pmVideoFile" accept="video/*" style="display:none">
         </label>
         <!-- Gallery strip (image type only) -->
-        <div id="pmGalleryStrip" style="display:none;flex-shrink:0;padding:6px 8px;background:rgba(0,0,0,.06);border-top:1px solid var(--border);overflow-x:auto;white-space:nowrap;min-height:66px">
-          <div id="pmGalleryThumbsRow" style="display:inline-flex;gap:6px;align-items:center;height:50px"></div><label style="display:inline-flex;align-items:center;justify-content:center;width:50px;height:50px;border:1.5px dashed var(--border);border-radius:8px;cursor:pointer;font-size:22px;color:var(--subtle);flex-shrink:0;vertical-align:middle;margin-left:4px" title="添加更多图片">+<input type="file" id="pmGalleryFile" accept="image/*" multiple style="display:none"></label>
+        <div id="pmGalleryStrip" style="display:none;flex-shrink:0;padding:6px 8px;background:rgba(0,0,0,.06);border-top:1px solid var(--border);overflow-x:auto;min-height:66px">
+          <div style="display:inline-flex;gap:6px;align-items:center;min-height:50px">
+            <div id="pmGalleryThumbsRow" style="display:contents"></div>
+            <label style="display:inline-flex;align-items:center;justify-content:center;width:50px;height:50px;border:1.5px dashed var(--border);border-radius:8px;cursor:pointer;font-size:22px;color:var(--subtle);flex-shrink:0" title="添加更多图片">+<input type="file" id="pmGalleryFile" accept="image/*" multiple style="display:none"></label>
+          </div>
         </div>
         <!-- Full MD editor for Skills type -->
         <div id="mdFullEditor" style="display:none;flex:1;flex-direction:column;min-height:0;overflow:hidden">
