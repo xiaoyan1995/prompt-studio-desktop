@@ -319,8 +319,7 @@
   function probeImageSize(url) {
     return new Promise(resolve => {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
-      const timer = setTimeout(() => resolve(null), 6000);
+      const timer = setTimeout(() => resolve(null), 8000);
       img.onload = () => {
         clearTimeout(timer);
         resolve({ w: img.naturalWidth, h: img.naturalHeight });
