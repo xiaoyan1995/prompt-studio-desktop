@@ -5337,19 +5337,31 @@
     }
     const section = document.getElementById('tagExistingSection');
     const list = document.getElementById('tagExistingList');
+    const selectedTagsSet = new Set();
     if (tagSet.size > 0) {
       list.innerHTML = '';
       tagSet.forEach(tag => {
         const chip = document.createElement('span');
         chip.className = 'chip';
-        chip.style.cssText = 'cursor:pointer;user-select:none';
+        chip.style.cssText = 'cursor:pointer;user-select:none;transition:all .15s';
         chip.textContent = tag;
+        chip.dataset.tag = tag;
         chip.onclick = () => {
-          document.getElementById('tagInputField').value = tag;
-          document.getElementById('tagInputConfirm').click();
+          if (selectedTagsSet.has(tag)) {
+            selectedTagsSet.delete(tag);
+            chip.style.background = '';
+            chip.style.color = '';
+            chip.style.outline = '';
+          } else {
+            selectedTagsSet.add(tag);
+            chip.style.background = 'var(--primary)';
+            chip.style.color = '#fff';
+            chip.style.outline = 'none';
+          }
         };
         list.appendChild(chip);
       });
+      list._selectedTagsSet = selectedTagsSet;
       section.style.display = 'flex';
     } else {
       section.style.display = 'none';
@@ -5369,8 +5381,11 @@
   });
   document.getElementById('tagInputConfirm').addEventListener('click', async () => {
     const field = document.getElementById('tagInputField');
-    const tag = field.value.trim();
-    if (!tag) return;
+    const list = document.getElementById('tagExistingList');
+    const tagsToAdd = new Set(list._selectedTagsSet || []);
+    const typed = field.value.trim();
+    if (typed) typed.split(/[,，\s]+/).forEach(t => { if (t) tagsToAdd.add(t); });
+    if (!tagsToAdd.size) return;
     const proj = getProject(state.projectId);
     if (!proj) { closeTagModal(); return; }
     const count = uiState.selectedIds.size;
@@ -5382,11 +5397,12 @@
       const item = arr.find(p => p.id === id);
       if (item) {
         item.tags = item.tags || [];
-        if (!item.tags.includes(tag)) item.tags.push(tag);
+        tagsToAdd.forEach(tag => { if (!item.tags.includes(tag)) item.tags.push(tag); });
       }
     }
     closeTagModal();
-    await saveData(data); renderPage(); toast(`✅ 已为 ${count} 项添加标签「${tag}」`);
+    const tagList = [...tagsToAdd].map(t => `「${t}」`).join(' ');
+    await saveData(data); renderPage(); toast(`✅ 已为 ${count} 项添加标签 ${tagList}`);
   });
   document.getElementById('tagInputField').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('tagInputConfirm').click();
