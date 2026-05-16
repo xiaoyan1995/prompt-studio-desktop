@@ -4409,40 +4409,43 @@
   function renderGalleryStrip() {
     const row = document.getElementById('pmGalleryThumbsRow');
     if (!row) return;
-    const all = [
-      ...pmGallery.map(src => ({ src, pending: false })),
-      ...pmGalleryPending.map(p => ({ src: p.dataUrl, pending: true })),
+    // Build flat list: main first, then gallery, then pending
+    const items = [
+      ...(pmImgDataUrl ? [{ src: pmImgDataUrl, kind: 'main' }] : []),
+      ...pmGallery.map((src, i) => ({ src, kind: 'gallery', i })),
+      ...pmGalleryPending.map((p, i) => ({ src: p.dataUrl, kind: 'pending', i })),
     ];
-    row.innerHTML = all.map((img, i) => {
-      const isMain = img.src === pmImgDataUrl;
-      return `<div style="position:relative;display:inline-flex;flex-shrink:0" data-gi="${i}">
-        <img src="${h(img.src)}" data-gi="${i}" style="width:50px;height:50px;object-fit:cover;border-radius:7px;cursor:pointer;border:2px solid ${isMain ? 'var(--primary)' : 'transparent'};transition:.12s" title="点击设为主图">
-        <button data-rm-gi="${i}" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#c0392b;color:#fff;border:none;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1" title="移除">✕</button>
-      </div>`;
-    }).join('');
-    row.querySelectorAll('img[data-gi]').forEach(el => {
+    row.innerHTML = items.map((item, pos) => `
+      <div style="position:relative;display:inline-flex;flex-shrink:0" data-pos="${pos}">
+        <img src="${h(item.src)}" data-pos="${pos}"
+             style="width:50px;height:50px;object-fit:cover;border-radius:7px;cursor:${item.kind==='main'?'default':'pointer'};border:2px solid ${item.kind==='main'?'var(--primary)':'transparent'};transition:.12s"
+             title="${item.kind==='main'?'当前主图':'点击设为主图'}">
+        ${item.kind !== 'main' ? `<button data-rm="${pos}" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#c0392b;color:#fff;border:none;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1" title="移除">✕</button>` : ''}
+      </div>`).join('');
+    row.querySelectorAll('img[data-pos]').forEach(el => {
       el.addEventListener('click', () => {
-        const i = parseInt(el.dataset.gi);
-        const newMain = i < pmGallery.length ? pmGallery[i] : pmGalleryPending[i - pmGallery.length].dataUrl;
-        if (newMain === pmImgDataUrl) return;
-        // swap: put old main back into gallery slot
-        if (i < pmGallery.length) pmGallery[i] = pmImgDataUrl;
-        else pmGalleryPending[i - pmGallery.length].dataUrl = pmImgDataUrl;
-        pmImgDataUrl = newMain; pmImgFile = null;
+        const pos = parseInt(el.dataset.pos);
+        const clicked = items[pos];
+        if (clicked.kind === 'main') return;
+        const oldMain = pmImgDataUrl;
+        pmImgDataUrl = clicked.src; pmImgFile = null;
+        if (clicked.kind === 'gallery') pmGallery[clicked.i] = oldMain;
+        else pmGalleryPending[clicked.i].dataUrl = oldMain;
         const imgEl = document.getElementById('promptModalImg');
-        const phEl  = document.getElementById('promptModalImgPh');
-        imgEl.src = pmImgDataUrl; imgEl.style.display = 'block'; phEl.style.display = 'none';
+        imgEl.src = pmImgDataUrl; imgEl.style.display = 'block';
+        document.getElementById('promptModalImgPh').style.display = 'none';
         document.getElementById('pmImgPreview').src = pmImgDataUrl;
         document.getElementById('pmImgPreview').style.display = 'block';
         renderGalleryStrip();
       });
     });
-    row.querySelectorAll('[data-rm-gi]').forEach(btn => {
+    row.querySelectorAll('[data-rm]').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
-        const i = parseInt(btn.dataset.rmGi);
-        if (i < pmGallery.length) pmGallery.splice(i, 1);
-        else pmGalleryPending.splice(i - pmGallery.length, 1);
+        const pos = parseInt(btn.dataset.rm);
+        const clicked = items[pos];
+        if (clicked.kind === 'gallery') pmGallery.splice(clicked.i, 1);
+        else pmGalleryPending.splice(clicked.i, 1);
         renderGalleryStrip();
       });
     });
