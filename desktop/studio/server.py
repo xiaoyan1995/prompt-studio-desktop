@@ -622,13 +622,6 @@ def _download_hls(url, headers, timeout=120):
     raw, _ct = _fetch_url(url, headers, timeout=30)
     text = raw.decode("utf-8", errors="replace")
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    # Detect Alibaba OSS private HLS format (uses "MEATHOD" typo and proprietary key blob)
-    if any(line.startswith("#EXT-X-KEY") and "MEATHOD=" in line for line in lines):
-        raise RuntimeError(
-            "检测到阿里云私有 HLS 加密格式（MEATHOD），该格式无法用标准工具下载。"
-            "请在视频候选列表里改选 MP4 直链版本（如 fuguang-part1-ld.mp4）。"
-        )
-
     if any(line.startswith("#EXT-X-KEY") and "METHOD=NONE" not in line for line in lines):
         ff = find_ffmpeg()
         if not ff:
@@ -2033,17 +2026,6 @@ class Handler(SimpleHTTPRequestHandler):
         if not video_url:
             self._json_resp({"ok": False, "error": "no_url"}); return
 
-        # Quick check for Alibaba private HLS format
-        if video_url and (".m3u8" in video_url.lower() or "m3u8" in video_url.lower()):
-            try:
-                raw, _ = _fetch_url(video_url, {}, timeout=15)
-                text = raw.decode("utf-8", errors="replace")
-                if "MEATHOD=" in text:
-                    self._json_resp({"ok": False, "error":
-                        "检测到阿里云私有 HLS 加密格式，无法下载。请改选视频列表里的 MP4 直链版本。"
-                    }); return
-            except Exception:
-                pass
 
         ff = find_ffmpeg()
         if not ff:
