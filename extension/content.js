@@ -333,31 +333,62 @@
   async function scanPageImages() {
     const seen = new Set();
     const draft = [];
+
+    function addEntry(url, width, height, needProbe) {
+      const clean = cleanCdnUrl(url);
+      if (!clean || seen.has(clean)) return;
+      seen.add(clean);
+      draft.push({ url: clean, width: width || 0, height: height || 0, probed: !needProbe });
+    }
+
+    // 1. Performance API — ALL resources the browser loaded on this page,
+    //    including dynamically loaded full-size images (lightbox, SPA navigation, etc.)
+    try {
+      for (const entry of performance.getEntriesByType('resource')) {
+        if (entry.initiatorType === 'img' || entry.initiatorType === 'css') {
+          const url = entry.name;
+          if (/\.(jpe?g|png|webp|gif|avif|svg|bmp)([?#]|$)/i.test(url) ||
+              entry.initiatorType === 'img') {
+            addEntry(url, 0, 0, true);
+          }
+        }
+      }
+    } catch {}
+
+    // 2. DOM <img> elements — get naturalWidth/Height immediately (no probe needed)
     document.querySelectorAll('img').forEach(img => {
       if (img.naturalWidth < 2 || img.naturalHeight < 2) return;
       const raw = getBestUrl(img);
       if (!raw) return;
-      const url = cleanCdnUrl(raw);
-      if (seen.has(url)) return;
-      seen.add(url);
+      const clean = cleanCdnUrl(raw);
+      if (!clean) return;
+      if (seen.has(clean)) {
+        // already from performance — update dimensions if we have them
+        const existing = draft.find(d => d.url === clean);
+        if (existing && img.naturalWidth > existing.width) {
+          existing.width  = img.naturalWidth;
+          existing.height = img.naturalHeight;
+          existing.probed = true;
+        }
+        return;
+      }
+      seen.add(clean);
       draft.push({
-        url,
-        width:  img.naturalWidth,   // thumbnail size (shown initially)
+        url: clean,
+        width:  img.naturalWidth,
         height: img.naturalHeight,
-        rawWidth:  img.naturalWidth,
-        rawHeight: img.naturalHeight,
-        probed: url === raw,         // no need to probe if URL didn't change
+        probed: clean === raw,  // no probe needed if URL didn't change
       });
     });
 
-    // Probe cleaned URLs in parallel (max 8 at a time) to get real dimensions
+    // 3. Probe items that still lack real dimensions (max 8 parallel, 6s timeout)
     const needProbe = draft.filter(d => !d.probed);
     const BATCH = 8;
     for (let i = 0; i < needProbe.length; i += BATCH) {
       const batch = needProbe.slice(i, i + BATCH);
       const sizes = await Promise.all(batch.map(d => probeImageSize(d.url)));
       sizes.forEach((sz, j) => {
-        if (sz && sz.w > batch[j].width) {
+        if (sz && sz.w > 0) {
           batch[j].width  = sz.w;
           batch[j].height = sz.h;
         }
@@ -365,7 +396,8 @@
       });
     }
 
-    return draft;
+    // Remove items where probe failed and still have no dimensions
+    return draft.filter(d => d.width > 0 || d.height > 0);
   }
 
   // ── Floating Reverse Card ─────────────────────────────────────────────────────
