@@ -3643,7 +3643,7 @@
     await loadDesktopSettings();
     fillDesktopSettingsForm();
     document.getElementById('desktopSettingsModal').classList.add('open');
-    switchSettingsSection(sec || 'settings');
+    switchSettingsSection(typeof sec === 'string' ? sec : 'settings');
   }
   function closeDesktopSettings() {
     document.getElementById('desktopSettingsModal').classList.remove('open');
@@ -3658,7 +3658,7 @@
     localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
   };
 
-  document.getElementById('desktopSettingsBtn').onclick = openDesktopSettings;
+  document.getElementById('desktopSettingsBtn').onclick = () => openDesktopSettings('settings');
   document.getElementById('desktopSettingsClose').onclick = closeDesktopSettings;
   document.getElementById('desktopSettingsCancel').onclick = closeDesktopSettings;
   document.getElementById('desktopSettingsModal').addEventListener('click', e => {
