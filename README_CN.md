@@ -41,10 +41,16 @@
 - 🔎 大图查看 — 点击主图全屏 lightbox 浏览
 - @ 图片引用 — 提示词输入框输入 `@` 弹出图片选择面板
 - 🤝 Agent HTTP API — `/api/cli/*` 端点支持 list / get / search / push
-- �📦 `pstudio-cli.py` — Agent 集成 CLI 工具
+-  `pstudio-cli.py` — Agent 集成 CLI 工具
 - 🤖 `skills/prompt-studio/` — 开箱即用的 agent skill，含完整 API 说明
 - Agent 可通过 URL 或 base64 推送 AI 生成的图片和视频
 - 参考图与画廊图分离存储（`ref_image` vs `gallery`）
+- 📸 **批量采集图片** — 插件弹出窗内一键扫描当前页面所有图片
+  - 四层扫描：DOM 元素、Performance API、CSS 背景图、页面源码正则提取
+  - 智能 CDN 清洗：自动去除小红书/微博/B站等平台缩略图参数，获取最大分辨率
+  - 后台尺寸探测：通过 `declarativeNetRequest` 注入 Referer，解析图片二进制文件头获取真实宽高
+  - 格式筛选（JPG / PNG / WebP / GIF / AVIF）、尺寸筛选（≥720P / ≥1080P / ≥2K / ≥4K）
+  - 批量选择发送到桌面端
 
 ### v1.0.7
 - 文档库（PDF / Word / Excel / PPT / TXT / Markdown 多格式预览）

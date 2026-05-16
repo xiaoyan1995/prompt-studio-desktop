@@ -44,6 +44,12 @@
 - 🤖 `skills/prompt-studio/` — ready-to-use agent skill with full API reference
 - Agents can push AI-generated images & videos via URL or base64
 - Reference image and gallery images now stored separately (`ref_image` vs `gallery`)
+- 📸 **Batch image collection** — scan all images on the current page directly from the extension popup
+  - Four-layer scan: DOM elements, Performance API, CSS backgrounds, regex URL extraction from page source
+  - Smart CDN cleanup: auto-strip thumbnail parameters from XHS / Weibo / Bilibili / Douyin CDNs for max resolution
+  - Background dimension probing: inject Referer via `declarativeNetRequest`, parse binary image headers (PNG/JPEG/WebP/GIF) for real width × height
+  - Filter by format (JPG / PNG / WebP / GIF / AVIF) and size (≥720P / ≥1080P / ≥2K / ≥4K)
+  - Batch select and send to desktop app
 
 ### v1.0.7
 - PDF / document library with multi-format preview
