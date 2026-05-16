@@ -500,6 +500,12 @@
   .modal-img{
     width:100%;flex:1;min-height:0;object-fit:contain;background:#0f1828;display:block;cursor:zoom-in;
   }
+  #atImgPicker{position:absolute;z-index:8000;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:8px;display:none;flex-wrap:wrap;gap:6px;max-width:260px}
+  #atImgPicker.open{display:flex}
+  .at-img-item{cursor:pointer;border-radius:6px;overflow:hidden;border:2px solid transparent;transition:.12s;display:flex;flex-direction:column;align-items:center;gap:3px;padding:2px}
+  .at-img-item:hover{border-color:var(--primary);background:var(--primary-soft)}
+  .at-img-item img{width:48px;height:48px;object-fit:cover;border-radius:4px}
+  .at-img-item span{font-size:9px;color:var(--subtle);white-space:nowrap;max-width:52px;overflow:hidden;text-overflow:ellipsis}
   #imgLightbox{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;cursor:zoom-out}
   #imgLightbox.open{display:flex}
   #imgLightbox img{max-width:95vw;max-height:95vh;object-fit:contain;border-radius:4px;box-shadow:0 8px 48px rgba(0,0,0,.6);user-select:none}
@@ -1726,6 +1732,8 @@
 <!-- Modal: Prompt detail / edit -->
 <!-- Image lightbox -->
 <div id="imgLightbox"><span class="lb-close" id="lbClose">✕</span><img id="lbImg" src="" alt=""></div>
+<!-- @-image picker -->
+<div id="atImgPicker"></div>
 
 <div class="modal-backdrop" id="promptModal">
   <div class="modal" id="promptModalInner">
@@ -4408,6 +4416,58 @@
   document.getElementById('promptModal').addEventListener('click', e => { if(e.target===document.getElementById('promptModal')) closePromptModal(); });
   document.getElementById('promptModalImgPh').addEventListener('click', () => {
     if (pmType === 'image') document.getElementById('pmGalleryFile').click();
+  });
+
+  // @-image picker in prompt textarea
+  const _atPicker = document.getElementById('atImgPicker');
+  let _atTriggerPos = -1;
+  function _atImgs() {
+    if (pmType === 'video') return pmRefImages.map((s,i) => ({ src: s, label: `图片${i+1}` }));
+    const imgs = [];
+    if (pmImgDataUrl) imgs.push({ src: pmImgDataUrl, label: '参考图' });
+    pmGallery.forEach((s,i) => imgs.push({ src: s, label: `生成${i+1}` }));
+    pmGalleryPending.forEach((p,i) => imgs.push({ src: p.dataUrl, label: `新图${i+1}` }));
+    return imgs;
+  }
+  function _showAtPicker(ta) {
+    const imgs = _atImgs(); if (!imgs.length) return;
+    _atPicker.innerHTML = imgs.map((img,i) =>
+      `<div class="at-img-item" data-ai="${i}"><img src="${h(img.src)}"><span>${h(img.label)}</span></div>`
+    ).join('');
+    _atPicker.querySelectorAll('.at-img-item').forEach(el => {
+      el.addEventListener('mousedown', e => {
+        e.preventDefault();
+        const idx = parseInt(el.dataset.ai);
+        const label = _atImgs()[idx]?.label || `图片${idx+1}`;
+        const token = `@${label}`;
+        const val = ta.value;
+        ta.value = val.slice(0, _atTriggerPos) + token + val.slice(ta.selectionStart);
+        ta.setSelectionRange(_atTriggerPos + token.length, _atTriggerPos + token.length);
+        ta.focus();
+        _closeAtPicker();
+      });
+    });
+    // Position below textarea
+    const r = ta.getBoundingClientRect();
+    _atPicker.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    _atPicker.style.left = r.left + 'px';
+    _atPicker.classList.add('open');
+  }
+  function _closeAtPicker() { _atPicker.classList.remove('open'); _atTriggerPos = -1; }
+  document.addEventListener('click', e => { if (!_atPicker.contains(e.target)) _closeAtPicker(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') _closeAtPicker(); }, true);
+  ['pmPrompt','pmSkillPrompt'].forEach(id => {
+    const ta = document.getElementById(id);
+    ta.addEventListener('input', () => {
+      const pos = ta.selectionStart;
+      const before = ta.value.slice(0, pos);
+      if (before.endsWith('@')) {
+        _atTriggerPos = pos - 1;
+        _showAtPicker(ta);
+      } else {
+        _closeAtPicker();
+      }
+    });
   });
 
   // Lightbox
