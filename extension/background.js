@@ -119,15 +119,37 @@ addWebRequestListener(chrome.webRequest.onResponseStarted, (data) => {
   try { rememberMedia(data); } catch (e) { console.warn('Prompt Studio media sniff failed', e); }
 }, { urls: ['<all_urls>'] }, ['responseHeaders', 'extraHeaders']);
 
-chrome.webNavigation.onCommitted.addListener(({ tabId, frameId }) => {
-  if (frameId !== 0) return;
+// Track the current URL for each tab (to detect SPA navigation)
+const tabUrlMap = new Map();
+
+function clearTabMedia(tabId) {
   mediaByTab.delete(tabId);
   chrome.storage.local.remove(`psc_media_${tabId}`, () => void chrome.runtime.lastError);
+}
+
+// Full page navigation
+chrome.webNavigation.onCommitted.addListener(({ tabId, frameId, url }) => {
+  if (frameId !== 0) return;
+  clearTabMedia(tabId);
+  tabUrlMap.set(tabId, url);
+});
+
+// SPA navigation (pushState / replaceState) — catches YouTube, Bilibili, etc.
+chrome.webNavigation.onHistoryStateUpdated.addListener(({ tabId, frameId, url }) => {
+  if (frameId !== 0) return;
+  const prev = tabUrlMap.get(tabId);
+  // Only clear if the URL actually changed (not just hash fragment)
+  const prevOriginPath = prev ? prev.replace(/#.*$/, '') : '';
+  const newOriginPath = url.replace(/#.*$/, '');
+  if (prevOriginPath !== newOriginPath) {
+    clearTabMedia(tabId);
+  }
+  tabUrlMap.set(tabId, url);
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  mediaByTab.delete(tabId);
-  chrome.storage.local.remove(`psc_media_${tabId}`, () => void chrome.runtime.lastError);
+  clearTabMedia(tabId);
+  tabUrlMap.delete(tabId);
 });
 
 // ── Context Menus ────────────────────────────────────────────────────────────
