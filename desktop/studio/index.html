@@ -1198,6 +1198,7 @@
   body.dark .nav-item.active .nav-icon{background:rgba(214,161,93,.18);color:#d6a15d}
   body.dark .workspace-toolbar{background:rgba(16,22,30,.95);border-bottom-color:rgba(255,255,255,.08)}
   body.dark .toolbar-select{background:transparent;border:none;color:#d8e1ec}
+  body.dark .toolbar-select option{background:#1a2535;color:#d8e1ec}
   body.dark .search-box{background:#111923;border-color:#2b3a4a;color:#d8e1ec}
   body.dark .search-box input{color:#eef3f8}
   body.dark .workspace-main{background:rgba(14,20,30,1)}
@@ -1536,7 +1537,7 @@
           <textarea id="dsVideoInstruction" placeholder="留空使用内置默认指令"></textarea>
         </div>
       </div>
-      <div style="display:grid;gap:10px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:12px;padding:14px">
+      <div style="display:grid;gap:10px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:14px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
           <div>
             <div class="chip" style="background:#dcfce7;color:#15803d;width:max-content">提示词预设库</div>
@@ -1554,7 +1555,7 @@
         <div id="dsPresetList" style="display:grid;gap:6px"></div>
         <div id="dsPresetEmpty" style="font-size:12px;color:var(--subtle);text-align:center;padding:10px 0">暂无预设</div>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #fed7aa;background:#fff7ed;border-radius:12px;padding:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:14px">
         <div>
           <div class="chip" style="background:#ffedd5;color:#c2410c;width:max-content">本地素材</div>
           <div style="font-size:12px;color:var(--subtle);margin-top:6px">清理未被任何提示词引用的图片和视频。</div>
@@ -3599,7 +3600,7 @@
     empty.style.display = presets.length ? 'none' : 'block';
     presets.forEach((preset, i) => {
       const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px';
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px';
       row.innerHTML =
         `<div style="flex:1;min-width:0;font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(preset.name)}">${h(preset.name)}</div>` +
         `<button class="btn btn-secondary btn-sm" data-load-preset="${i}" data-target="image">载入图片</button>` +
