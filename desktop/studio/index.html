@@ -1388,13 +1388,16 @@
           <option value="all">模型</option>
         </select>
         <select class="toolbar-select" id="filterTag">
-          <option value="all">标签</option>
+          <option value="all" disabled hidden>标签</option>
+          <option value="all">全部</option>
         </select>
         <select class="toolbar-select" id="filterType" style="display:none"><option value="all">类型</option><option value="image">类型：图片</option><option value="video">类型：视频</option><option value="skill">类型：Skills</option></select>
         <select class="toolbar-select" id="filterTime" style="display:none"><option value="latest">时间：最新</option><option value="oldest">时间：最早</option></select>
         <select class="toolbar-select" id="sortMode">
-          <option value="updated">排序</option>
+          <option value="updated" disabled hidden>排序</option>
+          <option value="updated">更新时间</option>
           <option value="created">创建时间</option>
+          <option value="star">评分</option>
           <option value="title">标题</option>
         </select>
         <select class="toolbar-select" id="smartFolderFilter" style="display:none"><option value="all">智能文件夹：全部</option></select>
@@ -2157,6 +2160,8 @@
     const sorted = [...list];
     if (uiState.sortMode === 'title') {
       sorted.sort((a,b) => String(a.title || a.name || '').localeCompare(String(b.title || b.name || ''), 'zh-Hans-CN'));
+    } else if (uiState.sortMode === 'star') {
+      sorted.sort((a,b) => ((b.quality && b.quality.score) || 0) - ((a.quality && a.quality.score) || 0));
     } else {
       const key = uiState.sortMode === 'created' ? 'created_at' : 'updated_at';
       sorted.sort((a,b) => {
@@ -2798,7 +2803,7 @@
     const models = Array.from(new Set(sourceItems.map(item => item.model || '').filter(Boolean)));
     const tags = Array.from(new Set(sourceItems.flatMap(item => Array.isArray(item.tags) ? item.tags : [])));
     modelSel.innerHTML = `<option value="all">模型</option>${models.map(m => `<option value="${h(m)}">${h(m)}</option>`).join('')}`;
-    tagSel.innerHTML = `<option value="all">标签</option>${tags.map(t => `<option value="${h(t)}">${h(t)}</option>`).join('')}`;
+    tagSel.innerHTML = `<option value="all" disabled hidden>标签</option><option value="all">全部</option>${tags.map(t => `<option value="${h(t)}">${h(t)}</option>`).join('')}`;
     if (!models.includes(uiState.filterModel)) uiState.filterModel = 'all';
     if (!tags.includes(uiState.filterTag)) uiState.filterTag = 'all';
     modelSel.value = uiState.filterModel;
