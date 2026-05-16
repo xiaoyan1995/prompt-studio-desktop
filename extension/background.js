@@ -54,37 +54,60 @@ function rememberImage(data) {
 
 chrome.action.setBadgeText({ text: '' }, () => void chrome.runtime.lastError);
 
-// ── Binary image header parsers for dimension detection ──────────────────────
+// ── Binary image header parsers (ported from Download All Images / size.js) ──
 function parsePngSize(b) {
-  if (b[1] !== 0x50 || b[2] !== 0x4E || b[3] !== 0x47) return null;
+  if (b.byteLength < 24) return null;
+  if (b[1] !== 0x50 || b[2] !== 0x4E || b[3] !== 0x47) return null; // .PNG
   const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
   return { w: v.getUint32(16, false), h: v.getUint32(20, false) };
 }
 function parseGifSize(b) {
-  if (b[0] !== 0x47 || b[1] !== 0x49 || b[2] !== 0x46) return null;
+  if (b.byteLength < 10) return null;
+  if (b[0] !== 0x47 || b[1] !== 0x49 || b[2] !== 0x46) return null; // GIF
   const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
   return { w: v.getUint16(6, true), h: v.getUint16(8, true) };
 }
 function parseJpgSize(b) {
-  if (b[0] !== 0xFF || b[1] !== 0xD8) return null;
+  if (b.byteLength < 12) return null;
+  if (b[0] !== 0xFF || b[1] !== 0xD8) return null; // JPEG SOI
   const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
   for (let off = 4; off < b.byteLength - 10;) {
-    const len = v.getUint16(off, false);
-    const next = b[off + len + 1];
-    if (next === 0xC0 || next === 0xC1 || next === 0xC2) {
-      return { w: v.getUint16(off + len + 7, false), h: v.getUint16(off + len + 5, false) };
+    const segLen = v.getUint16(off, false);
+    if (segLen < 2 || off + segLen + 2 > b.byteLength) break;
+    const marker = b[off + segLen + 1];
+    if (marker === 0xC0 || marker === 0xC1 || marker === 0xC2) {
+      const base = off + segLen + 2; // start of SOFn payload
+      if (base + 7 > b.byteLength) break;
+      return { w: v.getUint16(base + 5, false), h: v.getUint16(base + 3, false) };
     }
-    off += len + 2;
+    off += segLen + 2;
   }
   return null;
 }
 function parseWebpSize(b) {
-  if (b[0] !== 0x52 || b[8] !== 0x57 || b[12] !== 0x56) return null;
+  if (b.byteLength < 30) return null;
+  // RIFF....WEBP
+  if (b[0] !== 0x52 || b[8] !== 0x57 || b[9] !== 0x45 || b[10] !== 0x42 || b[11] !== 0x50) return null;
   const chunk = String.fromCharCode(b[12], b[13], b[14], b[15]);
   const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
-  if (chunk === 'VP8 ') return { w: v.getInt32(26, true) & 0x3FFF, h: v.getInt16(28, true) & 0x3FFF };
-  if (chunk === 'VP8L') return { w: 1 + (((b[22] & 0x3F) << 8) | b[21]), h: 1 + (((b[24] & 0xF) << 10) | (b[23] << 2) | ((b[22] & 0xC0) >> 6)) };
-  if (chunk === 'VP8X') return { w: 1 + ((b[27] << 16) | (b[26] << 8) | b[25]), h: 1 + ((b[30] << 16) | (b[29] << 8) | b[28]) };
+  if (chunk === 'VP8 ') {
+    // Lossy: width & height at bytes 26-29 as uint16 LE, masked to 14 bits
+    return { w: v.getUint16(26, true) & 0x3FFF, h: v.getUint16(28, true) & 0x3FFF };
+  }
+  if (chunk === 'VP8L') {
+    // Lossless: 14-bit packed in bytes 21-24
+    return {
+      w: 1 + (((b[22] & 0x3F) << 8) | b[21]),
+      h: 1 + (((b[24] & 0xF) << 10) | (b[23] << 2) | ((b[22] & 0xC0) >> 6))
+    };
+  }
+  if (chunk === 'VP8X') {
+    // Extended: 24-bit canvas size at bytes 24-26 (w) and 27-29 (h), LE
+    return {
+      w: 1 + (b[24] | (b[25] << 8) | (b[26] << 16)),
+      h: 1 + (b[27] | (b[28] << 8) | (b[29] << 16))
+    };
+  }
   return null;
 }
 function parseSizeFromBytes(bytes) {
