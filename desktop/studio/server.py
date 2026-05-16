@@ -623,7 +623,27 @@ def _download_hls(url, headers, timeout=120):
     text = raw.decode("utf-8", errors="replace")
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if any(line.startswith("#EXT-X-KEY") and "METHOD=NONE" not in line for line in lines):
-        raise RuntimeError("检测到加密 HLS 视频流，当前版本暂不支持解密下载。")
+        ff = find_ffmpeg()
+        if not ff:
+            raise RuntimeError("检测到加密 HLS 视频流，需要先安装 ffmpeg 才能下载（在桌面端保存视频时会提示安装）。")
+        # Use ffmpeg to download encrypted HLS to a temp file, then return bytes
+        import subprocess as _sp, tempfile as _tf
+        tmp_path = _tf.mktemp(suffix=".mp4")
+        extra_hdrs = "".join(f"{k}: {v}\r\n" for k, v in (headers or {}).items()
+                             if k.lower() in ("cookie", "referer", "user-agent"))
+        cmd = [ff, "-y", "-loglevel", "error"]
+        if extra_hdrs:
+            cmd += ["-headers", extra_hdrs]
+        cmd += ["-i", url, "-c", "copy", tmp_path]
+        result = _sp.run(cmd, capture_output=True, timeout=timeout)
+        if result.returncode == 0 and os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
+            with open(tmp_path, "rb") as f:
+                data = f.read()
+            os.unlink(tmp_path)
+            return data, "video/mp4", "hd"
+        err = (result.stderr or b"").decode("utf-8", errors="replace")[-400:]
+        if os.path.exists(tmp_path): os.unlink(tmp_path)
+        raise RuntimeError(f"ffmpeg 下载加密 HLS 失败: {err or 'unknown error'}")
 
     # Master playlist: choose the highest bandwidth variant.
     variants = []
