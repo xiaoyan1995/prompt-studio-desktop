@@ -74,6 +74,8 @@ async function waitForServer(timeoutMs = 12000) {
 }
 
 function bundledServerCommand() {
+  // In dev mode always use python server.py so code changes take effect immediately
+  if (!app.isPackaged) return null;
   const exeName = process.platform === 'win32' ? 'prompt-studio-server.exe' : 'prompt-studio-server';
   const candidates = [
     resourcePath('server', exeName),
