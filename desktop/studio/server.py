@@ -1215,13 +1215,37 @@ class Handler(SimpleHTTPRequestHandler):
             if not projs:
                 return self._err(400, "No projects found. Provide project_name.")
             proj = projs[0]
+        pname = proj.get("name", project_name or "default")
+        # ── Save agent-generated images ────────────────────────────────────
+        # Single main image: image_base64 / image_url
+        img_path = self._save_agent_media(pname, "image",
+                        b64=body.get("image_base64",""), url=body.get("image_url",""),
+                        filename=body.get("image_filename","agent_image.jpg"))
+        # Gallery: list of {base64, url, filename} objects or plain URL strings
+        gallery_in = body.get("gallery_images", [])
+        gallery_paths = []
+        if img_path: gallery_paths.append(img_path)
+        for g in (gallery_in if isinstance(gallery_in, list) else []):
+            if isinstance(g, str):
+                p = self._save_agent_media(pname, "image", url=g)
+            elif isinstance(g, dict):
+                p = self._save_agent_media(pname, "image",
+                        b64=g.get("base64",""), url=g.get("url",""),
+                        filename=g.get("filename",""))
+            else: p = ""
+            if p: gallery_paths.append(p)
+        # ── Save agent-generated video ─────────────────────────────────────
+        vid_path = self._save_agent_media(pname, "video",
+                        b64=body.get("video_base64",""), url=body.get("video_url",""),
+                        filename=body.get("video_filename","agent_video.mp4"))
         item_id  = uuid.uuid4().hex[:16]
         new_item = {
             "id": item_id, "title": title or "Agent 推送",
             "prompt": prompt, "analysis": body.get("analysis", ""),
             "model": model, "tags": tags,
-            "image": "", "gallery": [], "ref_image": "",
-            "video": "", "ref_images": [], "aspect": body.get("aspect", ""),
+            "image": img_path or (gallery_paths[0] if gallery_paths else ""),
+            "gallery": gallery_paths, "ref_image": "",
+            "video": vid_path, "ref_images": [], "aspect": body.get("aspect", ""),
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%S")
         }
         _ensure_item_schema(new_item)
@@ -1229,7 +1253,48 @@ class Handler(SimpleHTTPRequestHandler):
         DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         _sse_notify()
         self._json_resp({"ok": True, "id": item_id,
-                         "project_id": proj["id"], "project_name": proj["name"], "type": type_})
+                         "project_id": proj["id"], "project_name": proj["name"], "type": type_,
+                         "image": new_item["image"], "gallery": gallery_paths, "video": vid_path})
+
+    # ── CLI media helpers ─────────────────────────────────────────────────
+    def _save_agent_media(self, proj_name: str, media_type: str,
+                          b64: str = "", url: str = "", filename: str = "") -> str:
+        """Save image/video from base64 or URL. Returns /uploads/... path or ''."""
+        import urllib.request as _ur
+        subdir = "images" if media_type == "image" else "videos"
+        proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", proj_name)[:40] if proj_name else "default"
+        save_dir = UPLOAD_DIR / proj_folder / subdir
+        save_dir.mkdir(parents=True, exist_ok=True)
+        raw = b""
+        ext = ".jpg" if media_type == "image" else ".mp4"
+        stem = re.sub(r"[^\w.\-]", "_", Path(filename).stem)[:50] if filename else "agent_gen"
+        if b64:
+            m = re.match(r"data:([^;]+);base64,(.+)", b64.strip(), re.DOTALL)
+            if m:
+                mime, data = m.group(1), m.group(2)
+                ext = (mimetypes.guess_extension(mime) or ext).replace(".jpe", ".jpg")
+                raw = base64.b64decode(data)
+            else:
+                try: raw = base64.b64decode(b64.strip())
+                except Exception: return ""
+        elif url:
+            try:
+                with _ur.urlopen(url, timeout=30) as r:
+                    raw = r.read()
+                    ct = r.headers.get("Content-Type", "")
+                    guessed = mimetypes.guess_extension(ct.split(";")[0].strip())
+                    if guessed: ext = guessed.replace(".jpe", ".jpg")
+            except Exception: return ""
+        if not raw: return ""
+        if not stem or stem == "agent_gen":
+            stem = Path(url).stem[:40] if url else "agent_gen"
+            stem = re.sub(r"[^\w\-]", "_", stem) or "agent_gen"
+        out = save_dir / f"{stem}{ext}"
+        counter = 1
+        while out.exists():
+            out = save_dir / f"{stem}_{counter}{ext}"; counter += 1
+        out.write_bytes(raw)
+        return f"/uploads/{proj_folder}/{subdir}/{out.name}"
 
     # ── CLI read helpers ──────────────────────────────────────────────────
     def _handle_cli_list(self, query):
