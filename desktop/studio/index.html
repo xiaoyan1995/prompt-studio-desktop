@@ -3780,13 +3780,19 @@
   });
 
   async function loadDataDirInfo() {
+    const inp = document.getElementById('dataDirInput');
+    const status = document.getElementById('dataDirStatus');
     try {
       const res = await fetch('/api/studio-config');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const cfg = await res.json();
-      const inp = document.getElementById('dataDirInput');
       if (inp) inp.value = cfg.data_dir || '';
-      document.getElementById('dataDirStatus').textContent = '';
-    } catch (_) {}
+      if (status) status.textContent = '';
+    } catch (e) {
+      if (inp) inp.value = '';
+      if (inp) inp.placeholder = '获取失败，请重启应用后重试';
+      if (status) status.textContent = '⚠️ ' + e.message;
+    }
   }
   document.getElementById('saveDataDirBtn').addEventListener('click', async () => {
     const inp = document.getElementById('dataDirInput');
