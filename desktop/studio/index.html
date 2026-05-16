@@ -1401,6 +1401,7 @@
           <span>🔍</span>
           <input type="search" id="searchInput" placeholder="搜索…">
         </div>
+        <button class="btn btn-secondary btn-sm" id="exportProjectBtn" style="display:none" title="导出当前项目全部资产为 ZIP">📦 导出项目</button>
         <button class="btn btn-secondary btn-sm" id="libraryOpsBtn">资源增强</button>
         <button class="btn btn-secondary btn-sm" id="desktopSettingsBtn">设置</button>
         <button class="btn btn-primary btn-sm" id="primaryBtn">新建</button>
@@ -2949,6 +2950,7 @@
     applyGridMode();
     const _catBarEl = document.getElementById('catBar');
     if (_catBarEl && state.view === 'projects') _catBarEl.style.display = 'none';
+    document.getElementById('exportProjectBtn').style.display = state.view === 'projects' ? 'none' : '';
     if (state.view === 'projects') {
       document.getElementById('pageTitle').textContent = '项目管理';
       document.getElementById('pageSubtitle').textContent = '管理你的项目库与资产规模';
@@ -3784,6 +3786,40 @@
       type: it.__type,
     }));
   }
+
+  async function exportAllProjectAssets() {
+    const proj = getProject(state.projectId);
+    if (!proj) { toast('⚠️ 请先进入一个项目'); return; }
+    const refs = buildProjectAssets(proj).map(it => ({
+      id: it.id,
+      project_id: state.projectId,
+      category: it.__category,
+      type: it.__type,
+    }));
+    if (!refs.length) { toast('⚠️ 当前项目没有资产'); return; }
+    const btn = document.getElementById('exportProjectBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 导出中…';
+    try {
+      const res = await postJson('/api/export-bundle', {
+        selected: refs,
+        includeMedia: true,
+        includePrompts: true,
+        includeDataJson: true,
+      });
+      const a = document.createElement('a');
+      a.href = res.bundle.download_url;
+      a.download = res.bundle.name;
+      a.click();
+      toast(`✅ 导出完成：${res.bundle.items} 项 / ${formatBytes(res.bundle.size)}`);
+    } catch (err) {
+      toast('❌ 导出失败：' + err.message, 4000);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📦 导出项目';
+    }
+  }
+  document.getElementById('exportProjectBtn').addEventListener('click', exportAllProjectAssets);
 
   document.getElementById('opsExportRunBtn').addEventListener('click', async () => {
     const refs = selectedPromptRefs();
