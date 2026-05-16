@@ -4204,7 +4204,7 @@
 
 
   // ── Prompt modal ──────────────────────────────────────────────────────
-  let pmType = 'image', pmEditId = null, pmImgDataUrl = '';
+  let pmType = 'image', pmEditId = null, pmImgDataUrl = '', pmDisplaySrc = '';
   let pmTags = [];
 
   function openPromptModal(promptId, type) {
@@ -4216,6 +4216,7 @@
     // Reset
     pmTags = item ? [...(item.tags||[])] : [];
     pmImgDataUrl = item ? (item.image||'') : '';
+    pmDisplaySrc = pmImgDataUrl;
     document.getElementById('pmTitle').value = item ? (item.title||'') : '';
     document.getElementById('pmPrompt').value = item ? (item.prompt||'') : '';
     document.getElementById('pmSkillPrompt').value = item ? (item.prompt||'') : '';
@@ -4286,6 +4287,7 @@
     // Gallery
     pmGallery = item ? [...(item.gallery||[])] : [];
     pmGalleryPending = [];
+    if (!pmDisplaySrc && pmGallery.length) pmDisplaySrc = pmGallery[0];
     renderGalleryStrip();
     document.getElementById('pmGalleryStrip').style.display = type === 'image' ? 'block' : 'none';
     // Load existing ref images
@@ -4384,11 +4386,13 @@
     const reader = new FileReader();
     reader.onload = ev => {
       pmImgDataUrl = ev.target.result;
+      pmDisplaySrc = pmImgDataUrl;
       const prev = document.getElementById('pmImgPreview');
       prev.src = pmImgDataUrl; prev.style.display = 'block';
       const imgEl = document.getElementById('promptModalImg');
       const phEl = document.getElementById('promptModalImgPh');
       imgEl.src = pmImgDataUrl; imgEl.style.display = 'block'; phEl.style.display = 'none';
+      renderGalleryStrip();
     };
     reader.readAsDataURL(file);
   });
@@ -4418,26 +4422,25 @@
       ...pmGallery.map((src, i) => ({ src, kind: 'gallery', i })),
       ...pmGalleryPending.map((p, i) => ({ src: p.dataUrl, kind: 'pending', i })),
     ];
-    row.innerHTML = items.map((item, pos) => `
-      <div style="position:relative;display:inline-flex;flex-shrink:0" data-pos="${pos}">
+    row.innerHTML = items.map((item, pos) => {
+      const isSelected = item.src === pmDisplaySrc;
+      return `<div style="position:relative;display:inline-flex;flex-shrink:0" data-pos="${pos}">
         <img src="${h(item.src)}" data-pos="${pos}"
-             style="width:50px;height:50px;object-fit:cover;border-radius:7px;cursor:${item.kind==='main'?'default':'pointer'};border:2px solid ${item.kind==='main'?'var(--primary)':'transparent'};transition:.12s"
-             title="${item.kind==='main'?'当前主图':'点击设为主图'}">
-        ${item.kind !== 'main' ? `<button data-rm="${pos}" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#c0392b;color:#fff;border:none;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1" title="移除">✕</button>` : ''}
-      </div>`).join('');
+             style="width:50px;height:50px;object-fit:cover;border-radius:7px;cursor:pointer;border:2px solid ${isSelected?'var(--primary)':'transparent'};transition:.12s"
+             title="${isSelected?'当前主图':'点击设为主图'}">
+        <button data-rm="${pos}" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#c0392b;color:#fff;border:none;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1" title="移除">✕</button>
+      </div>`;
+    }).join('');
     row.querySelectorAll('img[data-pos]').forEach(el => {
       el.addEventListener('click', () => {
         const pos = parseInt(el.dataset.pos);
         const clicked = items[pos];
-        if (clicked.kind === 'main') return;
-        const oldMain = pmImgDataUrl;
-        pmImgDataUrl = clicked.src; pmImgFile = null;
-        if (clicked.kind === 'gallery') pmGallery[clicked.i] = oldMain;
-        else pmGalleryPending[clicked.i].dataUrl = oldMain;
+        if (clicked.src === pmDisplaySrc) return;
+        pmDisplaySrc = clicked.src;
         const imgEl = document.getElementById('promptModalImg');
-        imgEl.src = pmImgDataUrl; imgEl.style.display = 'block';
+        imgEl.src = pmDisplaySrc; imgEl.style.display = 'block';
         document.getElementById('promptModalImgPh').style.display = 'none';
-        document.getElementById('pmImgPreview').src = pmImgDataUrl;
+        document.getElementById('pmImgPreview').src = pmDisplaySrc;
         document.getElementById('pmImgPreview').style.display = 'block';
         renderGalleryStrip();
       });
@@ -4448,7 +4451,15 @@
         const pos = parseInt(btn.dataset.rm);
         const clicked = items[pos];
         if (clicked.kind === 'gallery') pmGallery.splice(clicked.i, 1);
-        else pmGalleryPending.splice(clicked.i, 1);
+        else if (clicked.kind === 'pending') pmGalleryPending.splice(clicked.i, 1);
+        else return; // don't delete main via X (it has no X button now)
+        // if deleted image was selected, fall back to first available
+        if (pmDisplaySrc === clicked.src) {
+          const remaining = items.filter((_, i) => i !== pos);
+          pmDisplaySrc = remaining[0]?.src || '';
+          const imgEl = document.getElementById('promptModalImg');
+          if (pmDisplaySrc) { imgEl.src = pmDisplaySrc; imgEl.style.display = 'block'; document.getElementById('promptModalImgPh').style.display = 'none'; }
+        }
         renderGalleryStrip();
       });
     });
@@ -4563,20 +4574,24 @@
     const prompt = promptEl.value.trim();
     if (!prompt) { promptEl.focus(); toast('⚠️ 请填写提示词'); return; }
     document.getElementById('pmSaveBtn').disabled = true;
-    // Upload image if new file selected
-    let imgPath = pmImgDataUrl;
-    if (pmImgFile && pmImgDataUrl.startsWith('data:')) {
-      toast('⏳ 上传图片中…');
-      const projName = getProject(state.projectId)?.name || 'default';
-      imgPath = await uploadImage(pmImgDataUrl, pmImgFile.name, projName);
-    }
-    pmImgFile = null;
-    // Upload gallery pending images
     const projNameG = getProject(state.projectId)?.name || 'default';
-    const uploadedGallery = await Promise.all(pmGalleryPending.map(p =>
-      uploadImage(p.dataUrl, p.file?.name || 'gallery.jpg', projNameG)
+    // Build flat ordered list of all images
+    const _allImgs = [
+      ...(pmImgDataUrl ? [{ src: pmImgDataUrl, file: pmImgFile }] : []),
+      ...pmGallery.map(s => ({ src: s })),
+      ...pmGalleryPending.map(p => ({ src: p.dataUrl, file: p.file })),
+    ];
+    if (_allImgs.length) toast('⏳ 上传图片中…');
+    // Upload any data-URL images
+    const _uploaded = await Promise.all(_allImgs.map(x =>
+      x.src.startsWith('data:') ? uploadImage(x.src, x.file?.name || 'image.jpg', projNameG) : Promise.resolve(x.src)
     ));
-    const galleryPaths = [...pmGallery.filter(s => !s.startsWith('data:')), ...uploadedGallery];
+    // Which index is the selected main?
+    const _selIdx = _allImgs.findIndex(x => x.src === pmDisplaySrc);
+    const _mainIdx = _selIdx >= 0 ? _selIdx : 0;
+    let imgPath = _uploaded[_mainIdx] || '';
+    const galleryPaths = _uploaded.filter((_, i) => i !== _mainIdx);
+    pmImgFile = null;
     pmGalleryPending = [];
     const proj = getProject(state.projectId);
     const key = pmType === 'image' ? 'image_prompts' : (pmType === 'skill' ? 'skill_prompts' : 'video_prompts');
