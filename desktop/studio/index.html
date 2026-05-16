@@ -1453,6 +1453,12 @@
   </div>
 </div>
 
+<!-- Tag context menu -->
+<div id="tagContextMenu" style="display:none;position:fixed;z-index:10000;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.18);padding:4px 0;min-width:130px">
+  <button id="tagCtxRename" style="display:block;width:100%;text-align:left;padding:8px 14px;background:none;border:none;cursor:pointer;font-size:13px;color:var(--text)">✏️ 重命名标签</button>
+  <button id="tagCtxDelete" style="display:block;width:100%;text-align:left;padding:8px 14px;background:none;border:none;cursor:pointer;font-size:13px;color:#ef4444">🗑 删除标签</button>
+</div>
+
 <!-- Batch bar (fixed bottom) -->
 <div class="batch-bar" id="batchBar">
   <span class="batch-count" id="batchCount">已选择 0 项</span>
@@ -3092,6 +3098,7 @@
         catBarEl.innerHTML = barHtml;
         catBarEl.querySelectorAll('.cat-btn').forEach(btn => {
           btn.addEventListener('click', () => { activeCategory = btn.dataset.cat === '全部' ? null : btn.dataset.cat; renderPage(); });
+          if (btn.dataset.cat !== '全部') btn.addEventListener('contextmenu', (e) => { e.preventDefault(); showTagContextMenu(e, btn.dataset.cat, 'pdf_files'); });
         });
         catBarEl.querySelectorAll('.color-filter-dot').forEach(dot => {
           dot.addEventListener('click', () => { uiState.pdfColorFilter = dot.dataset.color; renderPage(); });
@@ -3124,6 +3131,7 @@
           activeCategory = btn.dataset.cat === '全部' ? null : btn.dataset.cat;
           renderPage();
         });
+        if (btn.dataset.cat !== '全部') btn.addEventListener('contextmenu', (e) => { e.preventDefault(); showTagContextMenu(e, btn.dataset.cat, catKey); });
       });
     } else {
       catBarEl.style.display = 'none';
@@ -3823,6 +3831,63 @@
     }
   }
   document.getElementById('exportProjectBtn').addEventListener('click', exportAllProjectAssets);
+
+  // ── Tag context menu (right-click on cat-btn chip) ──────────────────
+  let _tagCtx = { tag: null, catKey: null };
+  function showTagContextMenu(e, tag, catKey) {
+    _tagCtx = { tag, catKey };
+    const menu = document.getElementById('tagContextMenu');
+    menu.style.display = 'block';
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let x = e.clientX, y = e.clientY;
+    menu.style.left = (x + 140 > vw ? vw - 145 : x) + 'px';
+    menu.style.top  = (y + 80  > vh ? vh - 90  : y) + 'px';
+  }
+  function hideTagContextMenu() {
+    document.getElementById('tagContextMenu').style.display = 'none';
+  }
+  document.addEventListener('click', hideTagContextMenu);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideTagContextMenu(); });
+
+  document.getElementById('tagCtxRename').addEventListener('click', async () => {
+    hideTagContextMenu();
+    const { tag, catKey } = _tagCtx;
+    if (!tag) return;
+    const newTag = prompt(`重命名标签「${tag}」为：`, tag);
+    if (!newTag || !newTag.trim() || newTag.trim() === tag) return;
+    const proj = getProject(state.projectId);
+    if (!proj) return;
+    let count = 0;
+    (proj[catKey] || []).forEach(item => {
+      if (Array.isArray(item.tags) && item.tags.includes(tag)) {
+        item.tags = item.tags.map(t => t === tag ? newTag.trim() : t);
+        count++;
+      }
+    });
+    await saveData(data);
+    if (activeCategory === tag) activeCategory = newTag.trim();
+    renderPage();
+    toast(`✅ 已将标签「${tag}」重命名为「${newTag.trim()}」，影响 ${count} 项`);
+  });
+
+  document.getElementById('tagCtxDelete').addEventListener('click', async () => {
+    hideTagContextMenu();
+    const { tag, catKey } = _tagCtx;
+    if (!tag) return;
+    const proj = getProject(state.projectId);
+    if (!proj) return;
+    let count = 0;
+    (proj[catKey] || []).forEach(item => {
+      if (Array.isArray(item.tags) && item.tags.includes(tag)) {
+        item.tags = item.tags.filter(t => t !== tag);
+        count++;
+      }
+    });
+    await saveData(data);
+    if (activeCategory === tag) activeCategory = null;
+    renderPage();
+    toast(`✅ 已删除标签「${tag}」，影响 ${count} 项`);
+  });
 
   document.getElementById('importProjectBtn').addEventListener('click', () => {
     document.getElementById('importProjectFileInput').click();
