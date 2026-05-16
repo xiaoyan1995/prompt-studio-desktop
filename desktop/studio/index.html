@@ -4222,8 +4222,8 @@
 
     // Reset
     pmTags = item ? [...(item.tags||[])] : [];
-    pmImgDataUrl = item ? (item.image||'') : '';
-    pmDisplaySrc = pmImgDataUrl;
+    // Reference image (separate from gallery)
+    pmImgDataUrl = item ? (item.ref_image||'') : '';
     document.getElementById('pmTitle').value = item ? (item.title||'') : '';
     document.getElementById('pmPrompt').value = item ? (item.prompt||'') : '';
     document.getElementById('pmSkillPrompt').value = item ? (item.prompt||'') : '';
@@ -4291,10 +4291,16 @@
       document.getElementById('promptModalInner').classList.remove('modal-wide');
       document.getElementById('promptModalLeft').style.flex = '';
     }
-    // Gallery (generated results — separate from reference image)
-    pmGallery = item ? [...(item.gallery||[])] : [];
+    // Gallery (generated results). Migrate: old item.image with no gallery → put in gallery
+    if (item?.gallery?.length > 0) {
+      pmGallery = [...item.gallery];
+    } else if (item?.image) {
+      pmGallery = [item.image]; // migrate legacy single image into gallery
+    } else {
+      pmGallery = [];
+    }
     pmGalleryPending = [];
-    pmDisplaySrc = pmGallery[0] || pmImgDataUrl || '';
+    pmDisplaySrc = item?.image || pmGallery[0] || '';
     renderGalleryStrip();
     syncRefImageUI();
     document.getElementById('pmGalleryStrip').style.display = type === 'image' ? 'block' : 'none';
@@ -4326,7 +4332,7 @@
     const aspVal = item?.aspect || '16:9';
     [...aspSel.options].forEach(o => o.selected = o.value === aspVal);
 
-    // Image preview
+    // Reference image preview (right panel)
     const prev = document.getElementById('pmImgPreview');
     if (pmImgDataUrl) { prev.src = pmImgDataUrl; prev.style.display = 'block'; } else { prev.style.display = 'none'; prev.src = ''; }
 
@@ -4621,18 +4627,20 @@
     document.getElementById('pmSaveBtn').disabled = true;
     const projNameG = getProject(state.projectId)?.name || 'default';
     // Upload reference image if new
-    let imgPath = pmImgDataUrl;
+    let refImgPath = pmImgDataUrl;
     if (pmImgFile && pmImgDataUrl.startsWith('data:')) {
       toast('⏳ 上传图片中…');
-      imgPath = await uploadImage(pmImgDataUrl, pmImgFile.name, projNameG);
+      refImgPath = await uploadImage(pmImgDataUrl, pmImgFile.name, projNameG);
     }
     pmImgFile = null;
     // Upload gallery pending images (generated results)
     const _uploadedGallery = await Promise.all(pmGalleryPending.map(p =>
       uploadImage(p.dataUrl, p.file?.name || 'gallery.jpg', projNameG)
     ));
-    const galleryPaths = [...pmGallery, ..._uploadedGallery];
+    const galleryPaths = [...pmGallery.filter(s => !s.startsWith('data:')), ..._uploadedGallery];
     pmGalleryPending = [];
+    // Main image = selected gallery image (for card display)
+    const mainImgPath = galleryPaths.includes(pmDisplaySrc) ? pmDisplaySrc : (galleryPaths[0] || '');
     const proj = getProject(state.projectId);
     const key = pmType === 'image' ? 'image_prompts' : (pmType === 'skill' ? 'skill_prompts' : 'video_prompts');
     proj[key] = proj[key] || [];
@@ -4666,10 +4674,10 @@
         const scene_prompt  = document.getElementById('pmScenePrompt').value  || proj[key][idx].scene_prompt  || '';
         const style_prompt  = document.getElementById('pmStylePrompt').value  || proj[key][idx].style_prompt  || '';
         const cam_prompt    = document.getElementById('pmCamPrompt').value    || proj[key][idx].cam_prompt    || '';
-        proj[key][idx] = { ...proj[key][idx], title, prompt, model, aspect, tags:[...pmTags], image:imgPath, gallery:galleryPaths, video:videoPath, ref_images:refPaths, analysis, outfit_prompt, char_prompt, scene_prompt, style_prompt, cam_prompt, updated_at:new Date().toISOString() };
+        proj[key][idx] = { ...proj[key][idx], title, prompt, model, aspect, tags:[...pmTags], image:mainImgPath, gallery:galleryPaths, ref_image:refImgPath, video:videoPath, ref_images:refPaths, analysis, outfit_prompt, char_prompt, scene_prompt, style_prompt, cam_prompt, updated_at:new Date().toISOString() };
       }
     } else {
-      proj[key].unshift({ id:uid(), title, prompt, model, aspect, tags:[...pmTags], image:imgPath, gallery:galleryPaths, video:videoPath, ref_images:refPaths, analysis:'', outfit_prompt:'', char_prompt:'', scene_prompt:'', style_prompt:'', cam_prompt:'', created_at:new Date().toISOString() });
+      proj[key].unshift({ id:uid(), title, prompt, model, aspect, tags:[...pmTags], image:mainImgPath, gallery:galleryPaths, ref_image:refImgPath, video:videoPath, ref_images:refPaths, analysis:'', outfit_prompt:'', char_prompt:'', scene_prompt:'', style_prompt:'', cam_prompt:'', created_at:new Date().toISOString() });
     }
     const ok = await saveData(data);
     document.getElementById('pmSaveBtn').disabled = false;
