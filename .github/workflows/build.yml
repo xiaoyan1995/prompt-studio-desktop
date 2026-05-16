@@ -101,8 +101,34 @@ jobs:
             desktop/dist/*.zip
           if-no-files-found: warn
 
+  source-zip:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package source code zip
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          ZIP="prompt-studio-desktop-${TAG}-source.zip"
+          zip -r "$ZIP" . \
+            --exclude '*.git*' \
+            --exclude 'desktop/node_modules/*' \
+            --exclude 'desktop/dist/*' \
+            --exclude 'desktop/server-dist/*' \
+            --exclude 'desktop/server-build/build/*' \
+            --exclude 'studio-data/*' \
+            --exclude 'release/*'
+          echo "ZIP=$ZIP" >> $GITHUB_ENV
+
+      - name: Upload source zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-zip
+          path: "*.zip"
+
   release:
-    needs: [build-windows, build-macos]
+    needs: [build-windows, build-macos, source-zip]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -120,10 +146,17 @@ jobs:
           name: macos-build
           path: artifacts/macos
 
+      - name: Download source zip
+        uses: actions/download-artifact@v4
+        with:
+          name: source-zip
+          path: artifacts/source
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/windows/*
             artifacts/macos/*
+            artifacts/source/*
           generate_release_notes: true

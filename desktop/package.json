@@ -55,6 +55,16 @@
         ]
       }
     ],
+    "extraFiles": [
+      {
+        "from": "../extension",
+        "to": "extension"
+      },
+      {
+        "from": "../skills",
+        "to": "skills"
+      }
+    ],
     "win": {
       "icon": "build/icon.ico",
       "target": [
