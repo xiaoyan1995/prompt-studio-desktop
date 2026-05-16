@@ -1536,7 +1536,7 @@ class Handler(SimpleHTTPRequestHandler):
                             continue
                         if not target.exists() or not target.is_file():
                             continue
-                        arcname = f"media/{rel.replace('/', '_')}"
+                        arcname = f"media/{rel}"
                         try:
                             z.write(target, arcname=arcname)
                             written_files += 1
@@ -2076,23 +2076,36 @@ class Handler(SimpleHTTPRequestHandler):
             zf = zipfile.ZipFile(io.BytesIO(raw))
             meta = None
             extracted_files = {}
+            partial_meta = None
             for name in zf.namelist():
-                if name.endswith("metadata.json"):
-                    meta = json.loads(zf.read(name))
+                if name in ("manifest.json", "metadata.json") or name.endswith("metadata.json"):
+                    if meta is None:
+                        meta = json.loads(zf.read(name))
+                elif name == "data.partial.json":
+                    if partial_meta is None:
+                        partial_meta = json.loads(zf.read(name))
                 elif not name.endswith("/"):
-                    # extract uploads
                     parts = name.split("/")
-                    # remove leading folder (bundle root)
-                    rel = "/".join(parts[1:]) if len(parts) > 1 else name
+                    # strip leading "media/" folder
+                    if parts[0] == "media" and len(parts) > 1:
+                        rel = "/".join(parts[1:])
+                    else:
+                        rel = "/".join(parts[1:]) if len(parts) > 1 else name
                     if not rel:
                         continue
+                    import pathlib as _pl
+                    filename = _pl.Path(rel).name
                     out_dir = UPLOAD_DIR / proj_folder
-                    out_path = out_dir / rel
+                    out_path = out_dir / filename
                     out_path.parent.mkdir(parents=True, exist_ok=True)
                     out_path.write_bytes(zf.read(name))
-                    old_rel = "/" + "/".join(parts[1:]) if len(parts) > 1 else "/" + name
-                    new_rel = f"/uploads/{proj_folder}/{rel}"
-                    extracted_files[old_rel] = new_rel
+                    new_rel = f"/uploads/{proj_folder}/{filename}"
+                    # map both /uploads/original_rel and /old_flat variants
+                    extracted_files["/uploads/" + rel] = new_rel
+                    extracted_files["/" + rel.replace("/", "_")] = new_rel
+                    extracted_files["/" + rel] = new_rel
+            if meta is None and partial_meta is not None:
+                meta = partial_meta
             zf.close()
             self._json_resp({"ok": True, "meta": meta, "file_map": extracted_files})
         except Exception as e:

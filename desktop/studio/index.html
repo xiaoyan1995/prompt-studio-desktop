@@ -1401,6 +1401,8 @@
           <span>🔍</span>
           <input type="search" id="searchInput" placeholder="搜索…">
         </div>
+        <input type="file" id="importProjectFileInput" accept=".zip" style="display:none">
+        <button class="btn btn-secondary btn-sm" id="importProjectBtn" style="display:none" title="导入项目包 ZIP">📥 导入项目</button>
         <button class="btn btn-secondary btn-sm" id="exportProjectBtn" style="display:none" title="导出当前项目全部资产为 ZIP">📦 导出项目</button>
         <button class="btn btn-secondary btn-sm" id="libraryOpsBtn">资源增强</button>
         <button class="btn btn-secondary btn-sm" id="desktopSettingsBtn">设置</button>
@@ -2951,6 +2953,7 @@
     const _catBarEl = document.getElementById('catBar');
     if (_catBarEl && state.view === 'projects') _catBarEl.style.display = 'none';
     document.getElementById('exportProjectBtn').style.display = state.view === 'projects' ? 'none' : '';
+    document.getElementById('importProjectBtn').style.display = state.view === 'projects' ? '' : 'none';
     if (state.view === 'projects') {
       document.getElementById('pageTitle').textContent = '项目管理';
       document.getElementById('pageSubtitle').textContent = '管理你的项目库与资产规模';
@@ -3820,6 +3823,60 @@
     }
   }
   document.getElementById('exportProjectBtn').addEventListener('click', exportAllProjectAssets);
+
+  document.getElementById('importProjectBtn').addEventListener('click', () => {
+    document.getElementById('importProjectFileInput').click();
+  });
+  document.getElementById('importProjectFileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    const projName = `导入-${file.name.replace(/\.zip$/i,'').replace(/bundle-[\d]+-[a-f0-9]+/,'').replace(/[_\-]+$/,'') || new Date().toLocaleDateString()}`;
+    const btn = document.getElementById('importProjectBtn');
+    btn.disabled = true; btn.textContent = '⏳ 导入中…';
+    try {
+      const r = await fetch('/api/import-bundle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/zip', 'X-Project': encodeURIComponent(projName) },
+        body: file,
+      });
+      const res = await r.json();
+      if (!res.ok) { toast('❌ ' + (res.error || '导入失败'), 4000); return; }
+      const meta = res.meta;
+      const fmap = res.file_map || {};
+      const newProj = { id: uid(), name: projName, created_at: new Date().toISOString(),
+        image_prompts: [], video_prompts: [], skill_prompts: [], pdf_files: [] };
+      let count = 0;
+      if (meta) {
+        const allItems = meta.items || [];
+        for (const cat of ['image_prompts','video_prompts','skill_prompts','pdf_files']) {
+          const items = meta[cat] || allItems.filter(i => i.category === cat || i.__category === cat
+            || (cat==='image_prompts'&&i.type==='image') || (cat==='video_prompts'&&i.type==='video')
+            || (cat==='skill_prompts'&&i.type==='skill'));
+          for (const item of items) {
+            const clone = { ...item, id: uid(), created_at: new Date().toISOString() };
+            delete clone.__type; delete clone.__category; delete clone.category;
+            delete clone.project_id; delete clone.project_name;
+            for (const key of ['image','video','path']) {
+              if (clone[key] && fmap[clone[key]]) clone[key] = fmap[clone[key]];
+            }
+            if (Array.isArray(clone.ref_images))
+              clone.ref_images = clone.ref_images.map(p => fmap[p] || p);
+            newProj[cat].push(clone); count++;
+          }
+        }
+      }
+      data.projects = data.projects || [];
+      data.projects.unshift(newProj);
+      await saveData(data);
+      state.projectId = newProj.id; state.view = 'image_prompts';
+      renderPage(); renderSidebar();
+      toast(`✅ 已创建项目「${projName}」，导入 ${count} 项`);
+    } catch (err) {
+      toast('❌ 导入失败：' + err.message, 4000);
+    } finally {
+      btn.disabled = false; btn.textContent = '📥 导入项目';
+    }
+  });
 
   document.getElementById('opsExportRunBtn').addEventListener('click', async () => {
     const refs = selectedPromptRefs();
