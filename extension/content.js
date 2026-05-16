@@ -316,7 +316,8 @@
     }
   }
 
-  function probeImageSize(url) {
+  // Probe using original URL (CDN accepts it with page cookies/referer)
+  function probeImageSize(originalUrl) {
     return new Promise(resolve => {
       const img = new Image();
       const timer = setTimeout(() => resolve(null), 8000);
@@ -325,45 +326,53 @@
         resolve({ w: img.naturalWidth, h: img.naturalHeight });
       };
       img.onerror = () => { clearTimeout(timer); resolve(null); };
-      img.src = url;
+      img.src = originalUrl; // use original, not cleaned URL
     });
   }
 
   async function scanPageImages() {
-    const seen = new Set();
-    const draft = [];
+    const seen = new Set(); // keyed by cleaned URL to avoid save-duplicates
+    const draft = [];       // { url (save), probeUrl (original), width, height, probed }
 
-    function addEntry(url, width, height, needProbe) {
-      const clean = cleanCdnUrl(url);
-      if (!clean || seen.has(clean)) return;
-      seen.add(clean);
-      draft.push({ url: clean, width: width || 0, height: height || 0, probed: !needProbe });
+    function addEntry(originalUrl, width, height) {
+      if (!originalUrl) return;
+      const saveUrl = cleanCdnUrl(originalUrl);
+      if (!saveUrl || seen.has(saveUrl)) return;
+      seen.add(saveUrl);
+      const alreadyHasDims = width > 1 && height > 1;
+      draft.push({
+        url: saveUrl,           // cleaned URL used for saving (may be larger)
+        probeUrl: originalUrl,  // original URL used for dimension detection
+        width:  width  || 0,
+        height: height || 0,
+        probed: alreadyHasDims,
+      });
     }
 
-    // 1. Performance API — ALL resources the browser loaded on this page,
-    //    including dynamically loaded full-size images (lightbox, SPA navigation, etc.)
+    // 1. Performance API — ALL resources the browser loaded on this page
+    //    (includes dynamically loaded full-size images via lightbox/JS)
     try {
       for (const entry of performance.getEntriesByType('resource')) {
-        if (entry.initiatorType === 'img' || entry.initiatorType === 'css') {
-          const url = entry.name;
-          if (/\.(jpe?g|png|webp|gif|avif|svg|bmp)([?#]|$)/i.test(url) ||
-              entry.initiatorType === 'img') {
-            addEntry(url, 0, 0, true);
+        if (entry.initiatorType === 'img') {
+          addEntry(entry.name, 0, 0);
+        } else if (entry.initiatorType === 'css') {
+          if (/\.(jpe?g|png|webp|gif|avif|svg|bmp)([?#]|$)/i.test(entry.name)) {
+            addEntry(entry.name, 0, 0);
           }
         }
       }
     } catch {}
 
-    // 2. DOM <img> elements — get naturalWidth/Height immediately (no probe needed)
+    // 2. DOM <img> elements — get naturalWidth/Height immediately
     document.querySelectorAll('img').forEach(img => {
       if (img.naturalWidth < 2 || img.naturalHeight < 2) return;
       const raw = getBestUrl(img);
       if (!raw) return;
-      const clean = cleanCdnUrl(raw);
-      if (!clean) return;
-      if (seen.has(clean)) {
-        // already from performance — update dimensions if we have them
-        const existing = draft.find(d => d.url === clean);
+      const saveUrl = cleanCdnUrl(raw);
+      if (!saveUrl) return;
+      if (seen.has(saveUrl)) {
+        // update dimensions on existing entry (DOM dimensions are reliable)
+        const existing = draft.find(d => d.url === saveUrl);
         if (existing && img.naturalWidth > existing.width) {
           existing.width  = img.naturalWidth;
           existing.height = img.naturalHeight;
@@ -371,21 +380,22 @@
         }
         return;
       }
-      seen.add(clean);
+      seen.add(saveUrl);
       draft.push({
-        url: clean,
+        url: saveUrl,
+        probeUrl: raw,
         width:  img.naturalWidth,
         height: img.naturalHeight,
-        probed: clean === raw,  // no probe needed if URL didn't change
+        probed: true, // DOM gives us real dims, no probe needed
       });
     });
 
-    // 3. Probe items that still lack real dimensions (max 8 parallel, 6s timeout)
+    // 3. Probe items that still lack dimensions — use probeUrl (original, CDN-valid)
     const needProbe = draft.filter(d => !d.probed);
     const BATCH = 8;
     for (let i = 0; i < needProbe.length; i += BATCH) {
       const batch = needProbe.slice(i, i + BATCH);
-      const sizes = await Promise.all(batch.map(d => probeImageSize(d.url)));
+      const sizes = await Promise.all(batch.map(d => probeImageSize(d.probeUrl)));
       sizes.forEach((sz, j) => {
         if (sz && sz.w > 0) {
           batch[j].width  = sz.w;
@@ -395,8 +405,10 @@
       });
     }
 
-    // Remove items where probe failed and still have no dimensions
-    return draft.filter(d => d.width > 0 || d.height > 0);
+    // Strip internal probeUrl before returning, filter out anything still 0×0
+    return draft
+      .filter(d => d.width > 0 || d.height > 0)
+      .map(({ probeUrl: _, ...rest }) => rest);
   }
 
   // ── Floating Reverse Card ─────────────────────────────────────────────────────
