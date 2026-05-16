@@ -33,6 +33,42 @@
 - 🔎 **Fullscreen lightbox** — click any image to view at full resolution
 - 🤝 **Agent / CLI integration** — full HTTP API for external agents to read & write prompts, push AI-generated images and videos
 
+## 📋 Changelog
+
+### v1.0.8
+- 🖼️ Image gallery strip — multiple generated images per prompt, click to select main
+- 🔎 Fullscreen lightbox — click main image to view at full resolution
+- @ image picker — type `@` in prompt textarea to reference attached images
+- 🤝 Agent HTTP API — `/api/cli/*` endpoints for list / get / search / push
+- 📦 `pstudio-cli.py` — CLI wrapper for agent integration
+- 🤖 `skills/prompt-studio/` — ready-to-use agent skill with full API reference
+- Agents can push AI-generated images & videos via URL or base64
+- Reference image and gallery images now stored separately (`ref_image` vs `gallery`)
+
+### v1.0.7
+- PDF / document library with multi-format preview
+- Domain blacklist for browser extension
+- Snapshot backup system
+- Duplicate detection across projects
+
+### v1.0.6
+- Video prompt support with reference media grid
+- Skills / Agent prompt type with full Markdown editor
+- Reverse prompt analysis (AI-powered)
+
+### v1.0.5
+- Export bundles (zip assets + metadata)
+- Smart folders with rule-based filtering
+- Full-text search across all prompt fields
+
+### v1.0.4
+- Initial release
+- Project-based organization
+- Image prompt management with reference images
+- Browser extension with floating toolbar
+
+---
+
 ### 📦 Installation (No Build Required)
 
 Download the latest distribution zip from [Releases](https://github.com/xiaoyan1995/prompt-studio-desktop/releases), unzip and run:
@@ -142,42 +178,6 @@ requests.post(f"{B}/api/cli/push", json={
 ```
 
 See [`skills/prompt-studio/`](skills/prompt-studio/) for a ready-to-use agent skill, and [`pstudio-cli.py`](pstudio-cli.py) for a CLI wrapper.
-
----
-
-## 📋 Changelog
-
-### v1.0.8
-- 🖼️ Image gallery strip — multiple generated images per prompt, click to select main
-- 🔎 Fullscreen lightbox — click main image to view at full resolution
-- @ image picker — type `@` in prompt textarea to reference attached images
-- 🤝 Agent HTTP API — `/api/cli/*` endpoints for list / get / search / push
-- 📦 `pstudio-cli.py` — CLI wrapper for agent integration
-- 🤖 `skills/prompt-studio/` — ready-to-use agent skill with full API reference
-- Agents can push AI-generated images & videos via URL or base64
-- Reference image and gallery images now stored separately (`ref_image` vs `gallery`)
-
-### v1.0.7
-- PDF / document library with multi-format preview
-- Domain blacklist for browser extension
-- Snapshot backup system
-- Duplicate detection across projects
-
-### v1.0.6
-- Video prompt support with reference media grid
-- Skills / Agent prompt type with full Markdown editor
-- Reverse prompt analysis (AI-powered)
-
-### v1.0.5
-- Export bundles (zip assets + metadata)
-- Smart folders with rule-based filtering
-- Full-text search across all prompt fields
-
-### v1.0.4
-- Initial release
-- Project-based organization
-- Image prompt management with reference images
-- Browser extension with floating toolbar
 
 ---
 

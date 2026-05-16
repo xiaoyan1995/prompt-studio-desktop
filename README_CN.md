@@ -34,6 +34,42 @@
 
 ---
 
+## � 版本记录
+
+### v1.0.8
+- 🖼️ 图片画廊条 — 每条提示词支持多张生成图，点击缩略图设为主图
+- 🔎 大图查看 — 点击主图全屏 lightbox 浏览
+- @ 图片引用 — 提示词输入框输入 `@` 弹出图片选择面板
+- 🤝 Agent HTTP API — `/api/cli/*` 端点支持 list / get / search / push
+- �📦 `pstudio-cli.py` — Agent 集成 CLI 工具
+- 🤖 `skills/prompt-studio/` — 开箱即用的 agent skill，含完整 API 说明
+- Agent 可通过 URL 或 base64 推送 AI 生成的图片和视频
+- 参考图与画廊图分离存储（`ref_image` vs `gallery`）
+
+### v1.0.7
+- 文档库（PDF / Word / Excel / PPT / TXT / Markdown 多格式预览）
+- 浏览器插件域名黑名单
+- 快照备份与恢复
+- 跨项目重复提示词检测
+
+### v1.0.6
+- 视频提示词类型，支持参考媒体网格
+- Skills / Agent 提示词类型，全功能 Markdown 编辑器
+- AI 反推提示词功能
+
+### v1.0.5
+- 一键导出包（资产 + 元数据打 ZIP）
+- 智能文件夹（规则过滤）
+- 全字段全文搜索
+
+### v1.0.4
+- 首次发布
+- 项目式提示词管理
+- 图片提示词 + 参考图支持
+- 浏览器插件浮动工具栏
+
+---
+
 ## 📦 安装使用（无需编译）
 
 从 [Releases](https://github.com/xiaoyan1995/prompt-studio-desktop/releases) 下载最新分发包，解压后目录结构如下：
@@ -157,42 +193,6 @@ requests.post(f"{B}/api/cli/push", json={
 ```
 
 详见 [`skills/prompt-studio/`](skills/prompt-studio/)（agent skill 文件）和 [`pstudio-cli.py`](pstudio-cli.py)（CLI 工具）。
-
----
-
-## 📋 版本记录
-
-### v1.0.8
-- 🖼️ 图片画廊条 — 每条提示词支持多张生成图，点击缩略图设为主图
-- 🔎 大图查看 — 点击主图全屏 lightbox 浏览
-- @ 图片引用 — 提示词输入框输入 `@` 弹出图片选择面板
-- 🤝 Agent HTTP API — `/api/cli/*` 端点支持 list / get / search / push
-- 📦 `pstudio-cli.py` — Agent 集成 CLI 工具
-- 🤖 `skills/prompt-studio/` — 开箱即用的 agent skill，含完整 API 说明
-- Agent 可通过 URL 或 base64 推送 AI 生成的图片和视频
-- 参考图与画廊图分离存储（`ref_image` vs `gallery`）
-
-### v1.0.7
-- 文档库（PDF / Word / Excel / PPT / TXT / Markdown 多格式预览）
-- 浏览器插件域名黑名单
-- 快照备份与恢复
-- 跨项目重复提示词检测
-
-### v1.0.6
-- 视频提示词类型，支持参考媒体网格
-- Skills / Agent 提示词类型，全功能 Markdown 编辑器
-- AI 反推提示词功能
-
-### v1.0.5
-- 一键导出包（资产 + 元数据打 ZIP）
-- 智能文件夹（规则过滤）
-- 全字段全文搜索
-
-### v1.0.4
-- 首次发布
-- 项目式提示词管理
-- 图片提示词 + 参考图支持
-- 浏览器插件浮动工具栏
 
 ---
 
