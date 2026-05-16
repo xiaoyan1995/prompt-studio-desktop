@@ -1449,6 +1449,7 @@
         <button class="btn btn-secondary btn-sm" id="exportProjectBtn" style="display:none" title="导出当前项目全部资产为 ZIP">📦 导出项目</button>
         <input type="file" id="skillFolderInput" webkitdirectory style="display:none">
         <button class="btn btn-secondary btn-sm" id="importSkillFolderBtn" style="display:none" title="导入 Skills 文件夹（多文件）">📂 导入文件夹</button>
+        <button class="btn btn-secondary btn-sm" id="newAssetFolderBtn" style="display:none" title="新建文件夹">📁 新建文件夹</button>
         <button class="btn btn-secondary btn-sm" id="desktopSettingsBtn">设置</button>
         <button class="btn btn-primary btn-sm" id="primaryBtn">新建</button>
       </div>
@@ -2143,7 +2144,7 @@
   };
 
   // ── State ─────────────────────────────────────────────────────────────
-  let state = { view: 'projects', projectId: null, promptId: null, skillFolderId: null, skillFolderPath: [] };
+  let state = { view: 'projects', projectId: null, promptId: null, skillFolderId: null, skillFolderPath: [], folderFilter: null };
   let uiState = {
     viewMode: 'grid',
     filterModel: 'all',
@@ -2892,8 +2893,9 @@
     tagSel.disabled = isProjects;
     typeSel.disabled = isProjects || !isAll;
     const folderBtn = document.getElementById('importSkillFolderBtn');
-    const folderViews = new Set(['skill_prompts','image_prompts','video_prompts']);
-    if (folderBtn) folderBtn.style.display = (folderViews.has(state.view) && state.view !== 'skill_folder') ? '' : 'none';
+    if (folderBtn) folderBtn.style.display = state.view === 'skill_prompts' ? '' : 'none';
+    const newFolderBtn = document.getElementById('newAssetFolderBtn');
+    if (newFolderBtn) newFolderBtn.style.display = (state.view === 'image_prompts' || state.view === 'video_prompts') && !state.folderFilter ? '' : 'none';
     const smartSel = document.getElementById('smartFolderFilter');
     if (smartSel) smartSel.disabled = isProjects;
     typeSel.value = uiState.filterType;
@@ -2967,6 +2969,7 @@
     state.projectId = projectId;
     state.promptId = null;
     state.skillFolderId = null;
+    state.folderFilter = null;
     activeCategory = null;
     clearSelection();
     pickItem(null);
@@ -3080,18 +3083,26 @@
       const folder = (uiState.smartFolders || []).find(f => f.id === uiState.smartFolderId);
       const pageSub = isPdf ? '文档' : (isAll ? '资产' : (isImg ? '图像' : (isSkill ? 'Skills' : '视频')));
       const promptType = isImg ? 'image' : (isSkill ? 'skill' : 'video');
-      document.getElementById('pageTitle').textContent = pageTitle;
-      const folderText = folder ? ` · 智能文件夹：${folder.name}` : '';
-      document.getElementById('pageSubtitle').textContent = proj ? `${proj.name} 的${pageSub}${isPdf ? '' : '提示词库' + folderText}` : '';
-      if (isPdf) {
-        document.getElementById('primaryBtn').textContent = '上传文档';
-        document.getElementById('primaryBtn').onclick = () => document.getElementById('pdfUploadInput')?.click();
-      } else if (isAll) {
-        document.getElementById('primaryBtn').textContent = '新建';
-        document.getElementById('primaryBtn').onclick = () => openPromptModal(null, 'image');
+      const assetFolder = state.folderFilter ? (proj?.[state.view]||[]).find(p => p.id === state.folderFilter) : null;
+      if (assetFolder) {
+        document.getElementById('pageTitle').textContent = assetFolder.title || '文件夹';
+        document.getElementById('pageSubtitle').textContent = `${proj?.name || ''} · ${pageTitle} › ${assetFolder.title || '文件夹'}`;
+        document.getElementById('primaryBtn').textContent = '← 返回';
+        document.getElementById('primaryBtn').onclick = () => { state.folderFilter = null; renderPage(); syncToolbarControls(); };
       } else {
-        document.getElementById('primaryBtn').textContent = `新建${pageSub}`;
-        document.getElementById('primaryBtn').onclick = isSkill ? () => openSkillPanel(null) : () => openPromptModal(null, promptType);
+        document.getElementById('pageTitle').textContent = pageTitle;
+        const folderText = folder ? ` · 智能文件夹：${folder.name}` : '';
+        document.getElementById('pageSubtitle').textContent = proj ? `${proj.name} 的${pageSub}${isPdf ? '' : '提示词库' + folderText}` : '';
+        if (isPdf) {
+          document.getElementById('primaryBtn').textContent = '上传文档';
+          document.getElementById('primaryBtn').onclick = () => document.getElementById('pdfUploadInput')?.click();
+        } else if (isAll) {
+          document.getElementById('primaryBtn').textContent = '新建';
+          document.getElementById('primaryBtn').onclick = () => openPromptModal(null, 'image');
+        } else {
+          document.getElementById('primaryBtn').textContent = `新建${pageSub}`;
+          document.getElementById('primaryBtn').onclick = isSkill ? () => openSkillPanel(null) : () => openPromptModal(null, promptType);
+        }
       }
       renderPrompts(q);
     }
@@ -3358,11 +3369,22 @@
     const activeType = viewTypeMap[state.view] || 'all';
     let prompts = buildProjectAssets(proj);
     if (activeType !== 'all') prompts = prompts.filter(p => p.__type === activeType);
-    if (activeCategory && catKey) prompts = prompts.filter(p => (p.tags||[]).includes(activeCategory));
-    if (uiState.filterType !== 'all') prompts = prompts.filter(p => p.__type === uiState.filterType);
-    if (uiState.filterModel !== 'all') prompts = prompts.filter(p => (p.model || '') === uiState.filterModel);
-    if (uiState.filterTag !== 'all') prompts = prompts.filter(p => Array.isArray(p.tags) && p.tags.includes(uiState.filterTag));
-    prompts = applySmartFolderFilter(prompts);
+    // Folder drill-down for image/video views
+    const isAssetView = activeType === 'image' || activeType === 'video';
+    if (isAssetView) {
+      if (state.folderFilter) {
+        prompts = prompts.filter(p => !p.is_folder && p.folder_id === state.folderFilter);
+      } else {
+        prompts = prompts.filter(p => p.is_folder || !p.folder_id);
+      }
+    }
+    if (!state.folderFilter) {
+      if (activeCategory && catKey) prompts = prompts.filter(p => (p.tags||[]).includes(activeCategory));
+      if (uiState.filterType !== 'all') prompts = prompts.filter(p => p.__type === uiState.filterType);
+      if (uiState.filterModel !== 'all') prompts = prompts.filter(p => (p.model || '') === uiState.filterModel);
+      if (uiState.filterTag !== 'all') prompts = prompts.filter(p => Array.isArray(p.tags) && p.tags.includes(uiState.filterTag));
+      prompts = applySmartFolderFilter(prompts);
+    }
     if (q) prompts = prompts.filter(p => (p.title||'').toLowerCase().includes(q) || (p.prompt||'').toLowerCase().includes(q));
     prompts = sortByUi(prompts);
 
@@ -3381,13 +3403,30 @@
       const thumbSrc = (isImg && (p.gallery||[]).length > 0) ? p.gallery[0] : (p.image || '');
       const hasImg = thumbSrc.length > 0;
       const hasVid = isVid && p.video && p.video.length > 0;
-      const isFolder = isSkill && p.is_folder;
+      const isFolder = p.is_folder && (isSkill || isImg || isVid);
+      const isAssetFolder = p.is_folder && (isImg || isVid);
       const cardIcon = isImg ? '🖼️' : (isSkill ? '🤖' : '🎬');
       const cardLabelClass = isImg ? 'label-image' : (isSkill ? 'label-skill' : 'label-video');
-      const cardLabelText = isImg ? '图片' : (isFolder ? `文件夹 · ${(p.files||[]).length} 个文件` : (isSkill ? 'Skills' : '视频'));
-      const galleryCount = isImg && (p.gallery||[]).length > 0 ? p.gallery.length + 1 : 0;
+      // Count items inside asset folder
+      const assetFolderItems = isAssetFolder ? (proj?.[state.view]||[]).filter(x => x.folder_id === p.id) : [];
+      const cardLabelText = isAssetFolder
+        ? `文件夹 · ${assetFolderItems.length} 个${isImg ? '图片' : '视频'}`
+        : isImg ? '图片' : ((isSkill && p.is_folder) ? `文件夹 · ${(p.files||[]).length} 个文件` : (isSkill ? 'Skills' : '视频'));
+      const galleryCount = isImg && !isAssetFolder && (p.gallery||[]).length > 0 ? p.gallery.length + 1 : 0;
       const galleryBadge = galleryCount > 1 ? `<div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,.55);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;font-weight:700;backdrop-filter:blur(4px);pointer-events:none">×${galleryCount}</div>` : '';
-      const thumbHtml = isFolder
+      const assetFolderThumb = isAssetFolder ? (() => {
+        const previews = assetFolderItems.slice(0, 4);
+        if (!previews.length) return `<div class="skill-folder-cover"><div class="skill-folder-icon">📁</div></div>`;
+        const cells = previews.map(x => {
+          const src = (isImg ? ((x.gallery||[])[0] || x.image) : x.video) || '';
+          return src
+            ? (isImg ? `<img src="${h(src)}" style="width:100%;height:100%;object-fit:cover">` : `<video src="${h(src)}" style="width:100%;height:100%;object-fit:cover" muted preload="metadata">`)
+            : `<div style="background:var(--surface2);width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px">${cardIcon}</div>`;
+        });
+        return `<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;height:160px;overflow:hidden;border-radius:8px 8px 0 0;gap:1px">${cells.join('')}</div>`;
+      })() : null;
+      const thumbHtml = isAssetFolder ? assetFolderThumb
+        : (isSkill && p.is_folder)
         ? `<div class="skill-folder-cover">
              <div class="skill-folder-icon">🗂️</div>
              <div class="skill-folder-files">${(p.files||[]).slice(0,6).map(f=>`<span class="skill-folder-file-chip">${h(f.name)}</span>`).join('')}${(p.files||[]).length>6?`<span class="skill-folder-file-chip">+${(p.files||[]).length-6}</span>`:''}</div>
@@ -3445,6 +3484,10 @@
           selectSingle(key, card);
           if (item.is_folder) navigateSkillFolder(item.id);
           else openItemEditor(item);
+        } else if ((type === 'image' || type === 'video') && item.is_folder) {
+          state.folderFilter = item.id;
+          renderPage();
+          syncToolbarControls();
         } else {
           selectSingle(key, card);
           pickItem(item, type);
@@ -5764,7 +5807,7 @@
           });
           const path = await uploadImage(dataUrl, file.name, projName);
           proj.image_prompts = proj.image_prompts || [];
-          proj.image_prompts.unshift({ id:uid(), title:file.name.replace(/\.[^.]+$/,''), prompt:'', model:'GPT Image 2', aspect:'16:9', tags:[], image:path, video:'', ref_images:[], analysis:'', created_at:new Date().toISOString() });
+          proj.image_prompts.unshift({ id:uid(), title:file.name.replace(/\.[^.]+$/,''), prompt:'', model:'GPT Image 2', aspect:'16:9', tags:[], image:path, video:'', ref_images:[], analysis:'', folder_id: state.folderFilter||undefined, created_at:new Date().toISOString() });
           count++;
         } catch {}
       }
@@ -5772,7 +5815,7 @@
         try {
           const path = await uploadVideo(file, projName);
           proj.video_prompts = proj.video_prompts || [];
-          proj.video_prompts.unshift({ id:uid(), title:file.name.replace(/\.[^.]+$/,''), prompt:'', model:'Seedance 2.0', aspect:'16:9', tags:[], image:'', video:path, ref_images:[], analysis:'', created_at:new Date().toISOString() });
+          proj.video_prompts.unshift({ id:uid(), title:file.name.replace(/\.[^.]+$/,''), prompt:'', model:'Seedance 2.0', aspect:'16:9', tags:[], image:'', video:path, ref_images:[], analysis:'', folder_id: state.folderFilter||undefined, created_at:new Date().toISOString() });
           count++;
         } catch {}
       }
@@ -6355,7 +6398,7 @@
           const dataUrl = await new Promise((res, rej) => { const r=new FileReader(); r.onload=ev=>res(ev.target.result); r.onerror=rej; r.readAsDataURL(f); });
           const path = await uploadImage(dataUrl, f.name, projName);
           proj.image_prompts = proj.image_prompts || [];
-          proj.image_prompts.unshift({ id:uid(), title:f.name.replace(/\.[^.]+$/,''), prompt:'', model:'GPT Image 2', aspect:'16:9', tags:[], image:path, video:'', ref_images:[], analysis:'', created_at:new Date().toISOString() });
+          proj.image_prompts.unshift({ id:uid(), title:f.name.replace(/\.[^.]+$/,''), prompt:'', model:'GPT Image 2', aspect:'16:9', tags:[], image:path, video:'', ref_images:[], analysis:'', folder_id: state.folderFilter||undefined, created_at:new Date().toISOString() });
           count++;
         } catch {}
       }
@@ -6373,7 +6416,7 @@
         try {
           const path = await uploadVideo(f, projName);
           proj.video_prompts = proj.video_prompts || [];
-          proj.video_prompts.unshift({ id:uid(), title:f.name.replace(/\.[^.]+$/,''), prompt:'', model:'Seedance 2.0', aspect:'16:9', tags:[], image:'', video:path, ref_images:[], analysis:'', created_at:new Date().toISOString() });
+          proj.video_prompts.unshift({ id:uid(), title:f.name.replace(/\.[^.]+$/,''), prompt:'', model:'Seedance 2.0', aspect:'16:9', tags:[], image:'', video:path, ref_images:[], analysis:'', folder_id: state.folderFilter||undefined, created_at:new Date().toISOString() });
           count++;
         } catch {}
       }
@@ -6388,6 +6431,30 @@
   document.getElementById('importSkillFolderBtn').addEventListener('click', () => {
     document.getElementById('skillFolderInput').click();
   });
+
+  // ── Asset Folder (image/video) ─────────────────────────────────────────
+  async function createAssetFolder() {
+    const proj = getProject(state.projectId);
+    if (!proj) return;
+    const name = prompt('文件夹名称：', '新建文件夹');
+    if (!name) return;
+    const catKey = state.view; // 'image_prompts' or 'video_prompts'
+    const folder = {
+      id: 'af_' + Date.now(),
+      is_folder: true,
+      title: name.trim(),
+      tags: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    if (!proj[catKey]) proj[catKey] = [];
+    proj[catKey].unshift(folder);
+    const ok = await saveData(data);
+    if (ok) { await reloadData(); toast(`✅ 文件夹「${folder.title}」已创建`); }
+    else toast('❌ 创建失败', 4000);
+  }
+
+  document.getElementById('newAssetFolderBtn').addEventListener('click', createAssetFolder);
 
   document.getElementById('skillFolderInput').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files || []);
