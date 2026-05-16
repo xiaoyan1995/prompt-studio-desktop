@@ -1,4 +1,4 @@
-# Prompt Studio Desktop 发布包说明
+# Prompt Studio Desktop v1.0.8 发布包说明
 
 ## 插件是否通用
 
@@ -10,24 +10,27 @@ Safari 需要单独转换为 Safari Web Extension，不是同一个安装包。
 
 优先使用安装包：
 
-- `Prompt Studio Desktop Setup 1.0.2.exe`
+- `Prompt Studio Desktop Setup 1.0.8.exe`
 
-免安装有两种：
+便携版（推荐）：
 
-- 推荐的文件夹免安装版：`PromptStudioDesktop-Windows-PortableFolder-1.0.2.zip`
-- 单文件便携版：`Prompt Studio Desktop 1.0.2.exe`
+- `Prompt Studio Desktop-1.0.8-win.zip`
 
-如果你想要“像原版一样，程序和数据都在同一个文件夹里”，用文件夹免安装版最直观：解压后运行里面的 `Prompt Studio Desktop.exe`。
+解压后目录结构如下：
+
+```
+Prompt Studio Desktop-1.0.8-win/
+├── Prompt Studio Desktop.exe   ← 双击运行
+├── extension/                   ← 浏览器插件
+└── skills/                      ← Agent Skills
+    └── prompt-studio/
+        ├── SKILL.md
+        └── REFERENCE.md
+```
 
 桌面端内置了本地后端，不需要额外安装 Python。
 
-数据会写入软件同目录的 `studio-data` 文件夹：
-
-- 文件夹免安装版：`Prompt Studio Desktop/studio-data`
-- 单文件便携版：`Prompt Studio Desktop 1.0.2.exe` 旁边的 `studio-data`
-- 安装版：安装目录旁的 `studio-data`
-
-旧版 `%APPDATA%/prompt-studio-desktop/studio-data` 里的数据会在首次启动时自动迁移到本地 `studio-data`。
+数据会写入软件同目录的 `studio-data` 文件夹，迁移时只需复制该文件夹即可。
 
 删除策略：
 
@@ -43,18 +46,17 @@ Safari 需要单独转换为 Safari Web Extension，不是同一个安装包。
 
 ## macOS
 
-Electron 的 macOS 安装包必须在 macOS 上构建。
+从 [Releases](https://github.com/xiaoyan1995/prompt-studio-desktop/releases) 下载 `.dmg` 或 macOS `.zip`。
 
-把 `PromptStudioDesktop-Source-1.0.2.zip` 解压到 Mac 后运行：
+本地构建：克隆仓库后在 Mac 上运行：
 
 ```bash
 bash build-mac.command
 ```
 
-构建成功后，产物会在：
+构建成功后，产物在 `desktop/dist/`。浏览器插件加载同一份 `extension/` 文件夹。
 
-```text
-desktop/dist
-```
+## Agent Skills
 
-浏览器插件仍然加载同一份 `extension` 文件夹。
+`skills/prompt-studio/` 内含让 AI agent 读写 Prompt Studio 的技能文件。  
+将 `SKILL.md` 内容加入 agent 的 system prompt 即可，无需额外安装工具。

@@ -1,19 +1,20 @@
 ═══════════════════════════════════════════════════
-  Prompt Studio Desktop  v1.0.3  使用说明
+  Prompt Studio Desktop  v1.0.8  使用说明
 ═══════════════════════════════════════════════════
 
 【目录结构】
-  解压后应保持如下结构，请勿改变文件夹相对位置：
+  解压后目录结构如下：
 
-  📁 任意位置/
-  ├── 📁 extension/            ← 浏览器插件目录
-  ├── 📁 Prompt Studio Desktop/ ← 主程序目录
-  │   ├── Prompt Studio Desktop.exe  ← 双击运行
-  │   └── ...
-  └── 📄 使用说明.txt
+  📁 Prompt Studio Desktop-1.0.8-win/
+  ├── � Prompt Studio Desktop.exe  ← 双击运行
+  ├── � extension/                 ← 浏览器插件
+  ├── 📁 skills/                    ← Agent Skills
+  │   └── prompt-studio/
+  │       ├── SKILL.md
+  │       └── REFERENCE.md
+  └── ...（其他程序文件）
 
-  ⚠️ extension 文件夹必须与「Prompt Studio Desktop」
-     文件夹处于同一目录，否则插件联动功能无法使用。
+  ⚠️ 请勿改变文件夹的相对位置。
 
 ──────────────────────────────────────────────────
 
@@ -52,5 +53,15 @@
   Q: 插件无法连接软件？
   A: 确认软件正在运行，并检查 extension/ 目录
      位置是否与「Prompt Studio Desktop」文件夹同级。
+
+──────────────────────────────────────────────────
+
+【Agent Skills 使用】
+  skills/prompt-studio/ 目录是给 AI agent 用的技能文件。
+  将 SKILL.md 的内容加入 agent 的 system prompt，
+  agent 即可通过 HTTP API 读写 Prompt Studio 的提示词、
+  图片、视频等内容，无需安装任何额外工具。
+
+  本地服务地址：http://localhost:8767
 
 ═══════════════════════════════════════════════════
