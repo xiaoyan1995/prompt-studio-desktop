@@ -4,6 +4,52 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 
+// Auto-updater (only active in packaged builds)
+let autoUpdater = null;
+try { autoUpdater = require('electron-updater').autoUpdater; } catch {}
+
+function setupAutoUpdater() {
+  if (!autoUpdater || !app.isPackaged) return;
+  autoUpdater.autoDownload = false;
+  autoUpdater.logger = { info: logLine, warn: logLine, error: logLine, debug: () => {} };
+
+  autoUpdater.on('update-available', (info) => {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: '发现新版本',
+      message: `Prompt Studio Desktop v${info.version} 已发布`,
+      detail: '是否现在下载并安装？（下载完成后将自动重启）',
+      buttons: ['立即更新', '稍后再说'],
+      defaultId: 0,
+      cancelId: 1,
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.downloadUpdate();
+    });
+  });
+
+  autoUpdater.on('update-downloaded', () => {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: '更新已就绪',
+      message: '新版本已下载完成，点击确认立即重启安装。',
+      buttons: ['立即重启', '稍后'],
+      defaultId: 0,
+      cancelId: 1,
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.quitAndInstall();
+    });
+  });
+
+  autoUpdater.on('error', (err) => {
+    logLine(`auto-updater error: ${err.message}`);
+  });
+
+  // Check silently 3 seconds after launch
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((e) => logLine(`update check failed: ${e.message}`));
+  }, 3000);
+}
+
 const PORT = Number(process.env.PROMPT_STUDIO_PORT || 8767);
 const SERVER_URL = `http://127.0.0.1:${PORT}`;
 const PROTOCOL = 'promptstudio-desktop';
@@ -415,6 +461,7 @@ if (!gotLock) {
     registerDragHandlers();
     buildMenu();
     await createWindow();
+    setupAutoUpdater();
   }).catch((err) => {
     logLine(`app ready error ${err.stack || err.message}`);
   });

@@ -15,11 +15,19 @@
     "electron-builder": "^26.0.12",
     "playwright": "^1.60.0"
   },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
   "build": {
     "appId": "com.promptstudio.desktop",
     "productName": "Prompt Studio Desktop",
     "icon": "build/icon",
     "asar": true,
+    "publish": {
+      "provider": "github",
+      "owner": "xiaoyan1995",
+      "repo": "prompt-studio-desktop"
+    },
     "files": [
       "main.js",
       "preload.js",
