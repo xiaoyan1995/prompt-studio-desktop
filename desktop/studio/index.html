@@ -1430,6 +1430,18 @@
 </div>
 </div>
 
+<!-- Tag input inline modal -->
+<div id="tagInputModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.35);align-items:center;justify-content:center">
+  <div style="background:var(--bg);border-radius:14px;padding:24px 24px 20px;width:300px;box-shadow:0 8px 40px rgba(0,0,0,0.22)">
+    <div style="font-weight:700;font-size:15px;margin-bottom:14px">🏷️ 添加标签</div>
+    <input id="tagInputField" type="text" placeholder="输入标签名称" style="width:100%;margin-bottom:14px;box-sizing:border-box">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary btn-sm" id="tagInputCancel">取消</button>
+      <button class="btn btn-primary btn-sm" id="tagInputConfirm">确认添加</button>
+    </div>
+  </div>
+</div>
+
 <!-- Batch bar (fixed bottom) -->
 <div class="batch-bar" id="batchBar">
   <span class="batch-count" id="batchCount">已选择 0 项</span>
@@ -1508,13 +1520,13 @@
         <div style="display:grid;gap:12px;border:1px solid #dce8ff;background:#f8faff;border-radius:12px;padding:14px">
           <div class="chip label-image" style="width:max-content">图片反推</div>
           <div class="field"><label>API Base</label><input id="dsImageApiBase" placeholder="https://api.openai.com/v1"></div>
-          <div class="field"><label>API Key</label><input id="dsImageApiKey" type="password" placeholder="sk-..."></div>
+          <div class="field"><label>API Key</label><div style="display:flex;gap:6px"><input id="dsImageApiKey" type="password" placeholder="sk-..." style="flex:1"><button class="btn btn-secondary btn-sm" id="testImageApiBtn" style="white-space:nowrap">🔌 测试</button></div></div>
           <div class="field"><label>模型</label><input id="dsImageModel" placeholder="gpt-4o"></div>
         </div>
         <div style="display:grid;gap:12px;border:1px solid #ead5ff;background:#fdf5ff;border-radius:12px;padding:14px">
           <div class="chip label-skill" style="width:max-content">视频反推</div>
           <div class="field"><label>API Base</label><input id="dsVideoApiBase" placeholder="https://generativelanguage.googleapis.com/v1beta"></div>
-          <div class="field"><label>API Key</label><input id="dsVideoApiKey" type="password" placeholder="sk-... / AIza..."></div>
+          <div class="field"><label>API Key</label><div style="display:flex;gap:6px"><input id="dsVideoApiKey" type="password" placeholder="sk-... / AIza..." style="flex:1"><button class="btn btn-secondary btn-sm" id="testVideoApiBtn" style="white-space:nowrap">🔌 测试</button></div></div>
           <div class="field"><label>模型</label><input id="dsVideoModel" placeholder="gemini-2.5-pro"></div>
           <div class="field"><label>视频上传超时（秒）</label><input id="dsVideoUploadTimeoutSec" type="number" min="60" max="1800" step="10" placeholder="240"></div>
           <div class="field"><label>视频上传重试次数</label><input id="dsVideoUploadRetries" type="number" min="0" max="5" step="1" placeholder="1"></div>
@@ -3689,6 +3701,38 @@
       btn.textContent = '保存设置';
     }
   };
+  async function testApiConnection(type) {
+    const apiBase = document.getElementById(type === 'image' ? 'dsImageApiBase' : 'dsVideoApiBase').value.trim().replace(/\/$/, '');
+    const apiKey  = document.getElementById(type === 'image' ? 'dsImageApiKey'  : 'dsVideoApiKey').value.trim();
+    const model   = document.getElementById(type === 'image' ? 'dsImageModel'   : 'dsVideoModel').value.trim();
+    const btn = document.getElementById(type === 'image' ? 'testImageApiBtn' : 'testVideoApiBtn');
+    if (!apiBase || !apiKey) { toast('⚠️ 请先填写 API Base 和 API Key'); return; }
+    const orig = btn.textContent; btn.disabled = true; btn.textContent = '测试中…';
+    try {
+      let ok = false, msg = '';
+      if (/googleapis\.com/i.test(apiBase)) {
+        // Gemini: list models
+        const r = await fetch(`${apiBase}/models?key=${encodeURIComponent(apiKey)}`);
+        const j = await r.json();
+        ok = r.ok && Array.isArray(j.models);
+        msg = ok ? `✅ 连接成功，可用模型 ${j.models.length} 个` : `❌ ${j.error?.message || r.status}`;
+      } else {
+        // OpenAI-compatible: list models
+        const r = await fetch(`${apiBase}/models`, { headers: { Authorization: `Bearer ${apiKey}` } });
+        const j = await r.json().catch(() => ({}));
+        ok = r.ok;
+        msg = ok ? `✅ 连接成功` : `❌ ${j.error?.message || r.status}`;
+      }
+      toast(msg, ok ? 2500 : 5000);
+    } catch (e) {
+      toast(`❌ 请求失败：${e.message}`, 5000);
+    } finally {
+      btn.disabled = false; btn.textContent = orig;
+    }
+  }
+  document.getElementById('testImageApiBtn').addEventListener('click', () => testApiConnection('image'));
+  document.getElementById('testVideoApiBtn').addEventListener('click', () => testApiConnection('video'));
+
   document.getElementById('desktopCleanupMedia').onclick = async () => {
     if (!confirm('确认清理所有未被当前提示词引用的本地图片/视频？')) return;
     const btn = document.getElementById('desktopCleanupMedia');
@@ -5275,11 +5319,27 @@
     clearSelection(); data = await loadData(); renderPage(); renderSidebar(); toast(`✅ 已删除 ${count} 项`);
   });
 
-  document.getElementById('batchTagBtn').addEventListener('click', async () => {
-    const tag = prompt('输入要添加的标签：');
-    if (!tag || !tag.trim()) return;
+  document.getElementById('batchTagBtn').addEventListener('click', () => {
+    const modal = document.getElementById('tagInputModal');
+    const field = document.getElementById('tagInputField');
+    field.value = '';
+    modal.style.display = 'flex';
+    setTimeout(() => field.focus(), 50);
+  });
+  function closeTagModal() {
+    document.getElementById('tagInputModal').style.display = 'none';
+  }
+  document.getElementById('tagInputCancel').addEventListener('click', closeTagModal);
+  document.getElementById('tagInputModal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeTagModal();
+  });
+  document.getElementById('tagInputConfirm').addEventListener('click', async () => {
+    const field = document.getElementById('tagInputField');
+    const tag = field.value.trim();
+    if (!tag) return;
     const proj = getProject(state.projectId);
-    if (!proj) return;
+    if (!proj) { closeTagModal(); return; }
+    const count = uiState.selectedIds.size;
     for (const key of uiState.selectedIds) {
       const [type, id] = key.split(':');
       let arr;
@@ -5288,10 +5348,15 @@
       const item = arr.find(p => p.id === id);
       if (item) {
         item.tags = item.tags || [];
-        if (!item.tags.includes(tag.trim())) item.tags.push(tag.trim());
+        if (!item.tags.includes(tag)) item.tags.push(tag);
       }
     }
-    await saveData(data); renderPage(); toast(`✅ 已为 ${uiState.selectedIds.size} 项添加标签「${tag.trim()}」`);
+    closeTagModal();
+    await saveData(data); renderPage(); toast(`✅ 已为 ${count} 项添加标签「${tag}」`);
+  });
+  document.getElementById('tagInputField').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('tagInputConfirm').click();
+    if (e.key === 'Escape') closeTagModal();
   });
 
   document.getElementById('batchMoveBtn').addEventListener('click', () => {
@@ -5312,15 +5377,20 @@
   document.getElementById('batchStarBtn').addEventListener('click', async () => {
     const proj = getProject(state.projectId);
     if (!proj) return;
+    const items = [];
     for (const key of uiState.selectedIds) {
       const [type, id] = key.split(':');
       let arr;
       if (type === 'pdf') arr = proj.pdf_files || [];
       else arr = proj[{image:'image_prompts',video:'video_prompts',skill:'skill_prompts'}[type]] || [];
       const item = arr.find(p => p.id === id);
-      if (item) { item.quality = item.quality || {}; item.quality.star = true; }
+      if (item) items.push(item);
     }
-    await saveData(data); renderPage(); toast(`✅ 已星标 ${uiState.selectedIds.size} 项`);
+    const allStarred = items.length > 0 && items.every(it => it.quality?.star);
+    const newVal = !allStarred;
+    for (const item of items) { item.quality = item.quality || {}; item.quality.star = newVal; }
+    await saveData(data); renderPage();
+    toast(newVal ? `✅ 已星标 ${items.length} 项` : `✅ 已取消 ${items.length} 项星标`);
   });
 
   // ══════════════════════════════════════════════════════════════════════
