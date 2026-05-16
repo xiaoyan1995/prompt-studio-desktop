@@ -1521,6 +1521,18 @@
 <!-- Rubber-band selection rect -->
 <div class="selection-rect" id="selectionRect"></div>
 
+<!-- New Folder Name Modal -->
+<div id="newFolderModal" style="display:none;position:fixed;inset:0;z-index:1200;background:rgba(26,35,64,.45);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:14px;padding:24px;width:320px;box-shadow:0 16px 48px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:14px">
+    <div style="font-weight:700;font-size:15px">📁 新建文件夹</div>
+    <input id="newFolderNameInput" type="text" placeholder="文件夹名称…" style="border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;outline:none;background:var(--surface2);color:var(--text)">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="newFolderCancelBtn" class="btn btn-secondary btn-sm">取消</button>
+      <button id="newFolderConfirmBtn" class="btn btn-primary btn-sm">创建</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Move to project -->
 <div class="modal-backdrop" id="moveModal" style="display:none">
   <div class="modal modal-sm">
@@ -5916,13 +5928,25 @@
       multiCount <= 1 ? `<div class="ctx-menu-item" data-act="open">${isPdf ? '📄 打开预览' : '✏️ 编辑'}</div>` : '',
       `<div class="ctx-menu-item" data-act="star">${starLabel}</div>`,
       `<div class="ctx-menu-sep"></div>`,
+      (() => {
+        if ((type === 'image' || type === 'video') && !isPdf) {
+          const catKey = type === 'image' ? 'image_prompts' : 'video_prompts';
+          const proj = getProject(state.projectId);
+          const folders = (proj?.[catKey] || []).filter(p => p.is_folder);
+          if (folders.length) {
+            const opts = folders.map(f => `<div class="ctx-menu-item" data-act="to-folder" data-folder-id="${f.id}" data-folder-cat="${catKey}">  └ ${h(f.title)}</div>`).join('');
+            return `<div class="ctx-menu-item" data-act="noop" style="font-weight:600;cursor:default">📁 移到文件夹</div>${opts}<div class="ctx-menu-sep"></div>`;
+          }
+        }
+        return '';
+      })(),
       `<div class="ctx-menu-item" data-act="move">📦 移到其他项目…</div>`,
       `<div class="ctx-menu-item" data-act="copy">📋 复制到其他项目…</div>`,
       `<div class="ctx-menu-sep"></div>`,
       `<div class="ctx-menu-item danger" data-act="delete">${delLabel}</div>`,
     ].join('');
     m.style.display = 'block'; m.style.left = Math.min(x, innerWidth - 180) + 'px'; m.style.top = Math.min(y, innerHeight - 240) + 'px';
-    m.querySelectorAll('.ctx-menu-item').forEach(el => el.addEventListener('click', () => handleCtxAction(el.dataset.act)));
+    m.querySelectorAll('.ctx-menu-item').forEach(el => el.addEventListener('click', () => handleCtxAction(el.dataset.act, el.dataset.folderId, el.dataset.folderCat)));
   }
   document.addEventListener('click', () => { document.getElementById('ctxMenu').style.display = 'none'; });
 
@@ -5949,8 +5973,21 @@
     return [{ item: _ctxItem, type: _ctxType, category: cat }];
   }
 
-  async function handleCtxAction(act) {
+  async function handleCtxAction(act, folderId, folderCat) {
     document.getElementById('ctxMenu').style.display = 'none';
+    if (act === 'noop') return;
+    if (act === 'to-folder' && folderId && folderCat) {
+      const proj = getProject(state.projectId);
+      if (!proj) return;
+      const targets = ctxEffectiveItems();
+      for (const { item } of targets) {
+        const idx = (proj[folderCat] || []).findIndex(p => p.id === item.id);
+        if (idx !== -1) proj[folderCat][idx].folder_id = folderId;
+      }
+      const ok = await saveData(data);
+      if (ok) { data = await loadData(); renderPage(); toast(`✅ 已移到文件夹`); }
+      return;
+    }
     if (!_ctxItem) return;
     const proj = getProject(state.projectId);
     if (!proj) return;
@@ -6433,16 +6470,27 @@
   });
 
   // ── Asset Folder (image/video) ─────────────────────────────────────────
-  async function createAssetFolder() {
+  function openNewFolderModal() {
+    const modal = document.getElementById('newFolderModal');
+    const input = document.getElementById('newFolderNameInput');
+    input.value = '';
+    modal.style.display = 'flex';
+    setTimeout(() => input.focus(), 50);
+  }
+  function closeNewFolderModal() {
+    document.getElementById('newFolderModal').style.display = 'none';
+  }
+  async function confirmNewFolder() {
+    const name = document.getElementById('newFolderNameInput').value.trim();
+    if (!name) return;
+    closeNewFolderModal();
     const proj = getProject(state.projectId);
     if (!proj) return;
-    const name = prompt('文件夹名称：', '新建文件夹');
-    if (!name) return;
-    const catKey = state.view; // 'image_prompts' or 'video_prompts'
+    const catKey = state.view;
     const folder = {
       id: 'af_' + Date.now(),
       is_folder: true,
-      title: name.trim(),
+      title: name,
       tags: [],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -6454,7 +6502,34 @@
     else toast('❌ 创建失败', 4000);
   }
 
-  document.getElementById('newAssetFolderBtn').addEventListener('click', createAssetFolder);
+  document.getElementById('newFolderCancelBtn').addEventListener('click', closeNewFolderModal);
+  document.getElementById('newFolderConfirmBtn').addEventListener('click', confirmNewFolder);
+  document.getElementById('newFolderNameInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmNewFolder();
+    if (e.key === 'Escape') closeNewFolderModal();
+  });
+  document.getElementById('newFolderModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('newFolderModal')) closeNewFolderModal();
+  });
+
+  // Grid background right-click → new folder
+  document.getElementById('mainGrid').addEventListener('contextmenu', (e) => {
+    if (e.target.closest('.card')) return; // card has its own handler
+    const isAssetView = state.view === 'image_prompts' || state.view === 'video_prompts';
+    if (!isAssetView || state.folderFilter) return;
+    e.preventDefault();
+    const m = document.getElementById('ctxMenu');
+    m.innerHTML = `<div class="ctx-menu-item" id="gridCtxNewFolder">📁 新建文件夹</div>`;
+    m.style.display = 'block';
+    m.style.left = Math.min(e.clientX, innerWidth - 180) + 'px';
+    m.style.top = Math.min(e.clientY, innerHeight - 80) + 'px';
+    document.getElementById('gridCtxNewFolder').addEventListener('click', () => {
+      m.style.display = 'none';
+      openNewFolderModal();
+    });
+  });
+
+  document.getElementById('newAssetFolderBtn').addEventListener('click', openNewFolderModal);
 
   document.getElementById('skillFolderInput').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files || []);
