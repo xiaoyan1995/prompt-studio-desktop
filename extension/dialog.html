@@ -201,6 +201,29 @@
   </div>
 </div>
 
+<!-- ffmpeg install state -->
+<div class="state" id="ffmpegState">
+  <div class="state-icon">🔧</div>
+  <div class="state-msg">
+    <strong>需要安装 ffmpeg 才能下载视频</strong><br>
+    <span style="font-size:12px">一次性下载，约 80 MB，保存在本地</span>
+  </div>
+  <div style="width:100%;max-width:280px">
+    <div style="background:var(--border);border-radius:99px;height:6px;overflow:hidden;margin:10px 0">
+      <div id="ffmpegBar" style="height:100%;background:var(--primary);width:0%;transition:width .3s;border-radius:99px"></div>
+    </div>
+    <div id="ffmpegMsg" style="font-size:12px;color:var(--subtle);text-align:center">点击按钮开始安装</div>
+  </div>
+  <button class="btn btn-primary" id="installFfmpegBtn" style="margin-top:4px;width:200px">⬇️ 安装 ffmpeg</button>
+  <button class="btn btn-secondary" id="skipFfmpegBtn" style="width:200px">跳过（仅保存 URL）</button>
+</div>
+
+<!-- Video download state -->
+<div class="state" id="downloadState">
+  <div class="spinner"></div>
+  <div class="state-msg"><strong>正在下载视频…</strong><br><span style="font-size:12px">ffmpeg 合并中，请勿关闭窗口</span></div>
+</div>
+
 <!-- Loading state -->
 <div class="state" id="loadingState">
   <div class="spinner"></div>

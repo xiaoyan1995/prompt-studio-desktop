@@ -370,6 +370,24 @@ document.getElementById('actionBtn').addEventListener('click', async () => {
       return;
     }
 
+    // ── Stream URL: offer ffmpeg download ─────────────────
+    if (mediaType === 'video' && isStreamUrl(mediaUrl) && !doReverse) {
+      setUiState('form');
+      const ffResult = await checkAndDownloadViaFfmpeg(projectId);
+      if (ffResult === 'ready') {
+        try {
+          const dlData = await doFfmpegDownload(projectId);
+          // Replace remote stream URL with local server path
+          mediaUrl = `${serverUrl}${dlData.path}`;
+        } catch (dlErr) {
+          setUiState('error', String(dlErr.message || dlErr));
+          return;
+        }
+      }
+      // 'skip' → fall through and save the original remote URL
+      setUiState('loading');
+    }
+
     // Use manually entered prompt when reverse is off
     const manualPrompt = (document.getElementById('promptInput')?.value || '').trim();
     let analysis = '';
@@ -458,13 +476,72 @@ document.getElementById('actionBtn').addEventListener('click', async () => {
   }
 });
 
+// ── ffmpeg install helpers ────────────────────────────────────────────────────
+function isStreamUrl(url) {
+  return /\.(m3u8|mpd|ts)(\?|$)/i.test(url) || /mpegurl|dash\+xml/i.test(url);
+}
+
+async function checkAndDownloadViaFfmpeg(projectId) {
+  // 1. check server has ffmpeg
+  const statusRes = await fetch(`${serverUrl}/api/ffmpeg-status`);
+  const status = await statusRes.json();
+  if (!status.ok) {
+    // Show ffmpeg install UI
+    return new Promise((resolve) => {
+      setUiState('ffmpeg');
+      const installBtn = document.getElementById('installFfmpegBtn');
+      const skipBtn    = document.getElementById('skipFfmpegBtn');
+      skipBtn.onclick = () => resolve('skip');
+      installBtn.onclick = async () => {
+        installBtn.disabled = true;
+        installBtn.textContent = '安装中…';
+        await fetch(`${serverUrl}/api/install-ffmpeg`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
+        // Poll until done
+        const poll = setInterval(async () => {
+          try {
+            const r = await fetch(`${serverUrl}/api/ffmpeg-status`);
+            const s = await r.json();
+            const prog = s.install || {};
+            document.getElementById('ffmpegBar').style.width = (prog.percent || 0) + '%';
+            const labels = { downloading: '下载中…', extracting: '解压中…', done: '安装完成！', error: '安装失败: ' + prog.error };
+            document.getElementById('ffmpegMsg').textContent = labels[prog.status] || prog.status;
+            if (prog.status === 'done') {
+              clearInterval(poll);
+              resolve('ready');
+            } else if (prog.status === 'error') {
+              clearInterval(poll);
+              resolve('skip');
+            }
+          } catch { clearInterval(poll); resolve('skip'); }
+        }, 800);
+      };
+    });
+  }
+  return 'ready';
+}
+
+async function doFfmpegDownload(projectId) {
+  setUiState('downloading');
+  const res = await fetch(`${serverUrl}/api/download-video`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: mediaUrl, projectId, referer, cookie: requestCookie })
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'ffmpeg 下载失败');
+  return data; // {path, filename, size}
+}
+
 // ── UI State Helpers ──────────────────────────────────────────────────────────
 function setUiState(state, msg = '', extra = null) {
   document.getElementById('formBody').style.display    = state === 'form'    ? 'flex' : 'none';
   document.getElementById('loadingState').classList.toggle('visible', state === 'loading');
   document.getElementById('successState').classList.toggle('visible', state === 'success');
   document.getElementById('errorState').classList.toggle('visible',   state === 'error');
-  document.getElementById('footer').style.display = (state === 'loading') ? 'none' : 'flex';
+  document.getElementById('ffmpegState').classList.toggle('visible',  state === 'ffmpeg');
+  document.getElementById('downloadState').classList.toggle('visible', state === 'downloading');
+  const hideFooter = ['loading', 'ffmpeg', 'downloading'].includes(state);
+  document.getElementById('footer').style.display = hideFooter ? 'none' : 'flex';
 
   if (state === 'form') {
     document.getElementById('formBody').style.display = 'flex';
@@ -511,7 +588,7 @@ function handleAction() {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 // Start in form state
 document.getElementById('formBody').style.display = 'flex';
-['loadingState','successState','errorState'].forEach(id => {
+['loadingState','successState','errorState','ffmpegState','downloadState'].forEach(id => {
   document.getElementById(id).classList.remove('visible');
 });
 

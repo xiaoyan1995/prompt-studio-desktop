@@ -40,6 +40,45 @@ SNAPSHOT_DIR = DATA_DIR / "snapshots"
 SMART_FOLDERS_FILE = DATA_DIR / "smart_folders.json"
 PORT       = 8767
 
+# ── ffmpeg on-demand ──────────────────────────────────────────────────────────
+FFMPEG_TOOLS_DIR = DATA_DIR / "tools"
+FFMPEG_EXE       = FFMPEG_TOOLS_DIR / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
+FFMPEG_DL_URL    = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+_ffmpeg_install  = {"status": "idle", "percent": 0, "error": ""}
+
+def find_ffmpeg():
+    if FFMPEG_EXE.exists():
+        return str(FFMPEG_EXE)
+    return shutil.which("ffmpeg")
+
+def _do_install_ffmpeg():
+    global _ffmpeg_install
+    try:
+        FFMPEG_TOOLS_DIR.mkdir(parents=True, exist_ok=True)
+        zip_path = FFMPEG_TOOLS_DIR / "ffmpeg_dl.zip"
+        _ffmpeg_install = {"status": "downloading", "percent": 0, "error": ""}
+
+        def _hook(count, block, total):
+            if total > 0:
+                _ffmpeg_install["percent"] = min(88, int(count * block * 88 / total))
+
+        urllib.request.urlretrieve(FFMPEG_DL_URL, str(zip_path), _hook)
+        _ffmpeg_install = {"status": "extracting", "percent": 92, "error": ""}
+
+        with zipfile.ZipFile(zip_path) as zf:
+            target_name = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+            for name in zf.namelist():
+                if name.split("/")[-1] == target_name and "/bin/" in name:
+                    FFMPEG_EXE.write_bytes(zf.read(name))
+                    if os.name != "nt":
+                        FFMPEG_EXE.chmod(0o755)
+                    break
+
+        zip_path.unlink(missing_ok=True)
+        _ffmpeg_install = {"status": "done", "percent": 100, "error": ""}
+    except Exception as exc:
+        _ffmpeg_install = {"status": "error", "percent": 0, "error": str(exc)}
+
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -721,6 +760,9 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_smart_folder_preview(query)
         elif path == "/api/events":
             self._handle_sse()
+        elif path == "/api/ffmpeg-status":
+            ff = find_ffmpeg()
+            self._json_resp({"ok": bool(ff), "path": ff or "", "install": _ffmpeg_install})
         elif path.startswith("/uploads/"):
             self._serve_upload(path)
         elif path.startswith("/exports/"):
@@ -891,6 +933,12 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_asset_lineage(body)
         elif path == "/api/import-bundle":
             return self._handle_import_bundle()
+        elif path == "/api/install-ffmpeg":
+            if _ffmpeg_install.get("status") not in ("downloading", "extracting"):
+                threading.Thread(target=_do_install_ffmpeg, daemon=True).start()
+            self._json_resp({"ok": True, "status": _ffmpeg_install["status"]})
+        elif path == "/api/download-video":
+            self._handle_download_video(body)
         else:
             self._err(404, "Not found")
 
@@ -1945,6 +1993,56 @@ class Handler(SimpleHTTPRequestHandler):
         with urllib.request.urlopen(req3, timeout=120) as r:
             data = json.loads(r.read())
         return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+    def _handle_download_video(self, body):
+        """Download a remote video/stream URL via ffmpeg and save to uploads."""
+        import subprocess as _sp
+        data = body if isinstance(body, dict) else json.loads(body)
+        video_url  = data.get("url", "").strip()
+        project_id = data.get("projectId", "")
+        referer    = data.get("referer", "")
+        cookie     = data.get("cookie", "")
+
+        if not video_url:
+            self._json_resp({"ok": False, "error": "no_url"}); return
+
+        ff = find_ffmpeg()
+        if not ff:
+            self._json_resp({"ok": False, "error": "ffmpeg_not_found",
+                             "install": _ffmpeg_install}); return
+
+        proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", project_id)[:40] or "default"
+        save_dir = UPLOAD_DIR / proj_folder / "videos"
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        stem     = f"video_{int(time.time())}"
+        out_path = save_dir / f"{stem}.mp4"
+
+        cmd = [ff, "-y", "-loglevel", "error"]
+        extra_headers = ""
+        if referer: extra_headers += f"Referer: {referer}\r\n"
+        if cookie:  extra_headers += f"Cookie: {cookie}\r\n"
+        if extra_headers:
+            cmd += ["-headers", extra_headers]
+        cmd += ["-i", video_url, "-c", "copy", str(out_path)]
+
+        try:
+            result = _sp.run(cmd, capture_output=True, timeout=600)
+            if result.returncode == 0 and out_path.exists() and out_path.stat().st_size > 0:
+                self._json_resp({
+                    "ok": True,
+                    "path": f"/uploads/{proj_folder}/videos/{out_path.name}",
+                    "filename": out_path.name,
+                    "size": out_path.stat().st_size
+                })
+            else:
+                err = (result.stderr or b"").decode("utf-8", errors="replace")[-600:]
+                if out_path.exists(): out_path.unlink(missing_ok=True)
+                self._json_resp({"ok": False, "error": err or "ffmpeg_failed"})
+        except _sp.TimeoutExpired:
+            self._json_resp({"ok": False, "error": "timeout_600s"})
+        except Exception as exc:
+            self._json_resp({"ok": False, "error": str(exc)})
 
     def _handle_import_bundle(self):
         """Import a ZIP bundle exported by export-bundle. Extracts media, returns metadata for client merge."""
