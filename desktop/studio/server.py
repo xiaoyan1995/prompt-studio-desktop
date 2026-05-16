@@ -786,6 +786,12 @@ class Handler(SimpleHTTPRequestHandler):
             data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
             projs = [{"id": p["id"], "name": p["name"]} for p in data.get("projects", [])]
             self._json_resp({"ok": True, "projects": projs})
+        elif path == "/api/cli/prompts":
+            self._handle_cli_list(query)
+        elif path == "/api/cli/prompt":
+            self._handle_cli_get(query)
+        elif path == "/api/cli/search":
+            self._handle_cli_search(query)
         elif path == "/api/search-assets":
             self._handle_search_assets(query)
         elif path == "/api/detect-duplicates":
@@ -1224,6 +1230,97 @@ class Handler(SimpleHTTPRequestHandler):
         _sse_notify()
         self._json_resp({"ok": True, "id": item_id,
                          "project_id": proj["id"], "project_name": proj["name"], "type": type_})
+
+    # ── CLI read helpers ──────────────────────────────────────────────────
+    def _handle_cli_list(self, query):
+        """GET /api/cli/prompts?project=<name|id>&type=image|video|skill&limit=50"""
+        project_ref = (query.get("project") or [""])[0]
+        type_       = (query.get("type") or [""])[0] or None   # None = all
+        limit       = int((query.get("limit") or ["200"])[0])
+        data        = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        cat_map = {"image": "image_prompts", "video": "video_prompts", "skill": "skill_prompts"}
+        cats = [cat_map[type_]] if type_ in cat_map else list(cat_map.values())
+        results = []
+        for proj in data.get("projects", []):
+            if project_ref and project_ref not in (proj["id"], proj["name"]):
+                continue
+            for cat in cats:
+                ptype = {v: k for k, v in cat_map.items()}[cat]
+                for item in proj.get(cat, []):
+                    results.append({
+                        "id": item["id"], "type": ptype,
+                        "project_id": proj["id"], "project_name": proj["name"],
+                        "title": item.get("title",""), "model": item.get("model",""),
+                        "tags": item.get("tags",[]), "aspect": item.get("aspect",""),
+                        "image": item.get("image",""), "gallery": item.get("gallery",[]),
+                        "video": item.get("video",""),
+                        "ref_images": item.get("ref_images",[]),
+                        "created_at": item.get("created_at",""),
+                        "prompt_preview": (item.get("prompt") or "")[:120],
+                    })
+                    if len(results) >= limit:
+                        break
+        self._json_resp({"ok": True, "count": len(results), "items": results})
+
+    def _handle_cli_get(self, query):
+        """GET /api/cli/prompt?id=<id>  or  ?project=<name>&title=<title>&type=<type>"""
+        item_id     = (query.get("id") or [""])[0]
+        project_ref = (query.get("project") or [""])[0]
+        title_q     = (query.get("title") or [""])[0].lower()
+        type_       = (query.get("type") or [""])[0] or None
+        data        = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        cat_map = {"image": "image_prompts", "video": "video_prompts", "skill": "skill_prompts"}
+        cats = [cat_map[type_]] if type_ in cat_map else list(cat_map.values())
+        for proj in data.get("projects", []):
+            if project_ref and project_ref not in (proj["id"], proj["name"]):
+                continue
+            for cat in cats:
+                ptype = {v: k for k, v in cat_map.items()}[cat]
+                for item in proj.get(cat, []):
+                    match_id    = item_id and item["id"] == item_id
+                    match_title = title_q and title_q in (item.get("title") or "").lower()
+                    if match_id or match_title:
+                        return self._json_resp({"ok": True, "type": ptype,
+                            "project_id": proj["id"], "project_name": proj["name"],
+                            "item": item})
+        self._err(404, "Prompt not found")
+
+    def _handle_cli_search(self, query):
+        """GET /api/cli/search?q=<text>&project=<name>&type=<type>&limit=20"""
+        q           = (query.get("q") or [""])[0].lower()
+        project_ref = (query.get("project") or [""])[0]
+        type_       = (query.get("type") or [""])[0] or None
+        limit       = int((query.get("limit") or ["20"])[0])
+        if not q:
+            return self._err(400, "q is required")
+        data    = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        cat_map = {"image": "image_prompts", "video": "video_prompts", "skill": "skill_prompts"}
+        cats    = [cat_map[type_]] if type_ in cat_map else list(cat_map.values())
+        results = []
+        for proj in data.get("projects", []):
+            if project_ref and project_ref not in (proj["id"], proj["name"]):
+                continue
+            for cat in cats:
+                ptype = {v: k for k, v in cat_map.items()}[cat]
+                for item in proj.get(cat, []):
+                    haystack = " ".join([
+                        item.get("title",""), item.get("prompt",""),
+                        item.get("analysis",""), " ".join(item.get("tags",[]))
+                    ]).lower()
+                    if q in haystack:
+                        results.append({
+                            "id": item["id"], "type": ptype,
+                            "project_id": proj["id"], "project_name": proj["name"],
+                            "title": item.get("title",""), "model": item.get("model",""),
+                            "tags": item.get("tags",[]),
+                            "image": item.get("image",""), "gallery": item.get("gallery",[]),
+                            "video": item.get("video",""),
+                            "prompt": item.get("prompt",""),
+                            "analysis": item.get("analysis",""),
+                        })
+                        if len(results) >= limit:
+                            break
+        self._json_resp({"ok": True, "query": q, "count": len(results), "items": results})
 
     def _handle_save_prompt(self, body):
         project_id = body.get("projectId", "")

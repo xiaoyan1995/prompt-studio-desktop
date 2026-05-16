@@ -1,9 +1,25 @@
 #!/usr/bin/env python3
 """
-pstudio-cli.py  —  Push prompts / skills into Prompt Studio from any agent or shell.
+pstudio-cli.py  —  Read & write Prompt Studio from any agent or shell.
 
 Usage examples
 --------------
+# List all projects
+python pstudio-cli.py projects
+
+# List all skill prompts in a project
+python pstudio-cli.py list --project "我的项目" --type skill
+
+# Get full details of a prompt (by id or title)
+python pstudio-cli.py get --id abc123def456
+python pstudio-cli.py get --project "我的项目" --type image --title "赛博武士"
+
+# Full-text search across all prompts
+python pstudio-cli.py search --query "赛博" --type image
+
+# Download the main image of a prompt to a local file
+python pstudio-cli.py download --id abc123 --out /tmp/img.jpg
+
 # Push a skill prompt
 python pstudio-cli.py push --type skill --title "My Skill" --prompt "You are a helpful assistant…"
 
@@ -11,27 +27,25 @@ python pstudio-cli.py push --type skill --title "My Skill" --prompt "You are a h
 python pstudio-cli.py push --type image --project "游戏角色" --title "赛博武士" \
     --prompt "A cyberpunk samurai, neon lights…" --model "GPT Image 2" --tags "游戏,角色"
 
-# Read prompt from stdin (pipe-friendly)
-echo "Describe the scene in vivid detail…" | python pstudio-cli.py push --type image --title "Scene"
+# Read prompt text from stdin
+echo "Describe the scene…" | python pstudio-cli.py push --type image --title "Scene"
 
-# List projects
-python pstudio-cli.py projects
-
-# MCP / JSON mode (agent-friendly, one JSON object per call)
+# MCP / JSON mode (agent-friendly)
 python pstudio-cli.py push --json '{"type":"skill","title":"T","prompt":"P…"}'
 
 Environment
 -----------
-PSTUDIO_PORT   override server port (default 8767)
-PSTUDIO_PROJECT  default project name
+PSTUDIO_PORT      override server port (default 8767)
+PSTUDIO_PROJECT   default project name
 """
 
 import argparse
 import json
 import os
 import sys
-import urllib.request
 import urllib.error
+import urllib.parse
+import urllib.request
 
 BASE_URL = f"http://localhost:{os.environ.get('PSTUDIO_PORT', '8767')}"
 
@@ -108,6 +122,15 @@ def cmd_push(args):
         sys.exit(1)
 
 
+def _get_url(url: str) -> bytes:
+    try:
+        with urllib.request.urlopen(url, timeout=30) as resp:
+            return resp.read()
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_projects(_args):
     result = _get("/api/cli/projects")
     if result.get("ok"):
@@ -118,15 +141,138 @@ def cmd_projects(_args):
         sys.exit(1)
 
 
+def cmd_list(args):
+    params = []
+    if args.project: params.append(f"project={urllib.parse.quote(args.project)}")
+    if args.type:    params.append(f"type={args.type}")
+    if args.limit:   params.append(f"limit={args.limit}")
+    qs = "?" + "&".join(params) if params else ""
+    result = _get(f"/api/cli/prompts{qs}")
+    if not result.get("ok"):
+        print(f"Error: {result.get('error', result)}", file=sys.stderr); sys.exit(1)
+    if args.raw:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+    items = result.get("items", [])
+    print(f"{'ID':<18} {'TYPE':<7} {'PROJECT':<16} {'TITLE':<30} TAGS")
+    print("-" * 90)
+    for it in items:
+        tags = ",".join(it.get("tags") or [])
+        print(f"{it['id']:<18} {it['type']:<7} {it['project_name']:<16} {(it.get('title') or '')[:30]:<30} {tags}")
+
+
+def cmd_get(args):
+    params = []
+    if args.id:      params.append(f"id={args.id}")
+    if args.project: params.append(f"project={urllib.parse.quote(args.project)}")
+    if args.title:   params.append(f"title={urllib.parse.quote(args.title)}")
+    if args.type:    params.append(f"type={args.type}")
+    qs = "?" + "&".join(params) if params else ""
+    result = _get(f"/api/cli/prompt{qs}")
+    if not result.get("ok"):
+        print(f"Error: {result.get('error', result)}", file=sys.stderr); sys.exit(1)
+    item = result.get("item", {})
+    if args.field:
+        val = item.get(args.field, "")
+        print(val if isinstance(val, str) else json.dumps(val, ensure_ascii=False))
+    else:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def cmd_search(args):
+    q = args.query
+    params = [f"q={urllib.parse.quote(q)}"]
+    if args.project: params.append(f"project={urllib.parse.quote(args.project)}")
+    if args.type:    params.append(f"type={args.type}")
+    if args.limit:   params.append(f"limit={args.limit}")
+    result = _get("/api/cli/search?" + "&".join(params))
+    if not result.get("ok"):
+        print(f"Error: {result.get('error', result)}", file=sys.stderr); sys.exit(1)
+    if args.raw:
+        print(json.dumps(result, ensure_ascii=False, indent=2)); return
+    items = result.get("items", [])
+    print(f"Found {result['count']} result(s) for '{q}':\n")
+    for it in items:
+        print(f"  [{it['type']}] {it['project_name']} / {it.get('title','(no title)')}  id={it['id']}")
+        snippet = (it.get("prompt") or "")[:100].replace("\n", " ")
+        print(f"         {snippet}")
+        print()
+
+
+def cmd_download(args):
+    # First get the prompt to find the image/video URL
+    if not args.id:
+        print("Error: --id is required", file=sys.stderr); sys.exit(1)
+    result = _get(f"/api/cli/prompt?id={args.id}")
+    if not result.get("ok"):
+        print(f"Error: {result.get('error', result)}", file=sys.stderr); sys.exit(1)
+    item = result["item"]
+    ptype = result.get("type", "")
+    # Pick URL
+    if args.gallery is not None:
+        gallery = item.get("gallery", [])
+        url_path = gallery[args.gallery] if args.gallery < len(gallery) else ""
+    elif ptype == "video":
+        url_path = item.get("video", "")
+    else:
+        url_path = item.get("image", "")
+    if not url_path:
+        print("Error: no media found for this prompt", file=sys.stderr); sys.exit(1)
+    full_url = BASE_URL + url_path if url_path.startswith("/") else url_path
+    data = _get_url(full_url)
+    out = args.out or url_path.split("/")[-1]
+    with open(out, "wb") as f:
+        f.write(data)
+    print(f"Saved {len(data)} bytes → {out}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="pstudio-cli",
-        description="Push prompts into Prompt Studio from any agent or shell.",
+        description="Read & write Prompt Studio from any agent or shell.",
     )
     sub = parser.add_subparsers(dest="cmd", required=True)
 
+    # ── projects ──────────────────────────────────────────────────────────
+    p_proj = sub.add_parser("projects", help="List all projects")
+    p_proj.set_defaults(func=cmd_projects)
+
+    # ── list ──────────────────────────────────────────────────────────────
+    p_list = sub.add_parser("list", help="List prompts in a project")
+    p_list.add_argument("--project", help="Project name or id")
+    p_list.add_argument("--type",    choices=["image", "video", "skill"], help="Filter by type")
+    p_list.add_argument("--limit",   type=int, default=200)
+    p_list.add_argument("--raw",     action="store_true", help="Output raw JSON")
+    p_list.set_defaults(func=cmd_list)
+
+    # ── get ───────────────────────────────────────────────────────────────
+    p_get = sub.add_parser("get", help="Get full details of a prompt")
+    p_get.add_argument("--id",      help="Prompt id")
+    p_get.add_argument("--project", help="Project name or id")
+    p_get.add_argument("--title",   help="Prompt title (partial match)")
+    p_get.add_argument("--type",    choices=["image", "video", "skill"])
+    p_get.add_argument("--field",   help="Extract a single field, e.g. --field prompt")
+    p_get.set_defaults(func=cmd_get)
+
+    # ── search ────────────────────────────────────────────────────────────
+    p_search = sub.add_parser("search", help="Full-text search across prompts")
+    p_search.add_argument("--query",   required=True, help="Search text")
+    p_search.add_argument("--project", help="Limit to project")
+    p_search.add_argument("--type",    choices=["image", "video", "skill"])
+    p_search.add_argument("--limit",   type=int, default=20)
+    p_search.add_argument("--raw",     action="store_true", help="Output raw JSON")
+    p_search.set_defaults(func=cmd_search)
+
+    # ── download ──────────────────────────────────────────────────────────
+    p_dl = sub.add_parser("download", help="Download image / video from a prompt")
+    p_dl.add_argument("--id",      required=True, help="Prompt id")
+    p_dl.add_argument("--out",     help="Output file path (default: original filename)")
+    p_dl.add_argument("--gallery", type=int, metavar="N",
+                      help="Download gallery image at index N (0-based) instead of main")
+    p_dl.set_defaults(func=cmd_download)
+
     # ── push ──────────────────────────────────────────────────────────────
-    p_push = sub.add_parser("push", help="Push a prompt / skill into Prompt Studio")
+    p_push = sub.add_parser("push", help="Push a new prompt / skill into Prompt Studio")
     p_push.add_argument("--type",     default="skill",
                         choices=["image", "video", "skill"],
                         help="Prompt type (default: skill)")
@@ -140,10 +286,6 @@ def main():
     p_push.add_argument("--json",     metavar="JSON",
                         help="Pass all fields as a single JSON object instead of flags")
     p_push.set_defaults(func=cmd_push)
-
-    # ── projects ──────────────────────────────────────────────────────────
-    p_proj = sub.add_parser("projects", help="List all projects")
-    p_proj.set_defaults(func=cmd_projects)
 
     args = parser.parse_args()
     args.func(args)
