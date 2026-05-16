@@ -1794,11 +1794,17 @@
         <!-- Image upload (only for image prompts) -->
         <div class="field" id="pmImgUploadWrap">
           <label>参考图片</label>
-          <label class="upload-zone">
-            <div>📎 点击上传图片</div>
+          <!-- shown when no image yet -->
+          <label class="upload-zone" id="pmImgUploadZone">
+            <div>📎 点击上传参考图片</div>
             <input type="file" id="pmImgFile" accept="image/*">
-            <img id="pmImgPreview" class="preview-img" alt="">
           </label>
+          <!-- shown when image already exists -->
+          <div id="pmImgExistsRow" style="display:none;align-items:center;gap:8px">
+            <img id="pmImgPreview" class="preview-img" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">
+            <label style="cursor:pointer;font-size:12px;color:var(--primary);font-weight:500">📎 更换<input type="file" id="pmImgFileAlt" accept="image/*" style="display:none"></label>
+            <button id="pmImgClearBtn" style="font-size:11px;color:var(--danger,#c0392b);background:none;border:none;cursor:pointer;padding:0">移除</button>
+          </div>
         </div>
 
         <div class="field" id="pmPromptFieldOuter">
@@ -3172,7 +3178,8 @@
       const isImg = p.__type === 'image';
       const isSkill = p.__type === 'skill';
       const isVid = p.__type === 'video';
-      const hasImg = p.image && p.image.length > 0;
+      const thumbSrc = (isImg && (p.gallery||[]).length > 0) ? p.gallery[0] : (p.image || '');
+      const hasImg = thumbSrc.length > 0;
       const hasVid = isVid && p.video && p.video.length > 0;
       const cardIcon = isImg ? '🖼️' : (isSkill ? '🤖' : '🎬');
       const cardLabelClass = isImg ? 'label-image' : (isSkill ? 'label-skill' : 'label-video');
@@ -3188,7 +3195,7 @@
              </div>
            </div>`
         : hasImg
-          ? `<div style="position:relative">${galleryBadge}<img class="card-thumb" src="${h(p.image)}" alt="${h(p.title)}" loading="lazy"></div>`
+          ? `<div style="position:relative">${galleryBadge}<img class="card-thumb" src="${h(thumbSrc)}" alt="${h(p.title)}" loading="lazy"></div>`
           : `<div class="card-thumb-placeholder">${cardIcon}</div>`);
       const modelChip = p.model ? `<span class="chip" style="font-size:10px">${h(p.model)}</span>` : '';
       const snip = (p.prompt||'').replace(/[#*`>~\-_]/g,'').replace(/\s+/g,' ').trim().slice(0, isSkill ? 200 : 80);
@@ -4284,11 +4291,12 @@
       document.getElementById('promptModalInner').classList.remove('modal-wide');
       document.getElementById('promptModalLeft').style.flex = '';
     }
-    // Gallery
+    // Gallery (generated results — separate from reference image)
     pmGallery = item ? [...(item.gallery||[])] : [];
     pmGalleryPending = [];
-    if (!pmDisplaySrc && pmGallery.length) pmDisplaySrc = pmGallery[0];
+    pmDisplaySrc = pmGallery[0] || pmImgDataUrl || '';
     renderGalleryStrip();
+    syncRefImageUI();
     document.getElementById('pmGalleryStrip').style.display = type === 'image' ? 'block' : 'none';
     // Load existing ref images
     pmRefImages = item ? [...(item.ref_images||[])] : [];
@@ -4322,11 +4330,11 @@
     const prev = document.getElementById('pmImgPreview');
     if (pmImgDataUrl) { prev.src = pmImgDataUrl; prev.style.display = 'block'; } else { prev.style.display = 'none'; prev.src = ''; }
 
-    // Left media panel
+    // Left media panel — prefer gallery (generated result), fall back to ref image
     const imgEl = document.getElementById('promptModalImg');
     const phEl = document.getElementById('promptModalImgPh');
-    if (pmImgDataUrl && type === 'image') {
-      imgEl.src = pmImgDataUrl; imgEl.style.display = 'block'; phEl.style.display = 'none';
+    if (pmDisplaySrc && type === 'image') {
+      imgEl.src = pmDisplaySrc; imgEl.style.display = 'block'; phEl.style.display = 'none';
     } else {
       imgEl.style.display = 'none'; imgEl.src = '';
       if (!(type === 'video' && pmVideoPath)) {
@@ -4388,13 +4396,51 @@
       pmImgDataUrl = ev.target.result;
       pmDisplaySrc = pmImgDataUrl;
       const prev = document.getElementById('pmImgPreview');
-      prev.src = pmImgDataUrl; prev.style.display = 'block';
+      prev.src = pmImgDataUrl;
       const imgEl = document.getElementById('promptModalImg');
       const phEl = document.getElementById('promptModalImgPh');
       imgEl.src = pmImgDataUrl; imgEl.style.display = 'block'; phEl.style.display = 'none';
+      syncRefImageUI();
       renderGalleryStrip();
     };
     reader.readAsDataURL(file);
+  });
+
+  // Reference image UI helpers
+  function syncRefImageUI() {
+    const hasImg = !!pmImgDataUrl;
+    document.getElementById('pmImgUploadZone').style.display = hasImg ? 'none' : '';
+    const row = document.getElementById('pmImgExistsRow');
+    row.style.display = hasImg ? 'flex' : 'none';
+    const prev = document.getElementById('pmImgPreview');
+    if (hasImg) { prev.src = pmImgDataUrl; }
+  }
+  document.getElementById('pmImgFileAlt').addEventListener('change', (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    pmImgFile = file;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      pmImgDataUrl = ev.target.result;
+      pmDisplaySrc = pmImgDataUrl;
+      document.getElementById('promptModalImg').src = pmImgDataUrl;
+      document.getElementById('promptModalImg').style.display = 'block';
+      document.getElementById('promptModalImgPh').style.display = 'none';
+      syncRefImageUI();
+      renderGalleryStrip();
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  });
+  document.getElementById('pmImgClearBtn').addEventListener('click', () => {
+    pmImgDataUrl = ''; pmImgFile = null;
+    if (pmDisplaySrc && !pmGallery.includes(pmDisplaySrc) && !pmGalleryPending.some(p => p.dataUrl === pmDisplaySrc)) {
+      pmDisplaySrc = pmGallery[0] || pmGalleryPending[0]?.dataUrl || '';
+    }
+    const imgEl = document.getElementById('promptModalImg');
+    if (pmDisplaySrc) { imgEl.src = pmDisplaySrc; imgEl.style.display = 'block'; }
+    else { imgEl.style.display = 'none'; document.getElementById('promptModalImgPh').style.display = 'flex'; }
+    syncRefImageUI();
+    renderGalleryStrip();
   });
 
   // Video upload
@@ -4416,9 +4462,8 @@
   function renderGalleryStrip() {
     const row = document.getElementById('pmGalleryThumbsRow');
     if (!row) return;
-    // Build flat list: main first, then gallery, then pending
+    // Gallery strip: only generated results (not the reference image)
     const items = [
-      ...(pmImgDataUrl ? [{ src: pmImgDataUrl, kind: 'main' }] : []),
       ...pmGallery.map((src, i) => ({ src, kind: 'gallery', i })),
       ...pmGalleryPending.map((p, i) => ({ src: p.dataUrl, kind: 'pending', i })),
     ];
@@ -4575,23 +4620,18 @@
     if (!prompt) { promptEl.focus(); toast('⚠️ 请填写提示词'); return; }
     document.getElementById('pmSaveBtn').disabled = true;
     const projNameG = getProject(state.projectId)?.name || 'default';
-    // Build flat ordered list of all images
-    const _allImgs = [
-      ...(pmImgDataUrl ? [{ src: pmImgDataUrl, file: pmImgFile }] : []),
-      ...pmGallery.map(s => ({ src: s })),
-      ...pmGalleryPending.map(p => ({ src: p.dataUrl, file: p.file })),
-    ];
-    if (_allImgs.length) toast('⏳ 上传图片中…');
-    // Upload any data-URL images
-    const _uploaded = await Promise.all(_allImgs.map(x =>
-      x.src.startsWith('data:') ? uploadImage(x.src, x.file?.name || 'image.jpg', projNameG) : Promise.resolve(x.src)
-    ));
-    // Which index is the selected main?
-    const _selIdx = _allImgs.findIndex(x => x.src === pmDisplaySrc);
-    const _mainIdx = _selIdx >= 0 ? _selIdx : 0;
-    let imgPath = _uploaded[_mainIdx] || '';
-    const galleryPaths = _uploaded.filter((_, i) => i !== _mainIdx);
+    // Upload reference image if new
+    let imgPath = pmImgDataUrl;
+    if (pmImgFile && pmImgDataUrl.startsWith('data:')) {
+      toast('⏳ 上传图片中…');
+      imgPath = await uploadImage(pmImgDataUrl, pmImgFile.name, projNameG);
+    }
     pmImgFile = null;
+    // Upload gallery pending images (generated results)
+    const _uploadedGallery = await Promise.all(pmGalleryPending.map(p =>
+      uploadImage(p.dataUrl, p.file?.name || 'gallery.jpg', projNameG)
+    ));
+    const galleryPaths = [...pmGallery, ..._uploadedGallery];
     pmGalleryPending = [];
     const proj = getProject(state.projectId);
     const key = pmType === 'image' ? 'image_prompts' : (pmType === 'skill' ? 'skill_prompts' : 'video_prompts');
