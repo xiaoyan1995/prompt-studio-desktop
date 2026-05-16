@@ -1167,6 +1167,8 @@
   /* Skills view: no inspector, full width */
   .content.view-skills .inspector{display:none !important}
   .content.view-skills{grid-template-columns:1fr !important}
+  .content.view-skill-folder .inspector{display:none !important}
+  .content.view-skill-folder{grid-template-columns:1fr !important}
   /* Docs view: no inspector, full width */
   .content.view-pdfs .inspector{display:none !important}
   .content.view-pdfs{grid-template-columns:1fr !important}
@@ -2140,7 +2142,7 @@
   };
 
   // ── State ─────────────────────────────────────────────────────────────
-  let state = { view: 'projects', projectId: null, promptId: null };
+  let state = { view: 'projects', projectId: null, promptId: null, skillFolderId: null };
   let uiState = {
     viewMode: 'grid',
     filterModel: 'all',
@@ -2890,7 +2892,7 @@
     typeSel.disabled = isProjects || !isAll;
     const folderBtn = document.getElementById('importSkillFolderBtn');
     const folderViews = new Set(['skill_prompts','image_prompts','video_prompts']);
-    if (folderBtn) folderBtn.style.display = folderViews.has(state.view) ? '' : 'none';
+    if (folderBtn) folderBtn.style.display = (folderViews.has(state.view) && state.view !== 'skill_folder') ? '' : 'none';
     const smartSel = document.getElementById('smartFolderFilter');
     if (smartSel) smartSel.disabled = isProjects;
     typeSel.value = uiState.filterType;
@@ -2963,6 +2965,18 @@
     state.view = view;
     state.projectId = projectId;
     state.promptId = null;
+    state.skillFolderId = null;
+    activeCategory = null;
+    clearSelection();
+    pickItem(null);
+    renderSidebar();
+    renderPage();
+  }
+
+  function navigateSkillFolder(folderId) {
+    state.view = 'skill_folder';
+    state.skillFolderId = folderId;
+    state.promptId = null;
     activeCategory = null;
     clearSelection();
     pickItem(null);
@@ -3000,7 +3014,7 @@
           <span class="nav-icon">🎬</span><span class="nav-label">视频提示词</span>
           <span class="nav-badge">${(proj?.video_prompts||[]).length}</span>
         </div>
-        <div class="nav-item ${state.view==='skill_prompts'?'active':''}" data-view="skill_prompts">
+        <div class="nav-item ${(state.view==='skill_prompts'||state.view==='skill_folder')?'active':''}" data-view="skill_prompts">
           <span class="nav-icon">🤖</span><span class="nav-label">Skills 提示词</span>
           <span class="nav-badge">${(proj?.skill_prompts||[]).length}</span>
         </div>
@@ -3024,6 +3038,7 @@
     const contentEl = document.getElementById('content');
     if (contentEl) contentEl.classList.toggle('view-projects', state.view === 'projects');
     if (contentEl) contentEl.classList.toggle('view-skills', state.view === 'skill_prompts');
+    if (contentEl) contentEl.classList.toggle('view-skill-folder', state.view === 'skill_folder');
     if (contentEl) contentEl.classList.toggle('view-pdfs', state.view === 'pdf_files');
     syncToolbarControls();
     applyGridMode();
@@ -3037,6 +3052,17 @@
       document.getElementById('primaryBtn').textContent = '新建项目';
       document.getElementById('primaryBtn').onclick = () => openProjModal(null);
       renderProjects(q);
+    } else if (state.view === 'skill_folder') {
+      const proj = getProject(state.projectId);
+      const folder = (proj?.skill_prompts||[]).find(p => p.id === state.skillFolderId);
+      document.getElementById('pageTitle').textContent = folder?.title || '文件夹';
+      document.getElementById('pageSubtitle').textContent = `${proj?.name || ''} · Skills › ${folder?.title || ''}`;
+      document.getElementById('primaryBtn').textContent = '← 返回';
+      document.getElementById('primaryBtn').onclick = () => navigate('skill_prompts', state.projectId);
+      document.getElementById('catBar').style.display = 'none';
+      renderSkillFolderPage(folder, q);
+      updateBatchBar();
+      return;
     } else {
       const proj = getProject(state.projectId);
       const isImg = state.view === 'image_prompts';
@@ -3126,6 +3152,43 @@
       });
     });
     if (!uiState.selectedItem && projs.length) pickItem(projs[0], 'project');
+  }
+
+  // ── Skill Folder Page ──────────────────────────────────────────────────
+  function renderSkillFolderPage(folder, q='') {
+    const grid = document.getElementById('mainGrid');
+    const empty = document.getElementById('emptyState');
+    if (!folder || !folder.files?.length) {
+      grid.innerHTML = ''; empty.style.display = 'flex';
+      empty.innerHTML = `<div class="empty-icon">📂</div><h3>文件夹为空</h3><p>没有可显示的文件</p>`;
+      return;
+    }
+    let files = folder.files;
+    if (q) files = files.filter(f => f.name.toLowerCase().includes(q) || (f.content||'').toLowerCase().includes(q));
+    if (!files.length) {
+      grid.innerHTML = ''; empty.style.display = 'flex';
+      empty.innerHTML = `<div class="empty-icon">🔍</div><h3>没有匹配的文件</h3>`;
+      return;
+    }
+    empty.style.display = 'none';
+    grid.innerHTML = files.map((f, i) => {
+      const snip = (f.content || '').replace(/[#*`>~\-_]/g,'').replace(/\s+/g,' ').trim().slice(0, 180);
+      const ext = (f.name.split('.').pop() || '').toLowerCase();
+      const icon = ext === 'md' || ext === 'markdown' ? '📝' : ext === 'json' || ext === 'yaml' || ext === 'yml' ? '⚙️' : ext === 'py' ? '🐍' : ext === 'js' || ext === 'ts' ? '📜' : '📄';
+      return `<div class="card" data-file-idx="${i}" style="cursor:pointer">
+        <div class="skill-folder-cover" style="min-height:80px;justify-content:center;align-items:center">
+          <span style="font-size:36px">${icon}</span>
+        </div>
+        <div class="card-body">
+          <div class="card-label label-skill">${h(ext.toUpperCase() || 'FILE')}</div>
+          <div class="card-title">${h(f.name)}</div>
+          <div class="card-meta" style="white-space:pre-wrap;-webkit-line-clamp:3;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden">${h(snip)}</div>
+        </div>
+      </div>`;
+    }).join('');
+    grid.querySelectorAll('.card[data-file-idx]').forEach(card => {
+      card.addEventListener('click', () => openFileViewer(files[+card.dataset.fileIdx]));
+    });
   }
 
   // ── Prompts ────────────────────────────────────────────────────────────
@@ -3302,7 +3365,8 @@
           pickItem(item, type);
         } else if (type === 'skill') {
           selectSingle(key, card);
-          openItemEditor(item);
+          if (item.is_folder) navigateSkillFolder(item.id);
+          else openItemEditor(item);
         } else {
           selectSingle(key, card);
           pickItem(item, type);
