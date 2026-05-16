@@ -498,8 +498,13 @@
   }
   .modal-right{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
   .modal-img{
-    width:100%;flex:1;min-height:0;object-fit:contain;background:#0f1828;display:block;
+    width:100%;flex:1;min-height:0;object-fit:contain;background:#0f1828;display:block;cursor:zoom-in;
   }
+  #imgLightbox{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;cursor:zoom-out}
+  #imgLightbox.open{display:flex}
+  #imgLightbox img{max-width:95vw;max-height:95vh;object-fit:contain;border-radius:4px;box-shadow:0 8px 48px rgba(0,0,0,.6);user-select:none}
+  #imgLightbox .lb-close{position:absolute;top:16px;right:20px;font-size:28px;color:#fff;cursor:pointer;opacity:.7;line-height:1}
+  #imgLightbox .lb-close:hover{opacity:1}
   .modal-img-ph{
     flex:1;display:flex;align-items:center;justify-content:center;
     background:linear-gradient(135deg,#eef4ff,#e2ebff);font-size:60px;color:#9fb8e9;
@@ -1719,6 +1724,9 @@
 <div id="libraryOpsModal" style="display:none"></div>
 
 <!-- Modal: Prompt detail / edit -->
+<!-- Image lightbox -->
+<div id="imgLightbox"><span class="lb-close" id="lbClose">✕</span><img id="lbImg" src="" alt=""></div>
+
 <div class="modal-backdrop" id="promptModal">
   <div class="modal" id="promptModalInner">
     <div class="modal-head">
@@ -4401,6 +4409,17 @@
   document.getElementById('promptModalImgPh').addEventListener('click', () => {
     if (pmType === 'image') document.getElementById('pmGalleryFile').click();
   });
+
+  // Lightbox
+  const _lb = document.getElementById('imgLightbox');
+  const _lbImg = document.getElementById('lbImg');
+  function openLightbox(src) { _lbImg.src = src; _lb.classList.add('open'); }
+  function closeLightbox() { _lb.classList.remove('open'); _lbImg.src = ''; }
+  document.getElementById('promptModalImg').addEventListener('click', () => {
+    if (pmDisplaySrc) openLightbox(pmDisplaySrc);
+  });
+  _lb.addEventListener('click', e => { if (e.target === _lb || e.target === document.getElementById('lbClose')) closeLightbox(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
   // Image file change – show preview immediately, upload on save
   let pmImgFile = null;
