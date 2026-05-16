@@ -2889,7 +2889,8 @@
     tagSel.disabled = isProjects;
     typeSel.disabled = isProjects || !isAll;
     const folderBtn = document.getElementById('importSkillFolderBtn');
-    if (folderBtn) folderBtn.style.display = state.view === 'skill_prompts' ? '' : 'none';
+    const folderViews = new Set(['skill_prompts','image_prompts','video_prompts']);
+    if (folderBtn) folderBtn.style.display = folderViews.has(state.view) ? '' : 'none';
     const smartSel = document.getElementById('smartFolderFilter');
     if (smartSel) smartSel.disabled = isProjects;
     typeSel.value = uiState.filterType;
@@ -5512,7 +5513,7 @@
       dragCounter++;
       // Context-aware overlay text
       const dropSub = document.querySelector('#dropOverlayBox .drop-sub');
-      if (dropSub) dropSub.textContent = state.view === 'pdf_files' ? 'PDF · Word · Excel · PPT · TXT · MD' : '图片 · 视频 · 文本';
+      if (dropSub) dropSub.textContent = state.view === 'pdf_files' ? 'PDF · Word · Excel · PPT · TXT · MD' : state.view === 'skill_prompts' ? '文件夹 · .md · .txt 等文本' : '图片 · 视频 · 文件夹';
       overlay.style.display = 'flex';
       overlay.classList.add('active');
     });
@@ -5531,10 +5532,18 @@
       // If a modal is open the drop was handled internally (e.g. textarea), skip global handling
       if (document.querySelector('.modal-backdrop.open, #pdfModal.open')) return;
 
+      if (!state.projectId) { toast('⚠️ 请先进入一个项目再拖放文件'); return; }
+
+      // ── Folder drop detection via webkitGetAsEntry ──────────────────
+      const items = [...(e.dataTransfer?.items || [])];
+      const dirEntries = items.map(i => i.webkitGetAsEntry?.()).filter(en => en?.isDirectory);
+      if (dirEntries.length) {
+        await handleFolderDrop(dirEntries);
+        return;
+      }
+
       const files = [...(e.dataTransfer?.files || [])];
       if (!files.length) return;
-
-      if (!state.projectId) { toast('⚠️ 请先进入一个项目再拖放文件'); return; }
 
       // ── 文档库视图：所有文件走文档上传（支持多选） ─────────────────────
       if (state.view === 'pdf_files') {
@@ -6129,9 +6138,110 @@
   };
 
   // ══════════════════════════════════════════════════════════════════════
-  // ── Skill Folder Import ─────────────────────────────────────────────
+  // ── Folder Import (image / video / skill) ──────────────────────────
   // ══════════════════════════════════════════════════════════════════════
   const TEXT_EXTS = new Set(['md','txt','markdown','yaml','yml','json','toml','ini','py','js','ts','sh','bat','ps1','html','css']);
+  const IMG_EXTS  = new Set(['jpg','jpeg','png','gif','webp','bmp','tiff','avif']);
+  const VID_EXTS  = new Set(['mp4','mov','avi','mkv','webm','m4v','wmv','flv']);
+
+  // Read all File objects from a FileSystemDirectoryEntry recursively
+  async function readDirFiles(dirEntry) {
+    const results = [];
+    async function traverse(entry, base) {
+      if (entry.isFile) {
+        const file = await new Promise((res, rej) => entry.file(res, rej));
+        file._relPath = base ? `${base}/${entry.name}` : entry.name;
+        results.push(file);
+      } else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        let batch;
+        do {
+          batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+          for (const e of batch) await traverse(e, base ? `${base}/${entry.name}` : entry.name);
+        } while (batch.length > 0);
+      }
+    }
+    const reader = dirEntry.createReader();
+    let batch;
+    do {
+      batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+      for (const e of batch) await traverse(e, '');
+    } while (batch.length > 0);
+    return results;
+  }
+
+  // Handle one or more dropped directory entries, routed by current view
+  async function handleFolderDrop(dirEntries) {
+    if (!state.projectId) { toast('⚠️ 请先进入一个项目'); return; }
+    const proj = getProject(state.projectId);
+    for (const dirEntry of dirEntries) {
+      const folderName = dirEntry.name;
+      const allFiles = await readDirFiles(dirEntry);
+      await importFolderFiles(folderName, allFiles, proj);
+    }
+  }
+
+  // Process files from a folder according to current view
+  async function importFolderFiles(folderName, allFiles, proj) {
+    const projName = proj.name || 'default';
+
+    if (state.view === 'skill_prompts') {
+      const fileObjs = [];
+      for (const f of allFiles) {
+        const ext = (f.name.split('.').pop() || '').toLowerCase();
+        if (!TEXT_EXTS.has(ext)) continue;
+        try {
+          const content = await f.text();
+          fileObjs.push({ name: f._relPath || f.name, content });
+        } catch {}
+      }
+      if (!fileObjs.length) { toast(`⚠️「${folderName}」中无文本文件`); return; }
+      proj.skill_prompts = proj.skill_prompts || [];
+      proj.skill_prompts.unshift({ id:uid(), title:folderName, is_folder:true, files:fileObjs, tags:[], created_at:new Date().toISOString() });
+      await saveData(data); renderPage(); renderSidebar();
+      toast(`✅ 已导入文件夹「${folderName}」，共 ${fileObjs.length} 个文件`);
+      return;
+    }
+
+    if (state.view === 'image_prompts') {
+      const imgs = allFiles.filter(f => IMG_EXTS.has((f.name.split('.').pop()||'').toLowerCase()));
+      if (!imgs.length) { toast(`⚠️「${folderName}」中无图片文件`); return; }
+      toast(`⏳ 正在导入 ${imgs.length} 张图片…`);
+      let count = 0;
+      for (const f of imgs) {
+        try {
+          const dataUrl = await new Promise((res, rej) => { const r=new FileReader(); r.onload=ev=>res(ev.target.result); r.onerror=rej; r.readAsDataURL(f); });
+          const path = await uploadImage(dataUrl, f.name, projName);
+          proj.image_prompts = proj.image_prompts || [];
+          proj.image_prompts.unshift({ id:uid(), title:f.name.replace(/\.[^.]+$/,''), prompt:'', model:'GPT Image 2', aspect:'16:9', tags:[], image:path, video:'', ref_images:[], analysis:'', created_at:new Date().toISOString() });
+          count++;
+        } catch {}
+      }
+      if (count > 0) { await saveData(data); renderPage(); renderSidebar(); toast(`✅ 已导入 ${count} 张图片（来自「${folderName}」）`); }
+      else toast('❌ 图片导入失败');
+      return;
+    }
+
+    if (state.view === 'video_prompts') {
+      const vids = allFiles.filter(f => VID_EXTS.has((f.name.split('.').pop()||'').toLowerCase()));
+      if (!vids.length) { toast(`⚠️「${folderName}」中无视频文件`); return; }
+      toast(`⏳ 正在导入 ${vids.length} 个视频…`);
+      let count = 0;
+      for (const f of vids) {
+        try {
+          const path = await uploadVideo(f, projName);
+          proj.video_prompts = proj.video_prompts || [];
+          proj.video_prompts.unshift({ id:uid(), title:f.name.replace(/\.[^.]+$/,''), prompt:'', model:'Seedance 2.0', aspect:'16:9', tags:[], image:'', video:path, ref_images:[], analysis:'', created_at:new Date().toISOString() });
+          count++;
+        } catch {}
+      }
+      if (count > 0) { await saveData(data); renderPage(); renderSidebar(); toast(`✅ 已导入 ${count} 个视频（来自「${folderName}」）`); }
+      else toast('❌ 视频导入失败');
+      return;
+    }
+
+    toast('⚠️ 当前视图不支持文件夹导入');
+  }
 
   document.getElementById('importSkillFolderBtn').addEventListener('click', () => {
     document.getElementById('skillFolderInput').click();
@@ -6141,44 +6251,12 @@
     const files = Array.from(e.target.files || []);
     e.target.value = '';
     if (!files.length) return;
-
-    // Derive folder name from first file's webkitRelativePath
-    const folderName = (files[0].webkitRelativePath || files[0].name).split('/')[0] || '未命名文件夹';
-
-    const readFile = f => new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = ev => res(ev.target.result);
-      r.onerror = rej;
-      r.readAsText(f, 'utf-8');
-    });
-
-    const fileObjs = [];
-    for (const f of files) {
-      const ext = (f.name.split('.').pop() || '').toLowerCase();
-      if (!TEXT_EXTS.has(ext)) continue;
-      try {
-        const content = await readFile(f);
-        // Use relative path inside folder as the display name
-        const relPath = f.webkitRelativePath ? f.webkitRelativePath.replace(/^[^/]+\//, '') : f.name;
-        fileObjs.push({ name: relPath, content });
-      } catch {}
-    }
-
-    if (!fileObjs.length) { toast('⚠️ 文件夹中未找到文本文件'); return; }
-
+    if (!state.projectId) { toast('⚠️ 请先进入一个项目'); return; }
     const proj = getProject(state.projectId);
-    proj.skill_prompts = proj.skill_prompts || [];
-    proj.skill_prompts.unshift({
-      id: uid(),
-      title: folderName,
-      is_folder: true,
-      files: fileObjs,
-      tags: [],
-      created_at: new Date().toISOString()
-    });
-    await saveData(data);
-    renderPage(); renderSidebar();
-    toast(`✅ 已导入文件夹「${folderName}」，共 ${fileObjs.length} 个文件`);
+    const folderName = (files[0].webkitRelativePath || files[0].name).split('/')[0] || '未命名文件夹';
+    // Attach _relPath for each file
+    files.forEach(f => { f._relPath = f.webkitRelativePath ? f.webkitRelativePath.replace(/^[^/]+\//, '') : f.name; });
+    await importFolderFiles(folderName, files, proj);
   });
 
   // ── File Viewer Modal ───────────────────────────────────────────────
