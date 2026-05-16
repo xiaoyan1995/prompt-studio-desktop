@@ -54,6 +54,43 @@ function rememberImage(data) {
 
 chrome.action.setBadgeText({ text: '' }, () => void chrome.runtime.lastError);
 
+// ── Binary image header parsers for dimension detection ──────────────────────
+function parsePngSize(b) {
+  if (b[1] !== 0x50 || b[2] !== 0x4E || b[3] !== 0x47) return null;
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  return { w: v.getUint32(16, false), h: v.getUint32(20, false) };
+}
+function parseGifSize(b) {
+  if (b[0] !== 0x47 || b[1] !== 0x49 || b[2] !== 0x46) return null;
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  return { w: v.getUint16(6, true), h: v.getUint16(8, true) };
+}
+function parseJpgSize(b) {
+  if (b[0] !== 0xFF || b[1] !== 0xD8) return null;
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  for (let off = 4; off < b.byteLength - 10;) {
+    const len = v.getUint16(off, false);
+    const next = b[off + len + 1];
+    if (next === 0xC0 || next === 0xC1 || next === 0xC2) {
+      return { w: v.getUint16(off + len + 7, false), h: v.getUint16(off + len + 5, false) };
+    }
+    off += len + 2;
+  }
+  return null;
+}
+function parseWebpSize(b) {
+  if (b[0] !== 0x52 || b[8] !== 0x57 || b[12] !== 0x56) return null;
+  const chunk = String.fromCharCode(b[12], b[13], b[14], b[15]);
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  if (chunk === 'VP8 ') return { w: v.getInt32(26, true) & 0x3FFF, h: v.getInt16(28, true) & 0x3FFF };
+  if (chunk === 'VP8L') return { w: 1 + (((b[22] & 0x3F) << 8) | b[21]), h: 1 + (((b[24] & 0xF) << 10) | (b[23] << 2) | ((b[22] & 0xC0) >> 6)) };
+  if (chunk === 'VP8X') return { w: 1 + ((b[27] << 16) | (b[26] << 8) | b[25]), h: 1 + ((b[30] << 16) | (b[29] << 8) | b[28]) };
+  return null;
+}
+function parseSizeFromBytes(bytes) {
+  return parsePngSize(bytes) || parseJpgSize(bytes) || parseWebpSize(bytes) || parseGifSize(bytes);
+}
+
 function headerValue(headers = [], name) {
   const found = headers.find(h => h.name && h.name.toLowerCase() === name.toLowerCase());
   return found ? (found.value || '') : '';
@@ -362,6 +399,49 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       message: msg.message || ''
     });
     return false;
+  }
+
+  // ── Image dimension probing (runs in background = no CORS, no page side-effects) ──
+  if (msg.type === 'probe-image-sizes') {
+    const items = msg.items || []; // [{ probeUrl, referer }]
+    (async () => {
+      const results = [];
+      for (const { probeUrl, referer } of items) {
+        let ruleId = -1;
+        try {
+          // Apply referer header
+          ruleId = await new Promise(r => {
+            const id = Math.floor(Math.random() * 1000000);
+            const rule = {
+              id, priority: 2,
+              action: { type: 'modifyHeaders', requestHeaders: [
+                { operation: 'set', header: 'referer', value: referer || '' },
+                { operation: 'remove', header: 'origin' }
+              ]},
+              condition: { urlFilter: probeUrl, resourceTypes: ['xmlhttprequest'] }
+            };
+            chrome.declarativeNetRequest.updateSessionRules({ addRules: [rule] })
+              .then(() => r(id)).catch(() => r(-1));
+          });
+          const controller = new AbortController();
+          setTimeout(() => controller.abort(), 8000);
+          const resp = await fetch(probeUrl, { signal: controller.signal });
+          if (!resp.ok) { results.push(null); continue; }
+          const reader = resp.body.getReader();
+          const { value } = await reader.read();
+          reader.cancel();
+          if (!value || value.byteLength < 30) { results.push(null); continue; }
+          const sz = parseSizeFromBytes(value);
+          results.push(sz);
+        } catch {
+          results.push(null);
+        } finally {
+          if (ruleId > 0) chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [ruleId] }).catch(() => {});
+        }
+      }
+      sendResponse({ results });
+    })();
+    return true; // async
   }
 
   // ── Referer injection for image probing (same mechanism as Download All Images) ──

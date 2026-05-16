@@ -139,46 +139,74 @@ document.getElementById('cScanBtn').addEventListener('click', async () => {
 
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const pageUrl = tab.url || '';
 
-    // 1. Get network-captured images (includes full-size clicked images)
+    // 1. Content script scan (DOM + Performance API)
+    let scanned = [];
+    try {
+      const resp = await chrome.tabs.sendMessage(tab.id, { type: 'scan-images' });
+      scanned = resp?.images || [];
+    } catch {}
+
+    // 2. Network-captured images from background
     const captured = await new Promise(resolve => {
       chrome.runtime.sendMessage({ type: 'get-captured-images', tabId: tab.id }, r => resolve(r?.images || []));
     });
 
-    // 2. Get DOM-scanned images (with CDN URL cleanup + dimension probe)
-    let domImages = [];
-    try {
-      const resp = await chrome.tabs.sendMessage(tab.id, { type: 'scan-images' });
-      domImages = resp?.images || [];
-    } catch {}
-
-    // 3. Merge: network-captured first (higher quality), then DOM fills gaps
+    // 3. Merge: scanned first (has DOM dimensions), then network fills gaps
     const seen = new Set();
     const merged = [];
+    scanned.forEach(img => {
+      if (!img.url || seen.has(img.url)) return;
+      seen.add(img.url);
+      merged.push({ ...img, fmt: fmtFromUrl(img.url), visible: true });
+    });
     captured.forEach(({ url, size }) => {
       if (!url || seen.has(url)) return;
       seen.add(url);
-      merged.push({ url, width: 0, height: 0, size, source: 'net', fmt: fmtFromUrl(url), visible: true });
-    });
-    domImages.forEach(img => {
-      if (!img.url || seen.has(img.url)) return;
-      seen.add(img.url);
-      merged.push({ ...img, source: 'dom', fmt: fmtFromUrl(img.url), visible: true });
+      merged.push({ url, probeUrl: url, width: 0, height: 0, size, fmt: fmtFromUrl(url), visible: true });
     });
     cAllImages = merged;
+
+    // 4. Show results immediately (some may have 0×0)
+    document.getElementById('cScanning').style.display = 'none';
+    if (cAllImages.length === 0) {
+      document.getElementById('cEmpty').style.display = '';
+      document.getElementById('cEmpty').textContent = '未找到图片';
+    }
+    cApplyFilters();
+
+    // 5. Probe 0×0 items via background (fetch + binary header, no CORS issues)
+    const needProbe = cAllImages
+      .map((img, i) => ({ idx: i, probeUrl: img.probeUrl || img.url, referer: pageUrl }))
+      .filter(x => cAllImages[x.idx].width < 1);
+    if (needProbe.length > 0) {
+      const BATCH = 8;
+      for (let i = 0; i < needProbe.length; i += BATCH) {
+        const batch = needProbe.slice(i, i + BATCH);
+        const { results } = await new Promise(resolve => {
+          chrome.runtime.sendMessage({
+            type: 'probe-image-sizes',
+            items: batch.map(b => ({ probeUrl: b.probeUrl, referer: b.referer }))
+          }, r => resolve(r || { results: [] }));
+        });
+        (results || []).forEach((sz, j) => {
+          if (sz && sz.w > 0) {
+            cAllImages[batch[j].idx].width  = sz.w;
+            cAllImages[batch[j].idx].height = sz.h;
+          }
+        });
+        // Update UI after each batch
+        cApplyFilters();
+      }
+    }
   } catch(e) {
     document.getElementById('cScanning').style.display = 'none';
     document.getElementById('cEmpty').style.display = '';
     document.getElementById('cEmpty').textContent = '扫描失败，请刷新页面后重试';
     scanBtn.disabled = false; return;
   }
-
-  document.getElementById('cScanning').style.display = 'none';
-  if (cAllImages.length === 0) {
-    document.getElementById('cEmpty').style.display = '';
-    document.getElementById('cEmpty').textContent = '未找到图片';
-  }
-  cApplyFilters(); scanBtn.disabled = false;
+  scanBtn.disabled = false;
 });
 
 // Select all / none
