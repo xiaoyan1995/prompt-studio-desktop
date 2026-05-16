@@ -1517,7 +1517,7 @@
         <span class="chip">关于 Prompt Studio</span>
       </div>
       <div class="field-row">
-        <div style="display:grid;gap:12px;border:1px solid #dce8ff;background:#f8faff;border-radius:12px;padding:14px">
+        <div style="display:grid;gap:12px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:14px">
           <div class="chip label-image" style="width:max-content">图片反推</div>
           <div class="field"><label>API Base</label><input id="dsImageApiBase" placeholder="https://api.openai.com/v1"></div>
           <div class="field"><label>API Key</label><div style="display:flex;gap:6px"><input id="dsImageApiKey" type="password" placeholder="sk-..." style="flex:1"><button class="btn btn-secondary btn-sm" id="testImageApiBtn" style="white-space:nowrap">🔌 测试</button></div></div>
@@ -1525,7 +1525,7 @@
           <div class="field"><label>图片上传超时（秒）</label><input id="dsImageUploadTimeoutSec" type="number" min="10" max="300" step="5" placeholder="60"></div>
           <div class="field"><label>图片上传重试次数</label><input id="dsImageUploadRetries" type="number" min="0" max="5" step="1" placeholder="1"></div>
         </div>
-        <div style="display:grid;gap:12px;border:1px solid #ead5ff;background:#fdf5ff;border-radius:12px;padding:14px">
+        <div style="display:grid;gap:12px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:14px">
           <div class="chip label-skill" style="width:max-content">视频反推</div>
           <div class="field"><label>API Base</label><input id="dsVideoApiBase" placeholder="https://generativelanguage.googleapis.com/v1beta"></div>
           <div class="field"><label>API Key</label><div style="display:flex;gap:6px"><input id="dsVideoApiKey" type="password" placeholder="sk-... / AIza..." style="flex:1"><button class="btn btn-secondary btn-sm" id="testVideoApiBtn" style="white-space:nowrap">🔌 测试</button></div></div>
@@ -1552,10 +1552,12 @@
           </div>
           <button class="btn btn-secondary btn-sm" id="dsPresetToggle">+ 新增预设</button>
         </div>
-        <div id="dsPresetForm" style="display:none;grid-template-columns:180px 1fr auto;gap:8px;align-items:start">
-          <input id="dsPresetName" placeholder="预设名称" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;outline:none">
-          <textarea id="dsPresetContent" placeholder="预设指令内容" style="min-height:74px"></textarea>
-          <button class="btn btn-primary btn-sm" id="dsPresetAdd">保存</button>
+        <div id="dsPresetForm" style="display:none;flex-direction:column;gap:8px">
+          <input id="dsPresetName" placeholder="预设名称">
+          <textarea id="dsPresetContent" placeholder="预设指令内容" style="min-height:80px"></textarea>
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-primary btn-sm" id="dsPresetAdd">保存预设</button>
+          </div>
         </div>
         <div id="dsPresetList" style="display:grid;gap:6px"></div>
         <div id="dsPresetEmpty" style="font-size:12px;color:var(--subtle);text-align:center;padding:10px 0">暂无预设</div>
@@ -3656,8 +3658,8 @@
   });
   document.getElementById('dsPresetToggle').onclick = () => {
     const form = document.getElementById('dsPresetForm');
-    form.style.display = form.style.display === 'grid' ? 'none' : 'grid';
-    if (form.style.display === 'grid') document.getElementById('dsPresetName').focus();
+    form.style.display = form.style.display === 'flex' ? 'none' : 'flex';
+    if (form.style.display === 'flex') document.getElementById('dsPresetName').focus();
   };
   document.getElementById('dsPresetAdd').onclick = () => {
     const name = document.getElementById('dsPresetName').value.trim();
