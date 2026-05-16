@@ -97,12 +97,67 @@ function bgMsg(msg) {
   return new Promise(resolve => chrome.runtime.sendMessage(msg, resolve));
 }
 
+function fmtSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function candLabel(item) {
+  try {
+    const url = new URL(item.url);
+    const segs = url.pathname.split('/').filter(Boolean);
+    return segs[segs.length - 1] || url.hostname;
+  } catch { return item.url.slice(-60); }
+}
+
+function renderVidPicker(candidates) {
+  const wrap = document.getElementById('vidPickerWrap');
+  const list = document.getElementById('vidPicker');
+  if (!wrap || !list) return;
+  if (candidates.length < 2) { wrap.style.display = 'none'; return; }
+
+  wrap.style.display = '';
+  list.innerHTML = candidates.map((c, i) => {
+    const active = c.url === mediaUrl;
+    const ext = (c.ext || '').toUpperCase() || (c.kind === 'stream' ? 'HLS' : 'VIDEO');
+    const size = fmtSize(c.size);
+    const meta = [ext, size].filter(Boolean).join(' · ');
+    return `<label class="vid-candidate${active ? ' active' : ''}">
+      <input type="radio" name="vidCand" value="${i}" ${active ? 'checked' : ''}>
+      <div class="vid-cand-info">
+        <div class="vid-cand-name" title="${c.url}">${candLabel(c)}</div>
+        <div class="vid-cand-meta">${meta}</div>
+      </div>
+    </label>`;
+  }).join('');
+
+  list.querySelectorAll('input[type=radio]').forEach((radio, i) => {
+    radio.addEventListener('change', () => {
+      const chosen = candidates[i];
+      mediaUrl = chosen.url;
+      referer = chosen.referer || referer;
+      requestCookie = chosen.cookie || requestCookie;
+      list.querySelectorAll('.vid-candidate').forEach((el, j) => el.classList.toggle('active', j === i));
+      renderPreview();
+    });
+  });
+}
+
 async function resolveVideoMedia() {
   try {
+    // Get the best resolved URL
     const res = await bgMsg({ type: 'resolve-media-url', tabId, mediaUrl, mediaType, referer });
     if (res?.mediaUrl) mediaUrl = res.mediaUrl;
     if (res?.referer) referer = res.referer;
     if (res?.cookie) requestCookie = res.cookie;
+  } catch {}
+
+  // Also fetch all candidates and show picker if multiple exist
+  try {
+    const candRes = await bgMsg({ type: 'get-media-candidates', tabId });
+    const candidates = (candRes?.items || []).slice(0, 8); // cap at 8
+    renderVidPicker(candidates);
   } catch {}
 }
 

@@ -82,6 +82,16 @@
   .progress-step.done{color:#16a34a}.progress-step.active{color:var(--primary);font-weight:600}
   .progress-step-icon{width:18px;text-align:center}
   .result-box{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px;line-height:1.6;color:var(--text);max-height:120px;overflow-y:auto;word-break:break-all}
+
+  /* Video candidate picker */
+  .vid-picker{display:flex;flex-direction:column;gap:4px;max-height:130px;overflow-y:auto}
+  .vid-candidate{display:flex;align-items:center;gap:8px;padding:6px 9px;border:1px solid var(--border);border-radius:7px;cursor:pointer;transition:all .12s;background:var(--surface)}
+  .vid-candidate:hover{border-color:var(--primary);background:var(--primary-soft)}
+  .vid-candidate.active{border-color:var(--primary);background:var(--primary-soft)}
+  .vid-candidate input[type=radio]{accent-color:var(--primary);flex-shrink:0}
+  .vid-cand-info{flex:1;min-width:0}
+  .vid-cand-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+  .vid-cand-meta{font-size:10px;color:var(--subtle);margin-top:1px}
 </style>
 </head>
 <body>
@@ -102,6 +112,12 @@
   <div class="field" id="skillTextWrap" style="display:none">
     <label>提示词内容（可编辑）</label>
     <textarea id="skillTextarea" rows="8" style="font-family:'Consolas',monospace;font-size:12px;line-height:1.7;resize:vertical"></textarea>
+  </div>
+
+  <!-- Video source picker (shown when multiple candidates detected) -->
+  <div class="field" id="vidPickerWrap" style="display:none">
+    <label>🎬 检测到多个视频，请选择正确的来源</label>
+    <div class="vid-picker" id="vidPicker"></div>
   </div>
 
   <!-- Aspect + Project on same row -->
