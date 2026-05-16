@@ -2142,7 +2142,7 @@
   };
 
   // ── State ─────────────────────────────────────────────────────────────
-  let state = { view: 'projects', projectId: null, promptId: null, skillFolderId: null };
+  let state = { view: 'projects', projectId: null, promptId: null, skillFolderId: null, skillFolderPath: [] };
   let uiState = {
     viewMode: 'grid',
     filterModel: 'all',
@@ -2973,9 +2973,10 @@
     renderPage();
   }
 
-  function navigateSkillFolder(folderId) {
+  function navigateSkillFolder(folderId, pathParts) {
     state.view = 'skill_folder';
     state.skillFolderId = folderId;
+    state.skillFolderPath = pathParts || [];
     state.promptId = null;
     activeCategory = null;
     clearSelection();
@@ -3055,12 +3056,17 @@
     } else if (state.view === 'skill_folder') {
       const proj = getProject(state.projectId);
       const folder = (proj?.skill_prompts||[]).find(p => p.id === state.skillFolderId);
-      document.getElementById('pageTitle').textContent = folder?.title || '文件夹';
-      document.getElementById('pageSubtitle').textContent = `${proj?.name || ''} · Skills › ${folder?.title || ''}`;
+      const path = state.skillFolderPath || [];
+      const breadcrumb = [folder?.title || '文件夹', ...path].join(' › ');
+      document.getElementById('pageTitle').textContent = path.length ? path[path.length - 1] : (folder?.title || '文件夹');
+      document.getElementById('pageSubtitle').textContent = `${proj?.name || ''} · Skills › ${breadcrumb}`;
       document.getElementById('primaryBtn').textContent = '← 返回';
-      document.getElementById('primaryBtn').onclick = () => navigate('skill_prompts', state.projectId);
+      document.getElementById('primaryBtn').onclick = () => {
+        if (path.length > 0) navigateSkillFolder(state.skillFolderId, path.slice(0, -1));
+        else navigate('skill_prompts', state.projectId);
+      };
       document.getElementById('catBar').style.display = 'none';
-      renderSkillFolderPage(folder, q);
+      renderSkillFolderPage(folder, path, q);
       updateBatchBar();
       return;
     } else {
@@ -3155,7 +3161,7 @@
   }
 
   // ── Skill Folder Page ──────────────────────────────────────────────────
-  function renderSkillFolderPage(folder, q='') {
+  function renderSkillFolderPage(folder, pathParts, q) {
     const grid = document.getElementById('mainGrid');
     const empty = document.getElementById('emptyState');
     if (!folder || !folder.files?.length) {
@@ -3163,31 +3169,86 @@
       empty.innerHTML = `<div class="empty-icon">📂</div><h3>文件夹为空</h3><p>没有可显示的文件</p>`;
       return;
     }
-    let files = folder.files;
-    if (q) files = files.filter(f => f.name.toLowerCase().includes(q) || (f.content||'').toLowerCase().includes(q));
-    if (!files.length) {
+
+    // Build prefix for current path level
+    const prefix = pathParts.length ? pathParts.join('/') + '/' : '';
+
+    // Partition into direct sub-dirs and direct files at this level
+    const subDirs = new Map(); // dirName → [files in it]
+    const directFiles = [];
+    for (const f of folder.files) {
+      if (!f.name.startsWith(prefix)) continue;
+      const rel = f.name.slice(prefix.length);
+      const sep = rel.indexOf('/');
+      if (sep === -1) {
+        directFiles.push(f);
+      } else {
+        const dirName = rel.slice(0, sep);
+        if (!subDirs.has(dirName)) subDirs.set(dirName, []);
+        subDirs.get(dirName).push(f);
+      }
+    }
+
+    // Apply search filter
+    const lq = (q || '').toLowerCase();
+    const filteredFiles = lq
+      ? directFiles.filter(f => f.name.toLowerCase().includes(lq) || (f.content||'').toLowerCase().includes(lq))
+      : directFiles;
+    const filteredDirs = lq
+      ? [...subDirs.entries()].filter(([d]) => d.toLowerCase().includes(lq))
+      : [...subDirs.entries()];
+
+    if (!filteredFiles.length && !filteredDirs.length) {
       grid.innerHTML = ''; empty.style.display = 'flex';
-      empty.innerHTML = `<div class="empty-icon">🔍</div><h3>没有匹配的文件</h3>`;
+      empty.innerHTML = lq
+        ? `<div class="empty-icon">🔍</div><h3>没有匹配的内容</h3>`
+        : `<div class="empty-icon">📂</div><h3>此目录为空</h3>`;
       return;
     }
     empty.style.display = 'none';
-    grid.innerHTML = files.map((f, i) => {
+
+    const dirCards = filteredDirs.map(([dirName, filesInDir]) => {
+      const chips = filesInDir.slice(0, 4).map(f => {
+        const fname = f.name.slice(prefix.length + dirName.length + 1);
+        return `<span class="skill-folder-file-chip">${h(fname)}</span>`;
+      }).join('') + (filesInDir.length > 4 ? `<span class="skill-folder-file-chip">+${filesInDir.length - 4}</span>` : '');
+      return `<div class="card" data-subdir="${h(dirName)}" style="cursor:pointer">
+        <div class="skill-folder-cover">
+          <div class="skill-folder-icon">📁</div>
+          <div class="skill-folder-files">${chips}</div>
+        </div>
+        <div class="card-body">
+          <div class="card-label label-skill">文件夹 · ${filesInDir.length} 个文件</div>
+          <div class="card-title">${h(dirName)}</div>
+        </div>
+      </div>`;
+    });
+
+    const fileCards = filteredFiles.map((f, i) => {
       const snip = (f.content || '').replace(/[#*`>~\-_]/g,'').replace(/\s+/g,' ').trim().slice(0, 180);
       const ext = (f.name.split('.').pop() || '').toLowerCase();
-      const icon = ext === 'md' || ext === 'markdown' ? '📝' : ext === 'json' || ext === 'yaml' || ext === 'yml' ? '⚙️' : ext === 'py' ? '🐍' : ext === 'js' || ext === 'ts' ? '📜' : '📄';
+      const icon = ext === 'md' || ext === 'markdown' ? '📝' : ext === 'json' || ext === 'yaml' || ext === 'yml' ? '⚙️' : ext === 'py' ? '🐍' : (ext === 'js' || ext === 'ts') ? '📜' : '📄';
       return `<div class="card" data-file-idx="${i}" style="cursor:pointer">
         <div class="skill-folder-cover" style="min-height:80px;justify-content:center;align-items:center">
           <span style="font-size:36px">${icon}</span>
         </div>
         <div class="card-body">
           <div class="card-label label-skill">${h(ext.toUpperCase() || 'FILE')}</div>
-          <div class="card-title">${h(f.name)}</div>
-          <div class="card-meta" style="white-space:pre-wrap;-webkit-line-clamp:3;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden">${h(snip)}</div>
+          <div class="card-title">${h(f.name.slice(prefix.length))}</div>
+          <div class="card-meta" style="-webkit-line-clamp:3;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden">${h(snip)}</div>
         </div>
       </div>`;
-    }).join('');
+    });
+
+    grid.innerHTML = [...dirCards, ...fileCards].join('');
+
+    grid.querySelectorAll('.card[data-subdir]').forEach(card => {
+      card.addEventListener('click', () => {
+        navigateSkillFolder(state.skillFolderId, [...pathParts, card.dataset.subdir]);
+      });
+    });
     grid.querySelectorAll('.card[data-file-idx]').forEach(card => {
-      card.addEventListener('click', () => openFileViewer(files[+card.dataset.fileIdx]));
+      card.addEventListener('click', () => openFileViewer(filteredFiles[+card.dataset.fileIdx]));
     });
   }
 
