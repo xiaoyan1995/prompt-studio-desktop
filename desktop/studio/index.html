@@ -1522,6 +1522,8 @@
           <div class="field"><label>API Base</label><input id="dsImageApiBase" placeholder="https://api.openai.com/v1"></div>
           <div class="field"><label>API Key</label><div style="display:flex;gap:6px"><input id="dsImageApiKey" type="password" placeholder="sk-..." style="flex:1"><button class="btn btn-secondary btn-sm" id="testImageApiBtn" style="white-space:nowrap">🔌 测试</button></div></div>
           <div class="field"><label>模型</label><input id="dsImageModel" placeholder="gpt-4o"></div>
+          <div class="field"><label>图片上传超时（秒）</label><input id="dsImageUploadTimeoutSec" type="number" min="10" max="300" step="5" placeholder="60"></div>
+          <div class="field"><label>图片上传重试次数</label><input id="dsImageUploadRetries" type="number" min="0" max="5" step="1" placeholder="1"></div>
         </div>
         <div style="display:grid;gap:12px;border:1px solid #ead5ff;background:#fdf5ff;border-radius:12px;padding:14px">
           <div class="chip label-skill" style="width:max-content">视频反推</div>
@@ -3584,6 +3586,8 @@
     document.getElementById('dsImageApiBase').value = desktopSettings.imageApiBase || '';
     document.getElementById('dsImageApiKey').value = desktopSettings.imageApiKey || '';
     document.getElementById('dsImageModel').value = desktopSettings.imageModel || '';
+    document.getElementById('dsImageUploadTimeoutSec').value = desktopSettings.imageUploadTimeoutSec || '60';
+    document.getElementById('dsImageUploadRetries').value = desktopSettings.imageUploadRetries || '1';
     document.getElementById('dsVideoApiBase').value = desktopSettings.videoApiBase || '';
     document.getElementById('dsVideoApiKey').value = desktopSettings.videoApiKey || '';
     document.getElementById('dsVideoModel').value = desktopSettings.videoModel || '';
@@ -3683,6 +3687,8 @@
         imageApiBase: document.getElementById('dsImageApiBase').value.trim().replace(/\/$/, ''),
         imageApiKey: document.getElementById('dsImageApiKey').value.trim(),
         imageModel: document.getElementById('dsImageModel').value.trim(),
+        imageUploadTimeoutSec: document.getElementById('dsImageUploadTimeoutSec').value.trim() || '60',
+        imageUploadRetries: document.getElementById('dsImageUploadRetries').value.trim() || '1',
         videoApiBase: document.getElementById('dsVideoApiBase').value.trim().replace(/\/$/, ''),
         videoApiKey: document.getElementById('dsVideoApiKey').value.trim(),
         videoModel: document.getElementById('dsVideoModel').value.trim(),
