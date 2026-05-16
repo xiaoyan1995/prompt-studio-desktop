@@ -1584,7 +1584,7 @@
         <div id="settingsSec-tools" style="display:none;flex-direction:column;gap:14px">
           <div class="ops-panel">
             <h3>📁 数据存储目录</h3>
-            <div class="hint">data.json、uploads、exports 等都保存在这里。更改路径后需重启应用生效，原数据不会自动迁移。</div>
+            <div class="hint">data.json、uploads、exports 等都保存在这里。保存时会自动将现有数据复制到新目录，重启后生效。</div>
             <div class="field"><label>当前路径</label><div style="display:flex;gap:6px"><input id="dataDirInput" placeholder="加载中…" spellcheck="false" style="flex:1"><button class="btn btn-secondary btn-sm" id="browseDataDirBtn" style="white-space:nowrap">浏览…</button></div></div>
             <div style="display:flex;gap:8px;align-items:center">
               <button class="btn btn-primary btn-sm" id="saveDataDirBtn">保存路径</button>
@@ -3804,11 +3804,15 @@
     const status = document.getElementById('dataDirStatus');
     const newDir = inp.value.trim();
     if (!newDir) { status.textContent = '⚠️ 路径不能为空'; return; }
-    status.textContent = '保存中…';
+    status.textContent = '迁移数据中，请稍候…';
     try {
-      const res = await postJson('/api/studio-config', { data_dir: newDir });
+      const res = await postJson('/api/studio-config', { data_dir: newDir, migrate: true });
       if (res.ok) {
-        status.textContent = '✅ 已保存，重启后生效';
+        const n = (res.migrated || []).length;
+        const errs = (res.errors || []).length;
+        status.textContent = errs
+          ? `⚠️ 已迁移 ${n} 项，${errs} 项失败，重启后生效`
+          : `✅ 已迁移 ${n} 项数据，重启后生效`;
       } else {
         status.textContent = '❌ ' + (res.error || '保存失败');
       }

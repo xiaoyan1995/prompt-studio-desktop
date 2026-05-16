@@ -965,12 +965,29 @@ class Handler(SimpleHTTPRequestHandler):
             return self._handle_import_bundle()
         elif path == "/api/studio-config":
             cfg = _load_studio_config()
-            cfg["data_dir"] = str(DATA_DIR)
-            new_dir = body.get("data_dir", "").strip()
-            if new_dir:
-                cfg["data_dir"] = new_dir
+            new_dir_str = body.get("data_dir", "").strip()
+            if new_dir_str:
+                new_dir = Path(new_dir_str).resolve()
+                migrate = body.get("migrate", True)
+                migrated, errors = [], []
+                if migrate and new_dir != DATA_DIR:
+                    new_dir.mkdir(parents=True, exist_ok=True)
+                    for item in DATA_DIR.iterdir():
+                        dest = new_dir / item.name
+                        try:
+                            if item.is_dir():
+                                if dest.exists():
+                                    shutil.copytree(str(item), str(dest), dirs_exist_ok=True)
+                                else:
+                                    shutil.copytree(str(item), str(dest))
+                            else:
+                                shutil.copy2(str(item), str(dest))
+                            migrated.append(item.name)
+                        except Exception as e:
+                            errors.append(f"{item.name}: {e}")
+                cfg["data_dir"] = str(new_dir)
                 _STUDIO_CONFIG_FILE.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
-                self._json_resp({"ok": True, "saved": new_dir, "restart_required": True})
+                self._json_resp({"ok": True, "saved": str(new_dir), "migrated": migrated, "errors": errors, "restart_required": True})
             else:
                 self._json_resp({"ok": True, "data_dir": str(DATA_DIR), "config_file": str(_STUDIO_CONFIG_FILE)})
         elif path == "/api/install-ffmpeg":
