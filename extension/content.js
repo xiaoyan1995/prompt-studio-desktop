@@ -260,14 +260,72 @@
     try { return new URL(src, location.href).href; } catch { return null; }
   }
 
+  function cleanCdnUrl(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname;
+
+      // ── 小红书 xhscdn.com ──────────────────────────────────────────────
+      // https://sns-img-bd.xhscdn.com/abc?imageView2/2/w/300/format/webp
+      if (host.includes('xhscdn.com') || host.includes('xiaohongshu.com')) {
+        u.search = '';
+        return u.href;
+      }
+
+      // ── 微博 sinaimg.cn ────────────────────────────────────────────────
+      // /thumb180/ /thumb300/ /orj360/ /orj480/ → /large/
+      if (host.includes('sinaimg.cn') || host.includes('weibo.com')) {
+        u.pathname = u.pathname.replace(/\/(thumb\d+|orj\d+|woriginal|mw\d+)\//, '/large/');
+        u.search = '';
+        return u.href;
+      }
+
+      // ── B站 hdslb.com / biliimg.com ────────────────────────────────────
+      // image.jpg@200w_200h_1c.webp  →  image.jpg
+      if (host.includes('hdslb.com') || host.includes('biliimg.com') || host.includes('bilibili.com')) {
+        u.pathname = u.pathname.replace(/@[^/]*$/, '');
+        u.search = '';
+        return u.href;
+      }
+
+      // ── 抖音 / TikTok douyinpic.com ───────────────────────────────────
+      // ~tplv-dy-resize-originx:0:0:q75.jpeg  →  strip tplv suffix
+      if (host.includes('douyinpic.com') || host.includes('tiktokcdn.com') || host.includes('byteimg.com')) {
+        u.pathname = u.pathname.replace(/~tplv-[^.]+(\.[a-z]+)$/i, '$1');
+        u.search = '';
+        return u.href;
+      }
+
+      // ── 通用：去掉常见尺寸查询参数 ────────────────────────────────────
+      // ?w=300&h=300  ?width=400  ?size=small  ?imageView...  ?x-oss-process=...
+      const sizeParams = ['w','h','width','height','size','quality','q',
+                          'imageview','imagemogr','x-oss-process','x-image-process',
+                          'format','thumb','resize','crop','scale'];
+      let stripped = false;
+      sizeParams.forEach(p => {
+        if (u.searchParams.has(p)) { u.searchParams.delete(p); stripped = true; }
+      });
+      // If URL path has thumbnail indicators like /s/ /thumb/ /small/
+      const thumbPath = u.pathname.replace(/\/(s|sm|thumb|thumbnail|small|preview|mini|icon)(\/|_)/, '/');
+      if (thumbPath !== u.pathname) { u.pathname = thumbPath; stripped = true; }
+
+      return stripped ? u.href : url;
+    } catch {
+      return url;
+    }
+  }
+
   function scanPageImages() {
     const seen = new Set();
     const results = [];
     document.querySelectorAll('img').forEach(img => {
       if (img.naturalWidth < 2 || img.naturalHeight < 2) return;
-      const url = getBestUrl(img);
-      if (!url || seen.has(url)) return;
-      seen.add(url);
+      const raw = getBestUrl(img);
+      if (!raw) return;
+      const url = cleanCdnUrl(raw);
+      const key = url;
+      if (seen.has(key)) return;
+      seen.add(key);
       results.push({
         url,
         width:  img.naturalWidth,
