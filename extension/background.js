@@ -2,9 +2,55 @@
 
 const DEFAULT_SERVER = 'http://127.0.0.1:8767';
 const MEDIA_CACHE_LIMIT = 80;
+const IMAGE_CACHE_LIMIT = 500;
 const PLAYLIST_EXT_RE = /\.(m3u8|mpd)(?:[?#]|$)/i;
 const mediaByTab = new Map();
+const imagesByTab = new Map();
 const refererByRequest = new Map();
+
+const IMAGE_MIME_RE = /^image\/(jpeg|png|webp|gif|avif|svg\+xml|bmp)/i;
+const IMAGE_EXT_RE  = /\.(jpe?g|png|webp|gif|avif|svg|bmp)(?:[?#]|$)/i;
+
+function isImageResponse(data) {
+  if (!data.url || !data.url.startsWith('http')) return false;
+  const ct = headerValue(data.responseHeaders, 'content-type').split(';')[0].trim();
+  const size = parseInt(headerValue(data.responseHeaders, 'content-length') || '0', 10) || 0;
+  if (size > 0 && size < 2048) return false; // skip tiny icons/tracking pixels
+  return IMAGE_MIME_RE.test(ct) || IMAGE_EXT_RE.test(data.url);
+}
+
+function cleanImageCdnUrl(url) {
+  try {
+    const u = new URL(url);
+    const h = u.hostname;
+    if (h.includes('xhscdn.com') || h.includes('xiaohongshu.com')) { u.search = ''; return u.href; }
+    if (h.includes('sinaimg.cn') || h.includes('weibo.com')) {
+      u.pathname = u.pathname.replace(/\/(thumb\d+|orj\d+|woriginal|mw\d+)\//, '/large/');
+      u.search = ''; return u.href;
+    }
+    if (h.includes('hdslb.com') || h.includes('biliimg.com') || h.includes('bilibili.com')) {
+      u.pathname = u.pathname.replace(/@[^/]*$/, '');
+      u.search = ''; return u.href;
+    }
+    if (h.includes('douyinpic.com') || h.includes('tiktokcdn.com') || h.includes('byteimg.com')) {
+      u.pathname = u.pathname.replace(/~tplv-[^.]+(\.\w+)$/i, '$1');
+      u.search = ''; return u.href;
+    }
+    return url;
+  } catch { return url; }
+}
+
+function rememberImage(data) {
+  if (!isImageResponse(data)) return;
+  const tabId = data.tabId;
+  if (tabId == null || tabId < 0) return;
+  const url = cleanImageCdnUrl(data.url);
+  const size = parseInt(headerValue(data.responseHeaders, 'content-length') || '0', 10) || 0;
+  const list = imagesByTab.get(tabId) || [];
+  if (list.some(x => x.url === url)) return; // deduplicate
+  list.unshift({ url, size, time: Date.now() });
+  imagesByTab.set(tabId, list.slice(0, IMAGE_CACHE_LIMIT));
+}
 
 chrome.action.setBadgeText({ text: '' }, () => void chrome.runtime.lastError);
 
@@ -117,6 +163,7 @@ addWebRequestListener(chrome.webRequest.onSendHeaders, (data) => {
 
 addWebRequestListener(chrome.webRequest.onResponseStarted, (data) => {
   try { rememberMedia(data); } catch (e) { console.warn('Prompt Studio media sniff failed', e); }
+  try { rememberImage(data); } catch (e) {}
 }, { urls: ['<all_urls>'] }, ['responseHeaders', 'extraHeaders']);
 
 // Track the current URL for each tab (to detect SPA navigation)
@@ -124,6 +171,7 @@ const tabUrlMap = new Map();
 
 function clearTabMedia(tabId) {
   mediaByTab.delete(tabId);
+  imagesByTab.delete(tabId);
   chrome.storage.local.remove(`psc_media_${tabId}`, () => void chrome.runtime.lastError);
 }
 
@@ -242,6 +290,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     } else {
       openDialog({ mediaUrl: msg.mediaUrl, mediaType: msg.mediaType, mode: msg.mode, pageUrl, pageTitle, tabId, referer: msg.referer || pageUrl });
     }
+    return false;
+  }
+
+  if (msg.type === 'get-captured-images') {
+    const tabId = Number(msg.tabId || sender.tab?.id || -1);
+    const list = (imagesByTab.get(tabId) || []).map(({ url, size }) => ({ url, size }));
+    sendResponse({ images: list });
     return false;
   }
 

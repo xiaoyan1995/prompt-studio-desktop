@@ -136,16 +136,43 @@ document.getElementById('cScanBtn').addEventListener('click', async () => {
   document.getElementById('cGrid').style.display = 'none';
   document.getElementById('cScanning').style.display = '';
   cAllImages = []; cSelected.clear(); cUpdateStats();
+
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const resp = await chrome.tabs.sendMessage(tab.id, { type: 'scan-images' });
-    cAllImages = (resp?.images || []).map(img => ({ ...img, fmt: fmtFromUrl(img.url), visible: true }));
+
+    // 1. Get network-captured images (includes full-size clicked images)
+    const captured = await new Promise(resolve => {
+      chrome.runtime.sendMessage({ type: 'get-captured-images', tabId: tab.id }, r => resolve(r?.images || []));
+    });
+
+    // 2. Get DOM-scanned images (with CDN URL cleanup + dimension probe)
+    let domImages = [];
+    try {
+      const resp = await chrome.tabs.sendMessage(tab.id, { type: 'scan-images' });
+      domImages = resp?.images || [];
+    } catch {}
+
+    // 3. Merge: network-captured first (higher quality), then DOM fills gaps
+    const seen = new Set();
+    const merged = [];
+    captured.forEach(({ url, size }) => {
+      if (!url || seen.has(url)) return;
+      seen.add(url);
+      merged.push({ url, width: 0, height: 0, size, source: 'net', fmt: fmtFromUrl(url), visible: true });
+    });
+    domImages.forEach(img => {
+      if (!img.url || seen.has(img.url)) return;
+      seen.add(img.url);
+      merged.push({ ...img, source: 'dom', fmt: fmtFromUrl(img.url), visible: true });
+    });
+    cAllImages = merged;
   } catch(e) {
     document.getElementById('cScanning').style.display = 'none';
     document.getElementById('cEmpty').style.display = '';
     document.getElementById('cEmpty').textContent = '扫描失败，请刷新页面后重试';
     scanBtn.disabled = false; return;
   }
+
   document.getElementById('cScanning').style.display = 'none';
   if (cAllImages.length === 0) {
     document.getElementById('cEmpty').style.display = '';
