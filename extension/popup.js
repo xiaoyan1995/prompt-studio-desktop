@@ -40,6 +40,16 @@ document.getElementById('openSettingsBtn').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
+document.getElementById('batchCollectBtn').addEventListener('click', async () => {
+  // Remember which tab triggered the collect so collect.js knows where to scan
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id) {
+    await chrome.storage.session.set({ collectTabSource: tab.id }).catch(() => {});
+  }
+  chrome.tabs.create({ url: chrome.runtime.getURL('collect.html') });
+  window.close();
+});
+
 document.getElementById('startServerBtn').addEventListener('click', () => {
   // Trigger the desktop app protocol.
   chrome.tabs.create({ url: 'promptstudio-desktop://start' }, (tab) => {

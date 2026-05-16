@@ -42,7 +42,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["dialog.html", "result.html"],
+      "resources": ["dialog.html", "result.html", "collect.html", "collect.js"],
       "matches": ["<all_urls>"]
     }
   ]

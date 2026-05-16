@@ -221,7 +221,61 @@
       });
     }
     if (msg.type === 'psc-reverse-result') deliverResult(msg);
+    if (msg.type === 'scan-images') {
+      sendResponse({ images: scanPageImages() });
+      return true;
+    }
   });
+
+  // ── Batch Scan ────────────────────────────────────────────────────────────
+  function getBestUrl(img) {
+    // 1. srcset — pick highest declared width
+    const srcset = img.getAttribute('srcset') || img.getAttribute('data-srcset') || '';
+    if (srcset) {
+      const entries = srcset.split(',').map(s => s.trim().split(/\s+/)).filter(p => p[0]);
+      if (entries.length) {
+        entries.sort((a, b) => {
+          const wA = parseFloat((a[1] || '0').replace(/[wx]/i, '')) || 0;
+          const wB = parseFloat((b[1] || '0').replace(/[wx]/i, '')) || 0;
+          return wB - wA;
+        });
+        const best = entries[0][0];
+        try { return new URL(best, location.href).href; } catch {}
+      }
+    }
+    // 2. data-* lazy-load attributes (common frameworks)
+    const dataAttrs = ['data-src','data-original','data-lazy-src','data-full',
+                       'data-large','data-hi-res','data-image','data-url'];
+    for (const attr of dataAttrs) {
+      const v = img.getAttribute(attr);
+      if (v && v.startsWith('http')) return v;
+    }
+    // 3. currentSrc (respects srcset already chosen by browser)
+    if (img.currentSrc) {
+      try { return new URL(img.currentSrc, location.href).href; } catch {}
+    }
+    // 4. plain src
+    const src = img.getAttribute('src') || '';
+    if (!src) return null;
+    try { return new URL(src, location.href).href; } catch { return null; }
+  }
+
+  function scanPageImages() {
+    const seen = new Set();
+    const results = [];
+    document.querySelectorAll('img').forEach(img => {
+      if (img.naturalWidth < 2 || img.naturalHeight < 2) return;
+      const url = getBestUrl(img);
+      if (!url || seen.has(url)) return;
+      seen.add(url);
+      results.push({
+        url,
+        width:  img.naturalWidth,
+        height: img.naturalHeight,
+      });
+    });
+    return results;
+  }
 
   // ── Floating Reverse Card ─────────────────────────────────────────────────────
   let cardHost = null;
