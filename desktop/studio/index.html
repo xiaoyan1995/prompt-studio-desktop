@@ -1736,6 +1736,10 @@
         <label id="promptVideoUploadBtn" style="display:none;position:absolute;bottom:12px;left:50%;transform:translateX(-50%);cursor:pointer;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;white-space:nowrap;backdrop-filter:blur(4px)">
           📹 上传视频<input type="file" id="pmVideoFile" accept="video/*" style="display:none">
         </label>
+        <!-- Gallery strip (image type only) -->
+        <div id="pmGalleryStrip" style="display:none;flex-shrink:0;padding:6px 8px;background:rgba(0,0,0,.06);border-top:1px solid var(--border);overflow-x:auto;white-space:nowrap;min-height:66px">
+          <div id="pmGalleryThumbsRow" style="display:inline-flex;gap:6px;align-items:center;height:50px"></div><label style="display:inline-flex;align-items:center;justify-content:center;width:50px;height:50px;border:1.5px dashed var(--border);border-radius:8px;cursor:pointer;font-size:22px;color:var(--subtle);flex-shrink:0;vertical-align:middle;margin-left:4px" title="添加更多图片">+<input type="file" id="pmGalleryFile" accept="image/*" multiple style="display:none"></label>
+        </div>
         <!-- Full MD editor for Skills type -->
         <div id="mdFullEditor" style="display:none;flex:1;flex-direction:column;min-height:0;overflow:hidden">
           <div class="md-editor-header" style="flex-shrink:0;border-radius:0;border-top:none;border-left:none;border-right:none">
@@ -3170,6 +3174,8 @@
       const cardIcon = isImg ? '🖼️' : (isSkill ? '🤖' : '🎬');
       const cardLabelClass = isImg ? 'label-image' : (isSkill ? 'label-skill' : 'label-video');
       const cardLabelText = isImg ? '图片' : (isSkill ? 'Skills' : '视频');
+      const galleryCount = isImg && (p.gallery||[]).length > 0 ? p.gallery.length + 1 : 0;
+      const galleryBadge = galleryCount > 1 ? `<div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,.55);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;font-weight:700;backdrop-filter:blur(4px);pointer-events:none">×${galleryCount}</div>` : '';
       const thumbHtml = isSkill ? '' : (hasVid
         ? `<div class="video-preview-shell">
              <video class="card-thumb card-video-thumb" src="${h(p.video)}" preload="metadata" muted playsinline style="object-fit:cover;background:#0f1828"></video>
@@ -3179,7 +3185,7 @@
              </div>
            </div>`
         : hasImg
-          ? `<img class="card-thumb" src="${h(p.image)}" alt="${h(p.title)}" loading="lazy">`
+          ? `<div style="position:relative">${galleryBadge}<img class="card-thumb" src="${h(p.image)}" alt="${h(p.title)}" loading="lazy"></div>`
           : `<div class="card-thumb-placeholder">${cardIcon}</div>`);
       const modelChip = p.model ? `<span class="chip" style="font-size:10px">${h(p.model)}</span>` : '';
       const snip = (p.prompt||'').replace(/[#*`>~\-_]/g,'').replace(/\s+/g,' ').trim().slice(0, isSkill ? 200 : 80);
@@ -4274,6 +4280,11 @@
       document.getElementById('promptModalInner').classList.remove('modal-wide');
       document.getElementById('promptModalLeft').style.flex = '';
     }
+    // Gallery
+    pmGallery = item ? [...(item.gallery||[])] : [];
+    pmGalleryPending = [];
+    renderGalleryStrip();
+    document.getElementById('pmGalleryStrip').style.display = type === 'image' ? 'block' : 'none';
     // Load existing ref images
     pmRefImages = item ? [...(item.ref_images||[])] : [];
     renderRefGrid();
@@ -4392,6 +4403,63 @@
     pmVideoPath = '';
   });
 
+  // Gallery (image prompts)
+  let pmGallery = [];        // existing /uploads/... paths from item.gallery
+  let pmGalleryPending = []; // { file, dataUrl } newly added, not yet uploaded
+  function renderGalleryStrip() {
+    const row = document.getElementById('pmGalleryThumbsRow');
+    if (!row) return;
+    const all = [
+      ...pmGallery.map(src => ({ src, pending: false })),
+      ...pmGalleryPending.map(p => ({ src: p.dataUrl, pending: true })),
+    ];
+    row.innerHTML = all.map((img, i) => {
+      const isMain = img.src === pmImgDataUrl;
+      return `<div style="position:relative;display:inline-flex;flex-shrink:0" data-gi="${i}">
+        <img src="${h(img.src)}" data-gi="${i}" style="width:50px;height:50px;object-fit:cover;border-radius:7px;cursor:pointer;border:2px solid ${isMain ? 'var(--primary)' : 'transparent'};transition:.12s" title="点击设为主图">
+        <button data-rm-gi="${i}" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#c0392b;color:#fff;border:none;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1" title="移除">✕</button>
+      </div>`;
+    }).join('');
+    row.querySelectorAll('img[data-gi]').forEach(el => {
+      el.addEventListener('click', () => {
+        const i = parseInt(el.dataset.gi);
+        const newMain = i < pmGallery.length ? pmGallery[i] : pmGalleryPending[i - pmGallery.length].dataUrl;
+        if (newMain === pmImgDataUrl) return;
+        // swap: put old main back into gallery slot
+        if (i < pmGallery.length) pmGallery[i] = pmImgDataUrl;
+        else pmGalleryPending[i - pmGallery.length].dataUrl = pmImgDataUrl;
+        pmImgDataUrl = newMain; pmImgFile = null;
+        const imgEl = document.getElementById('promptModalImg');
+        const phEl  = document.getElementById('promptModalImgPh');
+        imgEl.src = pmImgDataUrl; imgEl.style.display = 'block'; phEl.style.display = 'none';
+        document.getElementById('pmImgPreview').src = pmImgDataUrl;
+        document.getElementById('pmImgPreview').style.display = 'block';
+        renderGalleryStrip();
+      });
+    });
+    row.querySelectorAll('[data-rm-gi]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const i = parseInt(btn.dataset.rmGi);
+        if (i < pmGallery.length) pmGallery.splice(i, 1);
+        else pmGalleryPending.splice(i - pmGallery.length, 1);
+        renderGalleryStrip();
+      });
+    });
+  }
+  document.getElementById('pmGalleryFile').addEventListener('change', async (e) => {
+    const files = [...e.target.files]; if (!files.length) return;
+    for (const file of files) {
+      await new Promise(res => {
+        const reader = new FileReader();
+        reader.onload = ev => { pmGalleryPending.push({ file, dataUrl: ev.target.result }); res(); };
+        reader.readAsDataURL(file);
+      });
+    }
+    renderGalleryStrip();
+    e.target.value = '';
+  });
+
   // Referenced media
   let pmRefImages = [];
   function renderRefGrid() {
@@ -4497,6 +4565,13 @@
       imgPath = await uploadImage(pmImgDataUrl, pmImgFile.name, projName);
     }
     pmImgFile = null;
+    // Upload gallery pending images
+    const projNameG = getProject(state.projectId)?.name || 'default';
+    const uploadedGallery = await Promise.all(pmGalleryPending.map(p =>
+      uploadImage(p.dataUrl, p.file?.name || 'gallery.jpg', projNameG)
+    ));
+    const galleryPaths = [...pmGallery.filter(s => !s.startsWith('data:')), ...uploadedGallery];
+    pmGalleryPending = [];
     const proj = getProject(state.projectId);
     const key = pmType === 'image' ? 'image_prompts' : (pmType === 'skill' ? 'skill_prompts' : 'video_prompts');
     proj[key] = proj[key] || [];
@@ -4530,10 +4605,10 @@
         const scene_prompt  = document.getElementById('pmScenePrompt').value  || proj[key][idx].scene_prompt  || '';
         const style_prompt  = document.getElementById('pmStylePrompt').value  || proj[key][idx].style_prompt  || '';
         const cam_prompt    = document.getElementById('pmCamPrompt').value    || proj[key][idx].cam_prompt    || '';
-        proj[key][idx] = { ...proj[key][idx], title, prompt, model, aspect, tags:[...pmTags], image:imgPath, video:videoPath, ref_images:refPaths, analysis, outfit_prompt, char_prompt, scene_prompt, style_prompt, cam_prompt, updated_at:new Date().toISOString() };
+        proj[key][idx] = { ...proj[key][idx], title, prompt, model, aspect, tags:[...pmTags], image:imgPath, gallery:galleryPaths, video:videoPath, ref_images:refPaths, analysis, outfit_prompt, char_prompt, scene_prompt, style_prompt, cam_prompt, updated_at:new Date().toISOString() };
       }
     } else {
-      proj[key].unshift({ id:uid(), title, prompt, model, aspect, tags:[...pmTags], image:imgPath, video:videoPath, ref_images:refPaths, analysis:'', outfit_prompt:'', char_prompt:'', scene_prompt:'', style_prompt:'', cam_prompt:'', created_at:new Date().toISOString() });
+      proj[key].unshift({ id:uid(), title, prompt, model, aspect, tags:[...pmTags], image:imgPath, gallery:galleryPaths, video:videoPath, ref_images:refPaths, analysis:'', outfit_prompt:'', char_prompt:'', scene_prompt:'', style_prompt:'', cam_prompt:'', created_at:new Date().toISOString() });
     }
     const ok = await saveData(data);
     document.getElementById('pmSaveBtn').disabled = false;
