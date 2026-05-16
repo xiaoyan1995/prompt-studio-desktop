@@ -370,6 +370,36 @@
       });
     });
 
+    // 3. CSS background-image
+    try {
+      const bgUrlRe = /url\(["']?(https?:\/\/[^"')]+)["']?\)/gi;
+      document.querySelectorAll('*').forEach(el => {
+        try {
+          const bg = getComputedStyle(el).backgroundImage;
+          if (!bg || !bg.includes('url(')) return;
+          let m;
+          while ((m = bgUrlRe.exec(bg))) {
+            if (/\.(jpe?g|png|webp|gif|avif|bmp)([?#]|$)/i.test(m[1])) {
+              addEntry(m[1], 0, 0);
+            }
+          }
+        } catch {}
+      });
+    } catch {}
+
+    // 4. Hard-coded URLs in page HTML/JS source (finds full-size URLs in XHS/Weibo JSON data)
+    try {
+      const content = (document.documentElement?.innerHTML || '') + '\n\n' + document.body?.textContent;
+      const urlRe = /\b(https?:\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/ig;
+      const urls = content.match(urlRe) || [];
+      for (const raw of urls) {
+        const url = raw.replace(/&amp;/g, '&').replace(/\\+$/, '').split(/['")]/)[0].split('</')[0];
+        if (/\.(jpe?g|png|webp|gif|avif|bmp)([?#]|$)/i.test(url)) {
+          addEntry(url, 0, 0);
+        }
+      }
+    } catch {}
+
     // Return all items — probing for 0×0 items will be done by background.js
     return draft;
   }
