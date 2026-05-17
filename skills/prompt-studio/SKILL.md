@@ -62,7 +62,7 @@ await fetch('http://localhost:8767/api/cli/push', {
 
 ## Document library (文档库)
 
-Supported file types: **PDF · Word (.docx) · Excel (.xlsx/.xls) · TXT · Markdown (.md) · CSV**
+Supported file types: **PDF · Word (.docx/.doc) · Excel (.xlsx/.xls) · PowerPoint (.pptx/.ppt) · TXT · Markdown (.md) · CSV · RTF · ODT/ODS/ODP · HTML**
 
 ```js
 // List docs in a project
