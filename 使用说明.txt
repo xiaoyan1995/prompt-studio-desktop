@@ -1,11 +1,11 @@
 ═══════════════════════════════════════════════════
-  Prompt Studio Desktop  v1.0.8  使用说明
+  Prompt Studio Desktop  v1.1.0  使用说明
 ═══════════════════════════════════════════════════
 
 【目录结构】
   解压后目录结构如下：
 
-  📁 Prompt Studio Desktop-1.0.8-win/
+  📁 Prompt Studio Desktop-1.1.0-win/
   ├── � Prompt Studio Desktop.exe  ← 双击运行
   ├── � extension/                 ← 浏览器插件
   ├── 📁 skills/                    ← Agent Skills
@@ -55,6 +55,15 @@
      位置是否与「Prompt Studio Desktop」文件夹同级。
 
 ──────────────────────────────────────────────────
+
+【音效库使用】
+  进入项目 → 音效库，链接本地音效文件夹后：
+  · 点击 ▶ 播放音效，点击卡片其他区域选中文件
+  · Ctrl+点击 追加多选；空白处拖动鼠标 框选多个
+  · 拖拽选中的卡片到 DAW / 文件管理器（原生拖拽）
+  · 标题栏 📌 按钮可将窗口置顶，方便边看边拖
+  · 「翻译音效名」按钮调用 LLM 自动翻译为中文
+    （需在「设置 → 文本 LLM」填写 API 配置）
 
 【Agent Skills 使用】
   skills/prompt-studio/ 目录是给 AI agent 用的技能文件。

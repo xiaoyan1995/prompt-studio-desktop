@@ -4,7 +4,7 @@
 
 **A local desktop app for managing AI image & video prompts — with a companion browser extension.**
 
-[![Version](https://img.shields.io/badge/version-1.0.8-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
 [![Build](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)](#build)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -34,6 +34,14 @@
 - 🤝 **Agent / CLI integration** — full HTTP API for external agents to read & write prompts, push AI-generated images and videos
 
 ## 📋 Changelog
+
+### v1.1.0
+- **Audio library — native drag-out**: drag any audio card directly to a DAW or file manager; no browser drag conflicts
+- **Audio multi-select**: click to select a card, Ctrl+click to add, rubber-band drag on empty space to select multiple
+- **Batch drag**: dragging a selected card exports all selected files in one drop
+- **Window pin (always-on-top)**: 📌 button in title bar keeps Prompt Studio floating above your DAW while you browse and drag sound effects
+- **Dedicated Text LLM settings**: separate API Base / Key / Model for audio-name translation (Settings → 文本 LLM), with connection test button
+- **Smarter translation**: 3 concurrent batches, cancel button mid-run, auto-appends `/v1` for LM Studio and other local LLMs, detailed error feedback
 
 ### v1.0.8
 - Image gallery strip — multiple generated images per prompt, click to select main
@@ -114,8 +122,8 @@ Builds are **automated via GitHub Actions** — every push to `main` produces Wi
 
 ```bash
 # Trigger a release
-git tag v1.0.8
-git push origin v1.0.8
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 <details>

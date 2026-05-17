@@ -1,4 +1,4 @@
-# Prompt Studio Desktop v1.0.8 发布包说明
+# Prompt Studio Desktop v1.1.0 发布包说明
 
 ## 插件是否通用
 
@@ -10,16 +10,16 @@ Safari 需要单独转换为 Safari Web Extension，不是同一个安装包。
 
 优先使用安装包：
 
-- `Prompt Studio Desktop Setup 1.0.8.exe`
+- `Prompt Studio Desktop Setup 1.1.0.exe`
 
 便携版（推荐）：
 
-- `Prompt Studio Desktop-1.0.8-win.zip`
+- `Prompt Studio Desktop-1.1.0-win.zip`
 
 解压后目录结构如下：
 
 ```
-Prompt Studio Desktop-1.0.8-win/
+Prompt Studio Desktop-1.1.0-win/
 ├── Prompt Studio Desktop.exe   ← 双击运行
 ├── extension/                   ← 浏览器插件
 └── skills/                      ← Agent Skills

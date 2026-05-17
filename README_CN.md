@@ -4,7 +4,7 @@
 
 **本地桌面端 AI 图片 & 视频提示词管理工具，配套浏览器插件。**
 
-[![版本](https://img.shields.io/badge/版本-1.0.8-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![版本](https://img.shields.io/badge/版本-1.1.0-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
 [![构建](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml)
 [![平台](https://img.shields.io/badge/平台-Windows%20%7C%20macOS-lightgrey.svg)](#打包说明)
 [![Electron](https://img.shields.io/badge/Electron-37-47848F.svg)](https://www.electronjs.org/)
@@ -34,7 +34,15 @@
 
 ---
 
-## � 版本记录
+## 🗒️ 版本记录
+
+### v1.1.0
+- **音效库拖拽导出**：直接将音效卡片拖拽到 DAW 或文件管理器，使用系统原生拖拽，不受浏览器 drag 限制
+- **多选功能**：点击卡片选中，Ctrl+点击追加选中，在空白处拖动鼠标框选多个文件
+- **批量拖拽**：拖拽选中的卡片可一次性将所有选中文件拖出到目标应用
+- **窗口置顶**：标题栏新增 📌 置顶按钮，开启后 Prompt Studio 始终浮在其他应用（如 DAW）上方，方便边浏览边拖拽
+- **独立文本 LLM 配置**：设置新增「文本 LLM」页，单独配置音效名翻译用的 API Base / Key / Model，含连接测试按钮
+- **更智能的翻译**：3 路并发批量翻译、支持中途取消、本地 LLM（LM Studio 等）自动补全 `/v1`、详细错误提示
 
 ### v1.0.8
 - 图片画廊条 — 每条提示词支持多张生成图，点击缩略图设为主图
@@ -117,8 +125,8 @@ dev-start.bat
 
 ```bash
 # 发布新版本
-git tag v1.0.8
-git push origin v1.0.8
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 <details>
