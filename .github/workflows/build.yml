@@ -14,7 +14,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - uses: actions/setup-python@v5
         with:
@@ -34,7 +34,8 @@ jobs:
       - name: Build Electron (Windows)
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
-        run: npm run build:win
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish never && node scripts/pack-win.js
         working-directory: desktop
 
       - name: Upload Windows artifact
@@ -53,7 +54,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - uses: actions/setup-python@v5
         with:
