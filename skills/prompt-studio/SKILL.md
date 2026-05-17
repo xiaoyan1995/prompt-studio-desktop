@@ -11,8 +11,8 @@ Local prompt manager running at `http://localhost:8767`. No auth required.
 
 | What you want to do | HTTP call |
 |---|---|
-| List projects | `GET /api/cli/projects` |
-| List prompts in a project | `GET /api/cli/prompts?project=X&type=skill` |
+| List projects (with item counts) | `GET /api/cli/projects` |
+| List prompts in a project | `GET /api/cli/prompts?project=X&type=skill&limit=50` |
 | Get full prompt (by id) | `GET /api/cli/prompt?id=abc123` |
 | Get only the prompt text | `GET /api/cli/prompt?id=abc123` → read `item.prompt` |
 | Full-text search | `GET /api/cli/search?q=关键词&type=image` |
@@ -86,10 +86,19 @@ const { items } = await fetch('http://localhost:8767/api/cli/audio/files?project
 2. Get full content: `GET /api/cli/prompt?id=<id>`
 3. Extract field: add `?id=<id>` → read `item.prompt`, `item.analysis`, etc.
 
-### List everything in a project
+### Get project overview (counts without fetching all items)
 ```
-GET /api/cli/prompts?project=<name>&type=skill
+GET /api/cli/projects
 ```
+Returns each project with `skill_count`, `image_count`, `video_count` — **use this first** to see how many items exist before deciding whether to fetch them.
+
+### List items in a project
+```
+GET /api/cli/prompts?project=<name>&type=skill&limit=50
+GET /api/cli/prompts?project=<name>&type=image&limit=50
+GET /api/cli/prompts?project=<name>&type=video&limit=50
+```
+Always pass `limit` (default 200). For large libraries use `limit=20` and paginate via search.
 
 ### Download an image / video
 ```

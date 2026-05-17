@@ -762,6 +762,15 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        try:
+            self._do_GET_inner()
+        except Exception as exc:
+            try:
+                self._err(500, f"Server error: {exc}")
+            except Exception:
+                pass
+
+    def _do_GET_inner(self):
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query or "")
@@ -787,7 +796,12 @@ class Handler(SimpleHTTPRequestHandler):
             self._json_resp({"ok": True, "snapshots": _snapshot_manifest()})
         elif path == "/api/cli/projects":
             data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-            projs = [{"id": p["id"], "name": p["name"]} for p in data.get("projects", [])]
+            projs = [{
+                "id": p["id"], "name": p["name"],
+                "skill_count": len(p.get("skill_prompts", [])),
+                "image_count": len(p.get("image_prompts", [])),
+                "video_count": len(p.get("video_prompts", [])),
+            } for p in data.get("projects", [])]
             self._json_resp({"ok": True, "projects": projs})
         elif path == "/api/cli/prompts":
             self._handle_cli_list(query)
