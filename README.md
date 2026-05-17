@@ -16,6 +16,52 @@
 
 ---
 
+## 🖼️ Screenshots
+
+<div align="center">
+
+### Image Prompts · Card Grid + Live Inspector
+
+<img src="docs/screenshots/main.png" alt="Image prompts main view" width="760">
+
+<br><br>
+
+### Prompt Detail & Multi-Image Gallery · Audio Library Waveform Preview
+
+<table>
+<tr>
+<td align="center" width="50%">
+  <img src="docs/screenshots/detail.png" alt="Prompt detail modal" width="360"><br>
+  <sub>📝 Prompt Detail — large preview · reference image · gallery strip · AI reverse-prompt</sub>
+</td>
+<td align="center" width="50%">
+  <img src="docs/screenshots/audio.png" alt="Audio library" width="360"><br>
+  <sub>🎵 Audio Library — live waveform · folder browse · star · drag to DAW</sub>
+</td>
+</tr>
+</table>
+
+<br>
+
+### Document Library · Browser Extension
+
+<table>
+<tr>
+<td align="center" width="50%">
+  <img src="docs/screenshots/docs.png" alt="Document library" width="360"><br>
+  <sub>📚 Document Library — PDF / Word / Excel / PPT / Markdown multi-format preview</sub>
+</td>
+<td align="center" width="50%">
+  <img src="docs/screenshots/extension.png" alt="Browser extension" width="260"><br>
+  <sub>🌐 Browser Extension — send media from any page to the desktop app instantly</sub>
+</td>
+</tr>
+</table>
+
+</div>
+
+---
+
 ## ✨ Features
 
 - 📁 **Project-based organization** — group image & video prompts by project

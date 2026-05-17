@@ -1739,6 +1739,14 @@
         <!-- ── 资源工具 ──────────────────────────── -->
         <div id="settingsSec-tools" style="display:none;flex-direction:column;gap:14px">
           <div class="ops-panel">
+            <h3>🌐 界面语言 / Interface Language</h3>
+            <div class="hint">切换软件界面语言 · Switch the application interface language</div>
+            <div style="display:flex;gap:8px;margin-top:4px">
+              <button id="langBtnCN" class="btn btn-primary btn-sm">🇨🇳 中文</button>
+              <button id="langBtnEN" class="btn btn-secondary btn-sm">🇬🇧 English</button>
+            </div>
+          </div>
+          <div class="ops-panel">
             <h3>📁 数据存储目录</h3>
             <div class="hint">data.json、uploads、exports 等都保存在这里。保存时会自动将现有数据复制到新目录，重启后生效。</div>
             <div class="field"><label>当前路径</label><div style="display:flex;gap:6px"><input id="dataDirInput" placeholder="加载中…" spellcheck="false" style="flex:1"><button class="btn btn-secondary btn-sm" id="browseDataDirBtn" style="white-space:nowrap">浏览…</button></div></div>
@@ -2267,6 +2275,35 @@
       if (res.ok && res.path) return res.path;
     } catch {}
     return dataUrl;
+  }
+
+  // ── i18n ────────────────────────────────────────────────────────────────
+  let _lang = localStorage.getItem('ps_lang') || 'cn';
+  function t(cn, en) { return _lang === 'en' ? en : cn; }
+  function applyLangStatic() {
+    const patches = [
+      ['#desktopSettingsBtn',    '设置',          'Settings'],
+      ['#exportProjectBtn',      '📦 导出项目',   '📦 Export'],
+      ['#importProjectBtn',      '📥 导入项目',   '📥 Import'],
+      ['#importSkillFolderBtn',  '📂 导入文件夹', '📂 Import Folder'],
+      ['#newAssetFolderBtn',     '📁 新建文件夹', '📁 New Folder'],
+      ['#audioTranslateBtn',     '🌐 翻译音效名', '🌐 Translate Names'],
+      ['button[data-sec="settings"]', 'API 配置', 'API Config'],
+      ['button[data-sec="llm"]',      '文本 LLM',  'Text LLM'],
+      ['button[data-sec="tools"]',    '增强功能',  'Tools'],
+    ];
+    patches.forEach(([sel, cn, en]) => {
+      const el = document.querySelector(sel);
+      if (el) el.textContent = t(cn, en);
+    });
+    const si = document.getElementById('searchInput');
+    if (si) si.placeholder = t('搜索…', 'Search…');
+    const sfb = document.getElementById('starFilterBtn');
+    if (sfb) { const on = sfb.classList.contains('on'); sfb.textContent = on ? t('★ 星标', '★ Starred') : t('☆ 星标', '☆ Starred'); }
+    const btnCN = document.getElementById('langBtnCN');
+    const btnEN = document.getElementById('langBtnEN');
+    if (btnCN) btnCN.className = _lang === 'cn' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    if (btnEN) btnEN.className = _lang === 'en' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
   }
 
   let data = {projects:[]};  // populated in boot
@@ -3181,35 +3218,35 @@
       info.classList.remove('show');
       nav.innerHTML = `
         <div class="nav-item active" data-view="projects">
-          <span class="nav-icon">🗂️</span><span class="nav-label">所有项目</span><span class="nav-badge"></span>
+          <span class="nav-icon">🗂️</span><span class="nav-label">${t('所有项目','All Projects')}</span><span class="nav-badge"></span>
         </div>
       `;
     } else {
       const proj = getProject(state.projectId);
       info.classList.add('show');
-      projName.innerHTML = proj ? `<span style="cursor:pointer;color:var(--primary);font-size:11px;font-weight:600" id="editProjNameBtn">✏️ 编辑项目名称</span>` : '';
+      projName.innerHTML = proj ? `<span style="cursor:pointer;color:var(--primary);font-size:11px;font-weight:600" id="editProjNameBtn">✏️ ${t('编辑项目名称','Edit Name')}</span>` : '';
       projSub.textContent = '';
       const epb = document.getElementById('editProjNameBtn');
       if (epb) epb.onclick = () => openProjModal(state.projectId);
       nav.innerHTML = `
         <div class="nav-item ${state.view==='image_prompts'?'active':''}" data-view="image_prompts">
-          <span class="nav-icon">🖼️</span><span class="nav-label">图片提示词</span>
+          <span class="nav-icon">🖼️</span><span class="nav-label">${t('图片提示词','Image Prompts')}</span>
           <span class="nav-badge">${(proj?.image_prompts||[]).length}</span>
         </div>
         <div class="nav-item ${state.view==='video_prompts'?'active':''}" data-view="video_prompts">
-          <span class="nav-icon">🎬</span><span class="nav-label">视频提示词</span>
+          <span class="nav-icon">🎬</span><span class="nav-label">${t('视频提示词','Video Prompts')}</span>
           <span class="nav-badge">${(proj?.video_prompts||[]).length}</span>
         </div>
         <div class="nav-item ${(state.view==='skill_prompts'||state.view==='skill_folder')?'active':''}" data-view="skill_prompts">
-          <span class="nav-icon">🤖</span><span class="nav-label">Skills 提示词</span>
+          <span class="nav-icon">🤖</span><span class="nav-label">${t('Skills 提示词','Skills / Agents')}</span>
           <span class="nav-badge">${(proj?.skill_prompts||[]).length}</span>
         </div>
         <div class="nav-item ${state.view==='pdf_files'?'active':''}" data-view="pdf_files">
-          <span class="nav-icon">📄</span><span class="nav-label">文档库</span>
+          <span class="nav-icon">📄</span><span class="nav-label">${t('文档库','Documents')}</span>
           <span class="nav-badge">${(proj?.pdf_files||[]).length}</span>
         </div>
         <div class="nav-item ${state.view==='audio_library'?'active':''}" data-view="audio_library">
-          <span class="nav-icon">🎵</span><span class="nav-label">音效库</span>
+          <span class="nav-icon">🎵</span><span class="nav-label">${t('音效库','Audio Library')}</span>
           <span class="nav-badge">${(proj?.audio_folders||[]).length}</span>
         </div>
       `;
@@ -3238,9 +3275,9 @@
     document.getElementById('exportProjectBtn').style.display = state.view === 'projects' ? 'none' : '';
     document.getElementById('importProjectBtn').style.display = state.view === 'projects' ? '' : 'none';
     if (state.view === 'projects') {
-      document.getElementById('pageTitle').textContent = '项目管理';
-      document.getElementById('pageSubtitle').textContent = '管理你的项目库与资产规模';
-      document.getElementById('primaryBtn').textContent = '新建项目';
+      document.getElementById('pageTitle').textContent = t('项目管理','Projects');
+      document.getElementById('pageSubtitle').textContent = t('管理你的项目库与资产规模','Manage your projects and assets');
+      document.getElementById('primaryBtn').textContent = t('新建项目','New Project');
       document.getElementById('primaryBtn').onclick = () => openProjModal(null);
       renderProjects(q);
     } else if (state.view === 'audio_library') {
@@ -3248,14 +3285,14 @@
       document.getElementById('catBar').style.display = 'none';
       if (state.audioFolderId) {
         const folder = (proj?.audio_folders||[]).find(f => f.id === state.audioFolderId);
-        document.getElementById('pageTitle').textContent = folder?.name || '音效库';
-        document.getElementById('pageSubtitle').textContent = `${proj?.name||''} · 音效库 › ${folder?.name||''}`;
-        document.getElementById('primaryBtn').textContent = '← 返回';
+        document.getElementById('pageTitle').textContent = folder?.name || t('音效库','Audio Library');
+        document.getElementById('pageSubtitle').textContent = `${proj?.name||''} · ${t('音效库','Audio Library')} › ${folder?.name||''}`;
+        document.getElementById('primaryBtn').textContent = t('← 返回','← Back');
         document.getElementById('primaryBtn').onclick = () => { state.audioFolderId = null; state.audioSubPath = ''; renderPage(); };
       } else {
-        document.getElementById('pageTitle').textContent = '音效库';
-        document.getElementById('pageSubtitle').textContent = `${proj?.name||''} · 音效库`;
-        document.getElementById('primaryBtn').textContent = '📁 添加文件夹';
+        document.getElementById('pageTitle').textContent = t('音效库','Audio Library');
+        document.getElementById('pageSubtitle').textContent = `${proj?.name||''} · ${t('音效库','Audio Library')}`;
+        document.getElementById('primaryBtn').textContent = t('📁 添加文件夹','📁 Add Folder');
         document.getElementById('primaryBtn').onclick = async () => {
           const folderPath = await window.electronAPI?.pickFolder?.();
           if (!folderPath) return;
@@ -3267,15 +3304,16 @@
         };
       }
       renderAudioGrid(proj);
+      applyLangStatic();
       return;
     } else if (state.view === 'skill_folder') {
       const proj = getProject(state.projectId);
       const folder = (proj?.skill_prompts||[]).find(p => p.id === state.skillFolderId);
       const path = state.skillFolderPath || [];
-      const breadcrumb = [folder?.title || '文件夹', ...path].join(' › ');
-      document.getElementById('pageTitle').textContent = path.length ? path[path.length - 1] : (folder?.title || '文件夹');
+      const breadcrumb = [folder?.title || t('文件夹','Folder'), ...path].join(' › ');
+      document.getElementById('pageTitle').textContent = path.length ? path[path.length - 1] : (folder?.title || t('文件夹','Folder'));
       document.getElementById('pageSubtitle').textContent = `${proj?.name || ''} · Skills › ${breadcrumb}`;
-      document.getElementById('primaryBtn').textContent = '← 返回';
+      document.getElementById('primaryBtn').textContent = t('← 返回','← Back');
       document.getElementById('primaryBtn').onclick = () => {
         if (path.length > 0) navigateSkillFolder(state.skillFolderId, path.slice(0, -1));
         else navigate('skill_prompts', state.projectId);
@@ -3283,6 +3321,7 @@
       document.getElementById('catBar').style.display = 'none';
       renderSkillFolderPage(folder, path, q);
       updateBatchBar();
+      applyLangStatic();
       return;
     } else {
       const proj = getProject(state.projectId);
@@ -3290,38 +3329,41 @@
       const isSkill = state.view === 'skill_prompts';
       const isAll = state.view === 'all_assets';
       const isPdf = state.view === 'pdf_files';
-      const pageTitle = isPdf ? '文档库' : (isAll ? '全部资产' : (isImg ? '图片提示词' : (isSkill ? 'Skills / Agent 提示词' : '视频提示词')));
+      const pageTitle = isPdf ? t('文档库','Documents') : (isAll ? t('全部资产','All Assets') : (isImg ? t('图片提示词','Image Prompts') : (isSkill ? t('Skills / Agent 提示词','Skills / Agents') : t('视频提示词','Video Prompts'))));
       const folder = (uiState.smartFolders || []).find(f => f.id === uiState.smartFolderId);
-      const pageSub = isPdf ? '文档' : (isAll ? '资产' : (isImg ? '图像' : (isSkill ? 'Skills' : '视频')));
+      const pageSub = isPdf ? t('文档','Doc') : (isAll ? t('资产','Asset') : (isImg ? t('图像','Image') : (isSkill ? 'Skill' : t('视频','Video'))));
       const promptType = isImg ? 'image' : (isSkill ? 'skill' : 'video');
       const assetFolder = state.folderFilter ? (proj?.[state.view]||[]).find(p => p.id === state.folderFilter) : null;
       if (assetFolder) {
-        document.getElementById('pageTitle').textContent = assetFolder.title || '文件夹';
-        document.getElementById('pageSubtitle').textContent = `${proj?.name || ''} · ${pageTitle} › ${assetFolder.title || '文件夹'}`;
-        document.getElementById('primaryBtn').textContent = '← 返回';
+        document.getElementById('pageTitle').textContent = assetFolder.title || t('文件夹','Folder');
+        document.getElementById('pageSubtitle').textContent = `${proj?.name || ''} · ${pageTitle} › ${assetFolder.title || t('文件夹','Folder')}`;
+        document.getElementById('primaryBtn').textContent = t('← 返回','← Back');
         document.getElementById('primaryBtn').onclick = () => { state.folderFilter = null; renderPage(); syncToolbarControls(); };
         const _cb = document.getElementById('catBar');
         _cb.style.display = 'flex';
-        const _folderTypeLabel = isImg ? '图片' : (state.view === 'pdf_files' ? '文档' : '视频');
-        _cb.innerHTML = `<span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)">📁 ${h(assetFolder.title)}</span><span style="margin-left:auto;font-size:11px;color:var(--subtle)">${_folderTypeLabel}文件夹</span>`;
+        const _folderTypeLabel = isImg ? t('图片','Image') : (state.view === 'pdf_files' ? t('文档','Doc') : t('视频','Video'));
+        _cb.innerHTML = `<span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)">📁 ${h(assetFolder.title)}</span><span style="margin-left:auto;font-size:11px;color:var(--subtle)">${_folderTypeLabel} ${t('文件夹','Folder')}</span>`;
       } else {
         document.getElementById('pageTitle').textContent = pageTitle;
-        const folderText = folder ? ` · 智能文件夹：${folder.name}` : '';
-        document.getElementById('pageSubtitle').textContent = proj ? `${proj.name} 的${pageSub}${isPdf ? '' : '提示词库' + folderText}` : '';
+        const folderText = folder ? ` · ${t('智能文件夹：','Smart Folder: ')}${folder.name}` : '';
+        document.getElementById('pageSubtitle').textContent = proj
+          ? (_lang === 'en' ? `${proj.name} · ${pageTitle}${folderText}` : `${proj.name} 的${pageSub}${isPdf ? '' : '提示词库' + folderText}`)
+          : '';
         if (isPdf) {
-          document.getElementById('primaryBtn').textContent = '上传文档';
+          document.getElementById('primaryBtn').textContent = t('上传文档','Upload Doc');
           document.getElementById('primaryBtn').onclick = () => document.getElementById('pdfUploadInput')?.click();
         } else if (isAll) {
-          document.getElementById('primaryBtn').textContent = '新建';
+          document.getElementById('primaryBtn').textContent = t('新建','New');
           document.getElementById('primaryBtn').onclick = () => openPromptModal(null, 'image');
         } else {
-          document.getElementById('primaryBtn').textContent = `新建${pageSub}`;
+          document.getElementById('primaryBtn').textContent = _lang === 'en' ? `New ${pageSub}` : `新建${pageSub}`;
           document.getElementById('primaryBtn').onclick = isSkill ? () => openSkillPanel(null) : () => openPromptModal(null, promptType);
         }
       }
       renderPrompts(q);
     }
     updateBatchBar();
+    applyLangStatic();
   }
 
   // ── Projects ───────────────────────────────────────────────────────────
@@ -4786,6 +4828,15 @@
   themeBtn.onclick = () => {
     document.body.classList.toggle('dark');
     localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+  };
+
+  document.getElementById('langBtnCN').onclick = () => {
+    _lang = 'cn'; localStorage.setItem('ps_lang', 'cn');
+    renderSidebar(); renderPage();
+  };
+  document.getElementById('langBtnEN').onclick = () => {
+    _lang = 'en'; localStorage.setItem('ps_lang', 'en');
+    renderSidebar(); renderPage();
   };
 
   document.getElementById('desktopSettingsBtn').onclick = () => openDesktopSettings('settings');

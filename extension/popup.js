@@ -1,6 +1,106 @@
 ﻿// popup.js
 const DEFAULT_SERVER = 'http://127.0.0.1:8767';
 
+// ── i18n ─────────────────────────────────────────────────────────────────────
+let _extLang = 'cn';
+const EXT_STRINGS = {
+  cn: {
+    header_sub: '右键图片/视频使用完整功能',
+    checking: '正在检查服务器…',
+    block_title: '屏蔽此网站工具栏',
+    quick_actions: '快捷操作',
+    open_studio: '打开桌面端',
+    batch_collect: '批量采集图片',
+    collect_sub: '扫描 · 筛选 · 批量保存',
+    fmt: '格式', size: '尺寸', all: '全部', other: '其他',
+    min_w: '最小宽', min_h: '最小高',
+    sel_all: '全选', sel_none: '取消',
+    loading_proj: '⏳ 加载项目…',
+    scan: '🔍 扫描',
+    total_pre: '共', total_suf: '张',
+    filtered_pre: '筛选', filtered_suf: '张',
+    selected_pre: '已选', selected_suf: '张',
+    scan_hint: '点击「扫描」获取页面图片',
+    scanning: '扫描中…',
+    no_result: '当前筛选无结果',
+    gallery_mode: '合并到同一卡片',
+    gallery_mode_tip: '勾选：所有图片合并到一张卡片的画廊\n取消：每张图片单独创建一张卡片',
+    send_btn: '💾 发送到 Prompt Studio',
+    ext_settings: '插件设置',
+    ext_settings_sub: '连接 · 黑名单',
+    how_to_use: '使用方法',
+    usage_html: '在任意网页上 <strong style="color:var(--text)">右键点击图片或视频</strong>，选择：<br>・💾 <strong style="color:var(--text)">保存到桌面端</strong><br>・✨ <strong style="color:var(--text)">反推提示词</strong> → AI 自动分析并生成',
+    wake_studio: '唤起桌面端',
+    refresh: '刷新状态',
+    server_ok: (n) => `✅ 服务器运行中 · ${n} 个项目`,
+    server_err: '❌ 桌面端未运行',
+  },
+  en: {
+    header_sub: 'Right-click any image/video for full features',
+    checking: 'Checking server…',
+    block_title: 'Block toolbar on this site',
+    quick_actions: 'Quick Actions',
+    open_studio: 'Open Desktop App',
+    batch_collect: 'Batch Collect Images',
+    collect_sub: 'Scan · Filter · Save All',
+    fmt: 'Format', size: 'Size', all: 'All', other: 'Other',
+    min_w: 'Min W', min_h: 'Min H',
+    sel_all: 'All', sel_none: 'None',
+    loading_proj: '⏳ Loading projects…',
+    scan: '🔍 Scan',
+    total_pre: 'Total', total_suf: '',
+    filtered_pre: 'Filtered', filtered_suf: '',
+    selected_pre: 'Selected', selected_suf: '',
+    scan_hint: 'Click "Scan" to get images on this page',
+    scanning: 'Scanning…',
+    no_result: 'No results for current filter',
+    gallery_mode: 'Merge into one card',
+    gallery_mode_tip: 'Checked: all images merged into one card gallery\nUnchecked: create one card per image',
+    send_btn: '💾 Send to Prompt Studio',
+    ext_settings: 'Extension Settings',
+    ext_settings_sub: 'Connection · Blocklist',
+    how_to_use: 'How to Use',
+    usage_html: 'On any webpage, <strong style="color:var(--text)">right-click an image or video</strong> and choose:<br>・💾 <strong style="color:var(--text)">Save to Desktop</strong><br>・✨ <strong style="color:var(--text)">Reverse Prompt</strong> → AI auto-analyzes and generates',
+    wake_studio: 'Launch Desktop App',
+    refresh: 'Refresh',
+    server_ok: (n) => `✅ Server running · ${n} projects`,
+    server_err: '❌ Desktop app not running',
+  }
+};
+function et(key, ...args) {
+  const s = EXT_STRINGS[_extLang] || EXT_STRINGS.cn;
+  const v = s[key];
+  return typeof v === 'function' ? v(...args) : (v ?? key);
+}
+function applyExtLang() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = et(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    el.innerHTML = et(el.dataset.i18nHtml);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = et(el.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = et(el.dataset.i18nTitle);
+  });
+  const btnCN = document.getElementById('extLangBtnCN');
+  const btnEN = document.getElementById('extLangBtnEN');
+  if (btnCN) { btnCN.style.background = _extLang === 'cn' ? 'var(--primary)' : 'none'; btnCN.style.color = _extLang === 'cn' ? '#fff' : 'var(--subtle)'; }
+  if (btnEN) { btnEN.style.background = _extLang === 'en' ? 'var(--primary)' : 'none'; btnEN.style.color = _extLang === 'en' ? '#fff' : 'var(--subtle)'; }
+}
+chrome.storage.local.get({ extLang: 'cn' }, ({ extLang }) => {
+  _extLang = extLang;
+  applyExtLang();
+});
+document.getElementById('extLangBtnCN').addEventListener('click', () => {
+  _extLang = 'cn'; chrome.storage.local.set({ extLang: 'cn' }); applyExtLang();
+});
+document.getElementById('extLangBtnEN').addEventListener('click', () => {
+  _extLang = 'en'; chrome.storage.local.set({ extLang: 'en' }); applyExtLang();
+});
+
 async function checkServer() {
   const dot     = document.getElementById('statusDot');
   const text    = document.getElementById('statusText');
@@ -12,7 +112,7 @@ async function checkServer() {
   const serverUrl = settings.serverUrl || DEFAULT_SERVER;
 
   dot.className = 'dot checking';
-  text.textContent = '正在检查服务器…';
+  text.textContent = et('checking');
   startSec.style.display = 'none';
 
   try {
@@ -21,10 +121,10 @@ async function checkServer() {
     });
     const projects = await r.json();
     dot.className = 'dot ok';
-    text.textContent = `✅ 服务器运行中 · ${projects.length} 个项目`;
+    text.textContent = et('server_ok', projects.length);
   } catch {
     dot.className = 'dot err';
-    text.textContent = '❌ 桌面端未运行';
+    text.textContent = et('server_err');
     startSec.style.display = 'block';
   }
 }
