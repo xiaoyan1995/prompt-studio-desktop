@@ -64,6 +64,49 @@ Response: `{ ok, id, project_id, project_name, type, image, gallery, video }`
 
 ---
 
+---
+
+## Audio Library API
+
+### GET /api/cli/audio/folders
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `project` | no | Project name or id; omit to list all projects |
+
+Response:
+```json
+{
+  "ok": true,
+  "count": 2,
+  "folders": [
+    { "project_id": "abc", "project_name": "我的项目", "folder_id": "f1", "folder_name": "SFX", "local_path": "/Users/…/SFX", "added_at": "2025-01-01T12:00:00" }
+  ]
+}
+```
+
+### GET /api/cli/audio/files
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `project` | yes | Project name or id |
+| `folder` | no | Folder name or id; omit to use first folder |
+| `q` | no | Search in filename or Chinese name |
+| `starred` | no | `1` or `true` to return starred files only |
+| `limit` | no | Max results (default 500) |
+
+Response item fields: `name` · `nameNoExt` · `ext` · `relPath` · `absPath` · `size` · `cnName` · `starred` · `stream_url`
+
+### GET /api/local-audio
+
+Stream a local audio file. Supports HTTP Range requests (seek works in browsers and media players).
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `path` | yes | Absolute local path (URL-encoded) — use `item.stream_url` from audio/files response |
+
+---
+
 ## Examples
 
 ```python
@@ -115,4 +158,16 @@ requests.post(f"{B}/api/cli/push", json={
     "title": "城市航拍", "prompt": "Aerial shot of city at night…",
     "video_url": "https://storage.example.com/output.mp4",
 })
+
+# List audio folders
+folders = requests.get(f"{B}/api/cli/audio/folders?project=我的项目").json()["folders"]
+
+# Search audio files (returns absPath + stream_url per item)
+items = requests.get(f"{B}/api/cli/audio/files", params={
+    "project": "我的项目", "folder": "SFX", "q": "door"
+}).json()["items"]
+
+# Stream / download an audio file
+audio = requests.get(B + items[0]["stream_url"]).content
+open("door.wav", "wb").write(audio)
 ```

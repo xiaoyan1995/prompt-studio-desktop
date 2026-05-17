@@ -31,17 +31,19 @@
 - 🚫 **Domain blacklist** — per-site block list to hide the extension toolbar
 - 🖼️ **Image gallery** — multiple generated images per prompt; click thumbnail to set as main
 - 🔎 **Fullscreen lightbox** — click any image to view at full resolution
-- 🤝 **Agent / CLI integration** — full HTTP API for external agents to read & write prompts, push AI-generated images and videos
+- 🔊 **Audio library** — link local audio folders; browse, preview, star, translate names with LLM, drag files to DAW or file manager
+- 🤝 **Agent / CLI integration** — full HTTP API for external agents to read & write prompts, push AI-generated images and videos, and query the audio library
 
 ## 📋 Changelog
 
 ### v1.1.0
-- **Audio library — native drag-out**: drag any audio card directly to a DAW or file manager; no browser drag conflicts
-- **Audio multi-select**: click to select a card, Ctrl+click to add, rubber-band drag on empty space to select multiple
-- **Batch drag**: dragging a selected card exports all selected files in one drop
-- **Window pin (always-on-top)**: 📌 button in title bar keeps Prompt Studio floating above your DAW while you browse and drag sound effects
-- **Dedicated Text LLM settings**: separate API Base / Key / Model for audio-name translation (Settings → 文本 LLM), with connection test button
-- **Smarter translation**: 3 concurrent batches, cancel button mid-run, auto-appends `/v1` for LM Studio and other local LLMs, detailed error feedback
+- **Audio library**: link any local folder as an audio library per project; browse subfolders, preview WAV/MP3/FLAC/… with mini player (seek + volume), star favourites, translate filenames to Chinese with any LLM
+- **Audio drag-out**: drag cards directly to a DAW or file manager using native OS drag — no HTML5 drag timing issues
+- **Audio multi-select**: click to select, Ctrl+click to add, rubber-band on empty space to select multiple; batch-drag all selected files in one drop
+- **Window pin (always-on-top)**: 📌 title-bar button keeps Prompt Studio floating above your DAW while browsing sound effects
+- **Dedicated Text LLM settings**: separate API Base / Key / Model for audio-name translation (Settings → 文本 LLM) with connection test
+- **Smarter translation**: 3 concurrent batches, cancel mid-run, auto `/v1` for LM Studio and other local LLMs
+- **Agent audio API**: `GET /api/cli/audio/folders` and `GET /api/cli/audio/files` — agents can now list and stream audio files
 
 ### v1.0.8
 - Image gallery strip — multiple generated images per prompt, click to select main

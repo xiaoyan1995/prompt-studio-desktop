@@ -5,7 +5,7 @@ Usage:  python server.py
 Then open:  http://127.0.0.1:8767/
 """
 import base64, json, mimetypes, os, re, socket, sys, tempfile, threading, time, urllib.request, urllib.error, uuid, zipfile, hashlib, difflib
-from urllib.parse import unquote, urljoin, parse_qs
+from urllib.parse import unquote, urljoin, parse_qs, quote
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -795,6 +795,10 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_cli_get(query)
         elif path == "/api/cli/search":
             self._handle_cli_search(query)
+        elif path == "/api/cli/audio/folders":
+            self._handle_cli_audio_folders(query)
+        elif path == "/api/cli/audio/files":
+            self._handle_cli_audio_files(query)
         elif path == "/api/search-assets":
             self._handle_search_assets(query)
         elif path == "/api/detect-duplicates":
@@ -1300,6 +1304,94 @@ class Handler(SimpleHTTPRequestHandler):
             out = save_dir / f"{stem}_{counter}{ext}"; counter += 1
         out.write_bytes(raw)
         return f"/uploads/{proj_folder}/{subdir}/{out.name}"
+
+    # ── CLI audio helpers ─────────────────────────────────────────────────
+    def _handle_cli_audio_folders(self, query):
+        """GET /api/cli/audio/folders?project=<name|id>"""
+        project_ref = (query.get("project") or [""])[0]
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        results = []
+        for proj in data.get("projects", []):
+            if project_ref and project_ref not in (proj["id"], proj["name"]):
+                continue
+            for folder in proj.get("audio_folders", []):
+                results.append({
+                    "project_id":   proj["id"],
+                    "project_name": proj["name"],
+                    "folder_id":    folder["id"],
+                    "folder_name":  folder["name"],
+                    "local_path":   folder.get("localPath", ""),
+                    "added_at":     folder.get("added_at", ""),
+                })
+        self._json_resp({"ok": True, "count": len(results), "folders": results})
+
+    def _handle_cli_audio_files(self, query):
+        """GET /api/cli/audio/files?project=<name|id>&folder=<folder_id|name>&q=<search>&starred=<1|true>&limit=500"""
+        AUDIO_EXTS = {'.mp3', '.wav', '.flac', '.ogg', '.aac', '.m4a', '.opus', '.weba', '.m4r', '.aiff', '.au'}
+        project_ref  = (query.get("project") or [""])[0]
+        folder_ref   = (query.get("folder")  or [""])[0]
+        q            = (query.get("q")       or [""])[0].lower()
+        starred_only = (query.get("starred") or [""])[0].lower() in ("1", "true", "yes")
+        limit        = int((query.get("limit") or ["500"])[0])
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        proj = next((p for p in data.get("projects", [])
+                     if not project_ref or project_ref in (p["id"], p["name"])), None)
+        if not proj:
+            return self._err(404, "Project not found")
+        folder = next((f for f in proj.get("audio_folders", [])
+                       if not folder_ref or folder_ref in (f["id"], f["name"])), None)
+        if not folder:
+            return self._err(404, "Audio folder not found")
+        local_path = folder.get("localPath", "")
+        if not local_path or not os.path.isdir(local_path):
+            return self._err(400, f"Local path not accessible: {local_path}")
+        translations = proj.get("audio_translations", {}).get(folder["id"], {})
+        stars = set(proj.get("audio_stars", []))
+        items = []
+        for root, dirs, files in os.walk(local_path):
+            dirs.sort()
+            for fname in sorted(files):
+                ext = os.path.splitext(fname)[1].lower()
+                if ext not in AUDIO_EXTS:
+                    continue
+                abs_path = os.path.join(root, fname)
+                rel_path = os.path.relpath(abs_path, local_path).replace('\\', '/')
+                name_no_ext = os.path.splitext(fname)[0]
+                cn_name = translations.get(name_no_ext, "")
+                is_starred = abs_path in stars
+                if starred_only and not is_starred:
+                    continue
+                if q and q not in fname.lower() and q not in cn_name.lower():
+                    continue
+                try:
+                    size = os.path.getsize(abs_path)
+                except Exception:
+                    size = 0
+                items.append({
+                    "name":       fname,
+                    "nameNoExt":  name_no_ext,
+                    "ext":        ext.lstrip('.'),
+                    "relPath":    rel_path,
+                    "absPath":    abs_path,
+                    "size":       size,
+                    "cnName":     cn_name,
+                    "starred":    is_starred,
+                    "stream_url": f"/api/local-audio?path={quote(abs_path)}",
+                })
+                if len(items) >= limit:
+                    break
+            if len(items) >= limit:
+                break
+        self._json_resp({
+            "ok":           True,
+            "project_id":   proj["id"],
+            "project_name": proj["name"],
+            "folder_id":    folder["id"],
+            "folder_name":  folder["name"],
+            "local_path":   local_path,
+            "count":        len(items),
+            "items":        items,
+        })
 
     # ── CLI read helpers ──────────────────────────────────────────────────
     def _handle_cli_list(self, query):

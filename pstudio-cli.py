@@ -33,6 +33,13 @@ echo "Describe the scene…" | python pstudio-cli.py push --type image --title "
 # MCP / JSON mode (agent-friendly)
 python pstudio-cli.py push --json '{"type":"skill","title":"T","prompt":"P…"}'
 
+# List audio folders linked to a project
+python pstudio-cli.py audio-folders --project "我的项目"
+
+# List / search audio files
+python pstudio-cli.py audio-files --project "我的项目" --folder "SFX" --query "door"
+python pstudio-cli.py audio-files --project "我的项目" --starred --raw
+
 Environment
 -----------
 PSTUDIO_PORT      override server port (default 8767)
@@ -226,6 +233,44 @@ def cmd_download(args):
     print(f"Saved {len(data)} bytes → {out}")
 
 
+def cmd_audio_folders(args):
+    params = []
+    if args.project: params.append(f"project={urllib.parse.quote(args.project)}")
+    qs = "?" + "&".join(params) if params else ""
+    result = _get(f"/api/cli/audio/folders{qs}")
+    if not result.get("ok"):
+        print(f"Error: {result.get('error', result)}", file=sys.stderr); sys.exit(1)
+    if args.raw:
+        print(json.dumps(result, ensure_ascii=False, indent=2)); return
+    folders = result.get("folders", [])
+    print(f"{'FOLDER_ID':<18} {'PROJECT':<18} {'NAME':<24} LOCAL_PATH")
+    print("-" * 90)
+    for f in folders:
+        print(f"{f['folder_id']:<18} {f['project_name']:<18} {f['folder_name']:<24} {f['local_path']}")
+
+
+def cmd_audio_files(args):
+    params = []
+    if args.project: params.append(f"project={urllib.parse.quote(args.project)}")
+    if args.folder:  params.append(f"folder={urllib.parse.quote(args.folder)}")
+    if args.query:   params.append(f"q={urllib.parse.quote(args.query)}")
+    if args.starred: params.append("starred=1")
+    if args.limit:   params.append(f"limit={args.limit}")
+    result = _get("/api/cli/audio/files?" + "&".join(params))
+    if not result.get("ok"):
+        print(f"Error: {result.get('error', result)}", file=sys.stderr); sys.exit(1)
+    if args.raw:
+        print(json.dumps(result, ensure_ascii=False, indent=2)); return
+    items = result.get("items", [])
+    print(f"Found {result['count']} file(s) in '{result.get('folder_name','')}'\n")
+    print(f"{'EXT':<6} {'STARRED':<8} {'CN_NAME':<24} NAME")
+    print("-" * 80)
+    for it in items:
+        star = "★" if it.get("starred") else " "
+        cn = (it.get("cnName") or "")[:24]
+        print(f"{it['ext']:<6} {star:<8} {cn:<24} {it['name']}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="pstudio-cli",
@@ -286,6 +331,22 @@ def main():
     p_push.add_argument("--json",     metavar="JSON",
                         help="Pass all fields as a single JSON object instead of flags")
     p_push.set_defaults(func=cmd_push)
+
+    # ── audio-folders ─────────────────────────────────────────────────────
+    p_af = sub.add_parser("audio-folders", help="List audio folders linked to a project")
+    p_af.add_argument("--project", help="Project name or id (omit for all projects)")
+    p_af.add_argument("--raw",     action="store_true", help="Output raw JSON")
+    p_af.set_defaults(func=cmd_audio_folders)
+
+    # ── audio-files ───────────────────────────────────────────────────────
+    p_aff = sub.add_parser("audio-files", help="List / search audio files in a folder")
+    p_aff.add_argument("--project", required=True, help="Project name or id")
+    p_aff.add_argument("--folder",  help="Folder name or id (omit for first folder)")
+    p_aff.add_argument("--query",   help="Search keyword (matches filename or Chinese name)")
+    p_aff.add_argument("--starred", action="store_true", help="Return starred files only")
+    p_aff.add_argument("--limit",   type=int, default=500)
+    p_aff.add_argument("--raw",     action="store_true", help="Output raw JSON")
+    p_aff.set_defaults(func=cmd_audio_files)
 
     args = parser.parse_args()
     args.func(args)

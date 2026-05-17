@@ -20,6 +20,9 @@ Local prompt manager running at `http://localhost:8767`. No auth required.
 | Download gallery image N | `GET /uploads/<path from item.gallery[N]>` |
 | Push new prompt / skill | `POST /api/cli/push` with JSON body |
 | Push with agent image/video | add `image_url`, `gallery_images`, `video_url` to push body |
+| List audio folders | `GET /api/cli/audio/folders?project=X` |
+| List / search audio files | `GET /api/cli/audio/files?project=X&folder=Y&q=keyword&starred=1` |
+| Stream audio file | `GET /api/local-audio?path=<absPath>` (Range-request capable) |
 
 All operations use plain HTTP — no CLI, no Python, no extra tools needed.
 
@@ -53,6 +56,22 @@ await fetch('http://localhost:8767/api/cli/push', {
     gallery_images: ['https://…/v2.jpg', 'https://…/v3.jpg']
   })
 });
+```
+
+## Audio library
+
+```js
+// List audio folders in a project
+const { folders } = await fetch('http://localhost:8767/api/cli/audio/folders?project=我的项目').then(r => r.json());
+// folders[n]: { project_id, project_name, folder_id, folder_name, local_path, added_at }
+
+// List / search audio files
+const { items } = await fetch('http://localhost:8767/api/cli/audio/files?project=我的项目&folder=SFX&q=door').then(r => r.json());
+// items[n]: { name, nameNoExt, ext, relPath, absPath, size, cnName, starred, stream_url }
+
+// Stream an audio file
+// Use item.stream_url directly: GET /api/local-audio?path=<absPath>
+// Supports Range requests (seek works).
 ```
 
 ## Workflows
