@@ -1470,13 +1470,13 @@
   <!-- Bottom controls -->
   <div class="sidebar-bottom">
     <div class="sidebar-bottom-row">
-      <span class="sidebar-bottom-label">卡片</span>
+      <span class="sidebar-bottom-label" id="sblCardLabel">卡片</span>
       <input type="range" class="card-size-slider" id="cardSizeSlider"
         min="0.5" max="1.8" step="0.02" value="1"
         oninput="applyCardScale(parseFloat(this.value))">
     </div>
     <div class="sidebar-bottom-row">
-      <span class="sidebar-bottom-label">缩放</span>
+      <span class="sidebar-bottom-label" id="sblZoomLabel">缩放</span>
       <button class="scale-btn" id="uiZoomOut" onclick="applyUiZoom(currentZoomIdx-1)" title="界面缩小">A−</button>
       <button class="scale-btn" id="uiZoomIn" onclick="applyUiZoom(currentZoomIdx+1)" title="界面放大">A+</button>
       <button class="theme-toggle" id="themeToggleBtn" title="切换深色/浅色主题" style="margin-left:auto">🌓</button>
@@ -1574,11 +1574,11 @@
 <!-- Tag input inline modal -->
 <div id="tagInputModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.35);align-items:center;justify-content:center">
   <div style="background:var(--bg);border-radius:14px;padding:20px;width:360px;box-shadow:0 8px 40px rgba(0,0,0,0.22);display:flex;flex-direction:column;gap:14px" onclick="event.stopPropagation()">
-    <div style="font-weight:700;font-size:15px">🏷️ 添加标签</div>
+    <div id="tagModalTitle" style="font-weight:700;font-size:15px">🏷️ 添加标签</div>
     <div id="tagExistingSection" style="display:none;flex-direction:column;gap:8px">
-      <div style="font-size:12px;color:var(--subtle)">选择已有标签</div>
+      <div id="tagExistingLabel" style="font-size:12px;color:var(--subtle)">选择已有标签</div>
       <div id="tagExistingList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-      <div style="font-size:12px;color:var(--subtle);margin-top:2px">或输入新标签</div>
+      <div id="tagOrNewLabel" style="font-size:12px;color:var(--subtle);margin-top:2px">或输入新标签</div>
     </div>
     <div class="field" style="margin:0"><input id="tagInputField" type="text" placeholder="输入标签名称"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -1614,7 +1614,7 @@
 <!-- New Folder Name Modal -->
 <div id="newFolderModal" style="display:none;position:fixed;inset:0;z-index:1200;background:rgba(26,35,64,.45);backdrop-filter:blur(4px);align-items:center;justify-content:center">
   <div style="background:var(--surface);border-radius:14px;padding:24px;width:320px;box-shadow:0 16px 48px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:14px">
-    <div style="font-weight:700;font-size:15px">📁 新建文件夹</div>
+    <div id="newFolderModalTitle" style="font-weight:700;font-size:15px">📁 新建文件夹</div>
     <input id="newFolderNameInput" type="text" placeholder="文件夹名称…" style="border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;outline:none;background:var(--surface2);color:var(--text)">
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button id="newFolderCancelBtn" class="btn btn-secondary btn-sm">取消</button>
@@ -1668,7 +1668,7 @@
 <div class="modal-backdrop" id="desktopSettingsModal">
   <div class="modal">
     <div class="modal-head">
-      <h2>设置中心</h2>
+      <h2 id="settingsModalTitle">设置中心</h2>
       <button class="modal-close" id="desktopSettingsClose">✕</button>
     </div>
     <div style="display:flex;height:min(540px,72vh);overflow:hidden">
@@ -1682,7 +1682,7 @@
         <div id="settingsSec-settings" style="display:flex;flex-direction:column;gap:16px">
           <div class="field-row">
             <div style="display:grid;gap:12px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:14px">
-              <div class="chip label-image" style="width:max-content">图片反推</div>
+              <div id="dsImageChip" class="chip label-image" style="width:max-content">图片反推</div>
               <div class="field"><label>API Base</label><input id="dsImageApiBase" placeholder="https://api.openai.com/v1"></div>
               <div class="field"><label>API Key</label><div style="display:flex;gap:6px"><input id="dsImageApiKey" type="password" placeholder="sk-..." style="flex:1"><button class="btn btn-secondary btn-sm" id="testImageApiBtn" style="white-space:nowrap">🔌 测试</button></div></div>
               <div class="field"><label>模型</label><input id="dsImageModel" placeholder="gpt-4o"></div>
@@ -1690,7 +1690,7 @@
               <div class="field"><label>图片上传重试次数</label><input id="dsImageUploadRetries" type="number" min="0" max="5" step="1" placeholder="1"></div>
             </div>
             <div style="display:grid;gap:12px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:14px">
-              <div class="chip label-skill" style="width:max-content">视频反推</div>
+              <div id="dsVideoChip" class="chip label-skill" style="width:max-content">视频反推</div>
               <div class="field"><label>API Base</label><input id="dsVideoApiBase" placeholder="https://generativelanguage.googleapis.com/v1beta"></div>
               <div class="field"><label>API Key</label><div style="display:flex;gap:6px"><input id="dsVideoApiKey" type="password" placeholder="sk-... / AIza..." style="flex:1"><button class="btn btn-secondary btn-sm" id="testVideoApiBtn" style="white-space:nowrap">🔌 测试</button></div></div>
               <div class="field"><label>模型</label><input id="dsVideoModel" placeholder="gemini-2.5-pro"></div>
@@ -1705,8 +1705,8 @@
           <div class="settings-card-green" style="display:grid;gap:10px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:12px;padding:14px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
               <div>
-                <div class="chip" style="background:#dcfce7;color:#15803d;width:max-content">提示词预设库</div>
-                <div style="font-size:12px;color:var(--subtle);margin-top:6px">保存常用反推指令，一键加载到图片或视频默认指令。</div>
+                <div id="dsPresetChip" class="chip" style="background:#dcfce7;color:#15803d;width:max-content">提示词预设库</div>
+                <div id="dsPresetHint" style="font-size:12px;color:var(--subtle);margin-top:6px">保存常用反推指令，一键加载到图片或视频默认指令。</div>
               </div>
               <button class="btn btn-secondary btn-sm" id="dsPresetToggle">+ 新增预设</button>
             </div>
@@ -1720,8 +1720,8 @@
           </div>
           <div class="settings-card-orange" style="display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #fed7aa;background:#fff7ed;border-radius:12px;padding:14px">
             <div>
-              <div class="chip" style="background:#ffedd5;color:#c2410c;width:max-content">本地素材</div>
-              <div style="font-size:12px;color:var(--subtle);margin-top:6px">清理未被任何提示词引用的图片和视频。</div>
+              <div id="dsLocalMediaChip" class="chip" style="background:#ffedd5;color:#c2410c;width:max-content">本地素材</div>
+              <div id="dsLocalMediaHint" style="font-size:12px;color:var(--subtle);margin-top:6px">清理未被任何提示词引用的图片和视频。</div>
             </div>
             <button class="btn btn-danger btn-sm" id="desktopCleanupMedia">清理未引用素材</button>
           </div>
@@ -1729,8 +1729,8 @@
         <!-- ── 文本 LLM ──────────────────────────── -->
         <div id="settingsSec-llm" style="display:none;flex-direction:column;gap:16px">
           <div style="display:grid;gap:12px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:14px">
-            <div class="chip label-skill" style="width:max-content">文本 LLM</div>
-            <div class="hint" style="margin-top:-4px">用于音效名翻译、智能文本处理等纯文字任务。支持任何兼容 OpenAI Chat Completions 格式的接口。<br>LM Studio 填写 <code style="font-size:11px;background:var(--bg);padding:1px 4px;border-radius:3px">http://localhost:1234/v1</code>，注意末尾要带 <b>/v1</b>。</div>
+            <div id="dsLlmChip" class="chip label-skill" style="width:max-content">文本 LLM</div>
+            <div id="dsLlmHint" class="hint" style="margin-top:-4px">用于音效名翻译、智能文本处理等纯文字任务。支持任何兼容 OpenAI Chat Completions 格式的接口。<br>LM Studio 填写 <code style="font-size:11px;background:var(--bg);padding:1px 4px;border-radius:3px">http://localhost:1234/v1</code>，注意末尾要带 <b>/v1</b>。</div>
             <div class="field"><label>API Base</label><input id="dsLlmApiBase" placeholder="http://localhost:1234/v1  或  https://api.openai.com/v1"></div>
             <div class="field"><label>API Key</label><div style="display:flex;gap:6px"><input id="dsLlmApiKey" type="password" placeholder="sk-..." style="flex:1"><button class="btn btn-secondary btn-sm" id="testLlmApiBtn" style="white-space:nowrap">🔌 测试</button></div></div>
             <div class="field"><label>模型</label><input id="dsLlmModel" placeholder="gpt-4o-mini"></div>
@@ -1747,7 +1747,7 @@
             </div>
           </div>
           <div class="ops-panel">
-            <h3>📁 数据存储目录</h3>
+            <h3 id="opsDataDirH3">📁 数据存储目录</h3>
             <div class="hint">data.json、uploads、exports 等都保存在这里。保存时会自动将现有数据复制到新目录，重启后生效。</div>
             <div class="field"><label>当前路径</label><div style="display:flex;gap:6px"><input id="dataDirInput" placeholder="加载中…" spellcheck="false" style="flex:1"><button class="btn btn-secondary btn-sm" id="browseDataDirBtn" style="white-space:nowrap">浏览…</button></div></div>
             <div style="display:flex;gap:8px;align-items:center">
@@ -1756,7 +1756,7 @@
             </div>
           </div>
           <div class="ops-panel">
-            <h3>💾 本地快照备份与恢复</h3>
+            <h3 id="opsSnapshotH3">💾 本地快照备份与恢复</h3>
             <div class="hint">备份 data + settings + 智能文件夹 + uploads。恢复前请确认当前数据已保存。</div>
             <div class="field"><label>快照备注（可选）</label><input id="opsSnapshotNote" placeholder="例如：35条改造前备份"></div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1766,12 +1766,12 @@
             <div class="ops-grid" id="opsSnapshotList"></div>
           </div>
           <div class="ops-panel">
-            <h3>📦 一键导出包</h3>
+            <h3 id="opsExportH3">📦 一键导出包</h3>
             <div class="hint">按当前多选资产导出 ZIP，含提示词与元数据，可选带素材文件。</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <label class="chip"><input type="checkbox" id="opsExportWithMedia" checked style="margin-right:6px">带素材</label>
-              <label class="chip"><input type="checkbox" id="opsExportWithPrompts" checked style="margin-right:6px">带提示词</label>
-              <label class="chip"><input type="checkbox" id="opsExportWithData" checked style="margin-right:6px">带 data 片段</label>
+              <label class="chip" id="opsExportWithMediaLabel"><input type="checkbox" id="opsExportWithMedia" checked style="margin-right:6px">带素材</label>
+              <label class="chip" id="opsExportWithPromptsLabel"><input type="checkbox" id="opsExportWithPrompts" checked style="margin-right:6px">带提示词</label>
+              <label class="chip" id="opsExportWithDataLabel"><input type="checkbox" id="opsExportWithData" checked style="margin-right:6px">带 data 片段</label>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
               <button class="btn btn-primary" id="opsExportRunBtn">导出当前选择</button>
@@ -1779,7 +1779,7 @@
             </div>
           </div>
           <div class="ops-panel">
-            <h3>📥 导入资源包</h3>
+            <h3 id="opsImportH3">📥 导入资源包</h3>
             <div class="hint">从导出的 ZIP 包中导入提示词和素材到当前项目。</div>
             <div style="display:flex;gap:8px;align-items:center">
               <label class="btn btn-primary btn-sm" style="cursor:pointer">选择 ZIP 文件<input type="file" id="opsImportZip" accept=".zip" style="display:none"></label>
@@ -1787,16 +1787,16 @@
             </div>
           </div>
           <div class="ops-panel">
-            <h3>🔍 重复与相似检测</h3>
+            <h3 id="opsDupH3">🔍 重复与相似检测</h3>
             <div class="hint">检测同路径素材、同签名提示词以及高相似文本。</div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <label class="chip"><input type="checkbox" id="opsDetectSimilar" checked style="margin-right:6px">包含相似文本</label>
+              <label class="chip" id="opsDupSimilarLabel"><input type="checkbox" id="opsDetectSimilar" checked style="margin-right:6px">包含相似文本</label>
               <button class="btn btn-secondary" id="opsDetectDupBtn">开始检测</button>
             </div>
             <div id="opsDupResult" class="hint">尚未检测</div>
           </div>
           <div class="ops-panel">
-            <h3>🔎 全文检索增强</h3>
+            <h3 id="opsFtsH3">🔎 全文检索增强</h3>
             <div class="hint">跨标题、标签、提示词、分析报告的相关性检索。</div>
             <div style="display:flex;gap:8px;align-items:center">
               <input id="opsSearchInput" placeholder="输入关键词，例如：雨夜 霓虹 中景" style="flex:1;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;outline:none">
@@ -1808,7 +1808,7 @@
       </div>
     </div>
     <div style="border-top:1px solid var(--border);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-      <div style="font-size:12px;color:var(--subtle)">新版浏览器插件会读取这里的 AI 配置；插件只保留网页采集和连接设置。</div>
+      <div id="settingsFooterHint" style="font-size:12px;color:var(--subtle)">新版浏览器插件会读取这里的 AI 配置；插件只保留网页采集和连接设置。</div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-secondary" id="desktopSettingsCancel">取消</button>
         <button class="btn btn-primary" id="desktopSettingsSave">保存设置</button>
@@ -1823,7 +1823,7 @@
 <div id="libPickerModal" style="display:none;position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);align-items:center;justify-content:center">
   <div style="background:var(--surface);border-radius:16px;width:min(720px,90vw);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.3)">
     <div style="display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);gap:10px">
-      <span style="font-size:14px;font-weight:700;color:var(--text);flex:1">🖼️ 从资产库选择图片</span>
+      <span id="libPickerTitle" style="font-size:14px;font-weight:700;color:var(--text);flex:1">🖼️ 从资产库选择图片</span>
       <input id="libPickerSearch" placeholder="搜索标题…" style="padding:5px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;width:160px;background:var(--surface);color:var(--text)">
       <button id="libPickerClose" style="width:28px;height:28px;border-radius:50%;border:none;background:var(--surface-2);cursor:pointer;font-size:14px;color:var(--subtle)">✕</button>
     </div>
@@ -1832,7 +1832,7 @@
       <span id="libPickerCount" style="font-size:12px;color:var(--subtle)">已选 0 张</span>
       <div style="display:flex;gap:8px">
         <button id="libPickerCancel" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:12px;color:var(--subtle)">取消</button>
-        <button id="libPickerConfirm" style="padding:6px 16px;border:none;border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;font-size:12px;font-weight:700">添加到画廊</button>
+        <button id="libPickerConfirm" style="padding:6px 16px;border:none;border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;font-size:12px;font-weight:700">添加到画廘</button>
       </div>
     </div>
   </div>
@@ -2291,6 +2291,32 @@
       ['button[data-sec="settings"]', 'API 配置', 'API Config'],
       ['button[data-sec="llm"]',      '文本 LLM',  'Text LLM'],
       ['button[data-sec="tools"]',    '增强功能',  'Tools'],
+      ['#backToProjects',     '← 所有项目', '← All Projects'],
+      ['#sblCardLabel',       '卡片', 'Cards'],
+      ['#sblZoomLabel',       '缩放', 'Zoom'],
+      ['#settingsModalTitle', '设置中心', 'Settings'],
+      ['#dsImageChip',        '图片反推', 'Image Reverse'],
+      ['#dsVideoChip',        '视频反推', 'Video Reverse'],
+      ['#testImageApiBtn',    '🔌 测试', '🔌 Test'],
+      ['#testVideoApiBtn',    '🔌 测试', '🔌 Test'],
+      ['#testLlmApiBtn',      '🔌 测试', '🔌 Test'],
+      ['#dsPresetChip',       '提示词预设库', 'Prompt Presets'],
+      ['#dsPresetHint',       '保存常用反推指令，一键加载到图片或视频默认指令。', 'Save as reusable presets, load with one click.'],
+      ['#dsPresetToggle',     '+ 新增预设', '+ New Preset'],
+      ['#dsPresetAdd',        '保存预设', 'Save Preset'],
+      ['#dsPresetEmpty',      '暂无预设', 'No presets yet'],
+      ['#dsLocalMediaChip',   '本地素材', 'Local Media'],
+      ['#dsLocalMediaHint',   '清理未被任何提示词引用的图片和视频。', 'Clean up media not referenced by any prompt.'],
+      ['#desktopCleanupMedia','清理未引用素材', 'Clean Unused Media'],
+      ['#dsLlmChip',          '文本 LLM', 'Text LLM'],
+      ['#settingsFooterHint', '新版浏览器插件会读取这里的 AI 配置；插件只保留网页采集和连接设置。', 'The extension reads AI config from here; it only keeps collection and connection settings.'],
+      ['#desktopSettingsCancel', '取消', 'Cancel'],
+      ['#desktopSettingsSave',   '保存设置', 'Save Settings'],
+      ['#batchTagBtn',    '🏷️ 打标签', '🏷️ Tag'],
+      ['#batchMoveBtn',   '📦 移到项目', '📦 Move to'],
+      ['#batchStarBtn',   '⭐ 星标', '⭐ Star'],
+      ['#batchDeleteBtn', '🗑️ 删除', '🗑️ Delete'],
+      ['#batchCancelBtn', '取消', 'Cancel'],
     ];
     patches.forEach(([sel, cn, en]) => {
       const el = document.querySelector(sel);
@@ -2304,6 +2330,187 @@
     const btnEN = document.getElementById('langBtnEN');
     if (btnCN) btnCN.className = _lang === 'cn' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
     if (btnEN) btnEN.className = _lang === 'en' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    const ftSel = document.getElementById('filterTime');
+    if (ftSel) [['latest', t('时间：最新','Time: Newest')], ['oldest', t('时间：最早','Time: Oldest')]].forEach(([v,tx]) => { const o = ftSel.querySelector(`option[value="${v}"]`); if (o) o.textContent = tx; });
+    const smSel = document.getElementById('sortMode');
+    if (smSel) {
+      const ph = smSel.querySelector('option[disabled]'); if (ph) ph.textContent = t('排序','Sort');
+      [['updated', t('更新时间','Updated')], ['created', t('创建时间','Created')], ['star', t('评分','Rating')], ['title', t('标题','Title')]].forEach(([v,tx]) => { const o = smSel.querySelector(`option[value="${v}"]:not([disabled])`); if (o) o.textContent = tx; });
+    }
+    const fTypeSel = document.getElementById('filterType');
+    if (fTypeSel) [['all', t('类型','Type')], ['image', t('类型：图片','Type: Image')], ['video', t('类型：视频','Type: Video')], ['skill', 'Type: Skills']].forEach(([v,tx]) => { const o = fTypeSel.querySelector(`option[value="${v}"]`); if (o) o.textContent = tx; });
+    const dsImgI = document.getElementById('dsImageInstruction'); if (dsImgI) dsImgI.placeholder = t('留空使用内置默认指令','Leave blank to use built-in default');
+    const dsVidI = document.getElementById('dsVideoInstruction'); if (dsVidI) dsVidI.placeholder = t('留空使用内置默认指令','Leave blank to use built-in default');
+    // Form field labels (via sibling input IDs)
+    const _fl=(inputId,tx)=>{ const lbl=document.getElementById(inputId)?.closest('.field')?.querySelector('label'); if(!lbl) return; const tn=lbl.firstChild; if(tn&&tn.nodeType===3) tn.textContent=tx; else lbl.textContent=tx; };
+    _fl('dsImageModel',t('模型','Model'));
+    _fl('dsVideoModel',t('模型','Model'));
+    _fl('dsImageUploadTimeoutSec',t('图片上传超时（秒）','Image Upload Timeout (sec)'));
+    _fl('dsImageUploadRetries',t('图片上传重试次数','Image Upload Retries'));
+    _fl('dsVideoUploadTimeoutSec',t('视频上传超时（秒）','Video Upload Timeout (sec)'));
+    _fl('dsVideoUploadRetries',t('视频上传重试次数','Video Upload Retries'));
+    _fl('dsImageInstruction',t('图片反推默认指令','Image Reverse Instruction'));
+    _fl('dsVideoInstruction',t('视频反推默认指令','Video Reverse Instruction'));
+    // LLM section field labels
+    _fl('dsLlmApiBase',t('API Base','API Base'));
+    _fl('dsLlmApiKey',t('API Key','API Key'));
+    _fl('dsLlmModel',t('模型','Model'));
+    // Ops panel h3s + buttons
+    [['opsDataDirH3','📁 数据存储目录','📁 Data Directory'],
+     ['opsSnapshotH3','💾 本地快照备份与恢复','💾 Local Snapshots'],
+     ['opsExportH3','📦 一键导出包','📦 Export Package'],
+     ['opsImportH3','📥 导入资源包','📥 Import Package'],
+     ['opsDupH3','🔍 重复与相似检测','🔍 Duplicate Detection'],
+     ['opsFtsH3','🔎 全文检索增强','🔎 Full-text Search'],
+     ['browseDataDirBtn','浏览…','Browse…'],
+     ['saveDataDirBtn','保存路径','Save Path'],
+     ['opsSnapshotCreateBtn','创建快照','Create Snapshot'],
+     ['opsSnapshotRefreshBtn','刷新列表','Refresh'],
+     ['opsExportRunBtn','导出当前选择','Export Selection'],
+     ['opsDetectDupBtn','开始检测','Detect'],
+     ['opsDupResult','尚未检测','Not checked yet'],
+     ['opsSearchBtn','检索','Search'],
+    ].forEach(([id,cn,en])=>{ const el=document.getElementById(id); if(el) el.textContent=t(cn,en); });
+    // Checkbox label text nodes
+    const _tn=(id,tx)=>{ const el=document.getElementById(id); if(!el) return; for(let i=el.childNodes.length-1;i>=0;i--){ if(el.childNodes[i].nodeType===3){el.childNodes[i].textContent=tx;return;} } };
+    _tn('opsExportWithMediaLabel',t('带素材','With Media'));
+    _tn('opsExportWithPromptsLabel',t('带提示词','With Prompts'));
+    _tn('opsExportWithDataLabel',t('带 data 片段','With Data'));
+    _tn('opsDupSimilarLabel',t('包含相似文本','Include Similar Text'));
+    // LLM hint (innerHTML for embedded code/b tags)
+    const dsLH=document.getElementById('dsLlmHint'); if(dsLH) dsLH.innerHTML=t('用于音效名翻译、智能文本处理等纯文字任务。支持任何兼容 OpenAI Chat Completions 格式的接口。<br>LM Studio 填写 <code style="font-size:11px;background:var(--bg);padding:1px 4px;border-radius:3px">http://localhost:1234/v1</code>，注意末尾要带 <b>/v1</b>。','Used for audio name translation and text tasks. Supports any OpenAI Chat Completions-compatible API.<br>LM Studio: use <code style="font-size:11px;background:var(--bg);padding:1px 4px;border-radius:3px">http://localhost:1234/v1</code> (include <b>/v1</b>).');
+    // Tag / folder / lib / move modals
+    [['tagModalTitle','🏷️ 添加标签','🏷️ Add Tag'],
+     ['tagExistingLabel','选择已有标签','Select existing tags'],
+     ['tagOrNewLabel','或输入新标签','or enter a new tag'],
+     ['tagInputCancel','取消','Cancel'],
+     ['tagInputConfirm','确认添加','Confirm'],
+     ['tagCtxRename','✏️ 重命名标签','✏️ Rename Tag'],
+     ['tagCtxDelete','🗑 删除标签','🗑 Delete Tag'],
+     ['newFolderModalTitle','📁 新建文件夹','📁 New Folder'],
+     ['newFolderCancelBtn','取消','Cancel'],
+     ['newFolderConfirmBtn','创建','Create'],
+     ['libPickerTitle','🖼️ 从资产库选择图片','🖼️ Select from Library'],
+     ['libPickerCancel','取消','Cancel'],
+     ['libPickerConfirm','添加到画廘','Add to Gallery'],
+     ['moveModalClose','✕','✕'],
+    ].forEach(([id,cn,en])=>{ const el=document.getElementById(id); if(el) el.textContent=t(cn,en); });
+    const tif=document.getElementById('tagInputField'); if(tif) tif.placeholder=t('输入标签名称','Tag name…');
+    const nfi=document.getElementById('newFolderNameInput'); if(nfi) nfi.placeholder=t('文件夹名称…','Folder name…');
+    _fl('pName',t('项目名称 *','Project Name *'));
+    _fl('pDesc',t('描述','Description'));
+    const swLbl=document.getElementById('swatchRow')?.closest('.field')?.querySelector('label'); if(swLbl) swLbl.textContent=t('封面颜色','Cover Color');
+    _fl('dataDirInput',t('当前路径','Current Path'));
+    _fl('opsSnapshotNote',t('快照备注（可选）','Snapshot note (optional)'));
+    // Proj modal buttons
+    [['projCancelBtn','取消','Cancel'],['projSaveBtn','保存','Save']].forEach(([id,cn,en])=>{ const el=document.getElementById(id); if(el) el.textContent=t(cn,en); });
+    const pnPh=document.getElementById('pName'); if(pnPh) pnPh.placeholder=t('例：舞蹈宣传片','e.g. Dance Promo');
+    const pdPh=document.getElementById('pDesc'); if(pdPh) pdPh.placeholder=t('项目简介…','Project description…');
+    // Prompt modal labels + buttons
+    _fl('pmTitle',t('标题','Title'));
+    _fl('pmModel',t('模型','Model'));
+    _fl('pmAspect',t('比例','Ratio'));
+    _fl('pmCustomModel',t('自定义模型名','Custom Model'));
+    _fl('pmImgFile',t('参考图片','Reference Image'));
+    _fl('pmTagInput',t('标签','Tags'));
+    const pmPL=document.getElementById('pmPromptLabel'); if(pmPL){ const tn=pmPL.firstChild; if(tn&&tn.nodeType===3) tn.textContent=t('提示词内容 *','Prompt *'); }
+    const pmRefSpan=document.querySelector('#pmRefMediaWrap label>span'); if(pmRefSpan) pmRefSpan.textContent=t('参考媒体','Reference Media');
+    const pmRefAdd=document.querySelector('#pmRefMediaWrap label>label'); if(pmRefAdd){ const tn=pmRefAdd.firstChild; if(tn&&tn.nodeType===3) tn.textContent=t('+ 添加图片','+ Add Image'); }
+    [['pmCopyBtn','📋 复制提示词','📋 Copy Prompt'],
+     ['pmSaveBtn','💾 保存','💾 Save'],
+     ['pmDeleteMediaBtn','删除+素材','Delete+Media'],
+     ['raApiSave','保存配置','Save Config'],
+     ['pmReanalyzeBtn','🔍 开始分析','🔍 Analyze'],
+     ['pmReanalyzeApply','✅ 应用到提示词','✅ Apply to Prompt'],
+     ['pmReanalyzeSave','💾 直接保存','💾 Save Directly'],
+    ].forEach(([id,cn,en])=>{ const el=document.getElementById(id); if(el) el.textContent=t(cn,en); });
+    const pmCMP=document.getElementById('pmCustomModel'); if(pmCMP) pmCMP.placeholder=t('输入模型名称…','Model name…');
+    const pmTIP=document.getElementById('pmTagInput'); if(pmTIP) pmTIP.placeholder=t('输入后按 Enter / 逗号 添加','Press Enter or comma to add');
+    // Move modal
+    _fl('moveMode',t('操作方式','Action'));
+    const mvSel=document.getElementById('moveMode'); if(mvSel){ const oM=mvSel.querySelector('option[value="move"]'); const oC=mvSel.querySelector('option[value="copy"]'); if(oM) oM.textContent=t('移动（从当前项目删除）','Move (remove from current project)'); if(oC) oC.textContent=t('复制（保留在当前项目）','Copy (keep in current project)'); }
+    // libPickerSearch placeholder
+    const lpS=document.getElementById('libPickerSearch'); if(lpS) lpS.placeholder=t('搜索标题…','Search titles…');
+    // opsSearchInput placeholder
+    const osI=document.getElementById('opsSearchInput'); if(osI) osI.placeholder=t('输入关键词，例如：雨夜 霓虹 中景','Enter keywords, e.g. rainy night neon');
+    // pdfModal labels + buttons
+    _fl('pdfTitleInput',t('标题','Title'));
+    _fl('pdfTagInput',t('标签','Tags'));
+    _fl('pdfColorPicker',t('颜色标记','Color'));
+    const pdfTIPh=document.getElementById('pdfTitleInput'); if(pdfTIPh) pdfTIPh.placeholder=t('文档标题（选填）','Document title (optional)');
+    const pdfTagPh=document.getElementById('pdfTagInput'); if(pdfTagPh) pdfTagPh.placeholder=t('输入后按 Enter 添加','Press Enter to add');
+    const pdfLoad=document.querySelector('#pdfLoading span'); if(pdfLoad) pdfLoad.textContent=t('加载中…','Loading…');
+    const pdfZO=document.getElementById('pdfZoomOut'); if(pdfZO) pdfZO.title=t('缩小','Zoom Out');
+    const pdfZI=document.getElementById('pdfZoomIn'); if(pdfZI) pdfZI.title=t('放大','Zoom In');
+    const pdfZF=document.getElementById('pdfZoomFit'); if(pdfZF) pdfZF.title=t('适应宽度','Fit Width');
+    [['pdfDownloadBtn','⬇️ 下载','⬇️ Download'],
+     ['pdfOpenBrowserBtn','🌐 在浏览器中打开','🌐 Open in Browser'],
+     ['pdfDeleteBtn','🗑️ 删除','🗑️ Delete'],
+     ['pdfSaveMetaBtn','💾 保存','💾 Save'],
+     ['pdfModalChip','📄 文档','📄 Doc'],
+    ].forEach(([id,cn,en])=>{ const el=document.getElementById(id); if(el) el.textContent=t(cn,en); });
+    // skillPanel labels + buttons
+    _fl('spTitleInput',t('标题','Title'));
+    _fl('spModel',t('模型','Model'));
+    _fl('spTagInput',t('标签','Tags'));
+    const spTP=document.getElementById('spTitleInput'); if(spTP) spTP.placeholder=t('提示词标题（选填）','Prompt title (optional)');
+    const spTagPh=document.getElementById('spTagInput'); if(spTagPh) spTagPh.placeholder=t('输入后按 Enter 添加','Press Enter to add');
+    const spPrPh=document.getElementById('spPrompt'); if(spPrPh) spPrPh.placeholder=t('在这里输入 Skills / Agent 提示词（支持 Markdown）…','Enter Skills / Agent prompt here (Markdown supported)…');
+    [['spTabEdit','✏️ 编辑','✏️ Edit'],
+     ['spTabPreview','👁️ 预览','👁️ Preview'],
+     ['spCopyBtn','📋 复制','📋 Copy'],
+     ['spDeleteBtn','🗑️ 删除','🗑️ Delete'],
+     ['spSaveBtn','💾 保存','💾 Save'],
+    ].forEach(([id,cn,en])=>{ const el=document.getElementById(id); if(el) el.textContent=t(cn,en); });
+    // md toolbar tabs (promptModal + inline editor)
+    [['mdFullTabEdit','✏️ 编辑','✏️ Edit'],
+     ['mdFullTabPreview','👁️ 预览','👁️ Preview'],
+     ['mdTabEditBtn','✏️ 编辑','✏️ Edit'],
+     ['mdTabPreviewBtn','👁️ 预览','👁️ Preview'],
+    ].forEach(([id,cn,en])=>{ const el=document.getElementById(id); if(el) el.textContent=t(cn,en); });
+    // md toolbar list/quote buttons (scoped by editor container)
+    [['#spEditor','spm'],['#mdFullEditor','mdf'],['#mdEditorWrap','md']].forEach(([cont,attr])=>{
+      [['ul','• 列表','• List'],['ol','1. 序号','1. Order'],['quote','> 引用','> Quote']].forEach(([v,cn,en])=>{
+        const el=document.querySelector(`${cont} [data-${attr}="${v}"]`); if(el) el.textContent=t(cn,en);
+      });
+      const imp=document.querySelector(`${cont} [type="file"][accept*=".md"]`)?.closest('label');
+      if(imp){ const tn=imp.firstChild; if(tn&&tn.nodeType===3) tn.textContent=t('📂 导入','📂 Import'); }
+    });
+    // promptModal video upload label + img clear
+    const pvL=document.getElementById('pmVideoFile')?.closest('label');
+    if(pvL){ const tn=pvL.firstChild; if(tn&&tn.nodeType===3) tn.textContent=t('📹 上传视频','📹 Upload Video'); }
+    const pmIC=document.getElementById('pmImgClearBtn'); if(pmIC) pmIC.textContent=t('移除','Remove');
+    const pmRA=document.getElementById('pmImgFileAlt')?.closest('label');
+    if(pmRA){ const tn=pmRA.firstChild; if(tn&&tn.nodeType===3) tn.textContent=t('📎 更换','📎 Change'); }
+    const pmIU=document.querySelector('#pmImgUploadZone div'); if(pmIU) pmIU.textContent=t('📎 点击上传图片','📎 Click to upload');
+    // Import doc label inside pmPromptLabel
+    const pmImpL=document.querySelector('#pmPromptLabel label');
+    if(pmImpL){ const tn=pmImpL.firstChild; if(tn&&tn.nodeType===3) tn.textContent=t('📄 导入文档','📄 Import File'); }
+    // Analysis summaries (span[1] inside summary)
+    const _sumSpan=(sel,tx)=>{ const s=document.querySelector(sel); if(!s) return; const sp=s.querySelectorAll('span'); if(sp.length>=2) sp[1].textContent=tx; };
+    _sumSpan('#pmAnalysisWrap summary',t('视觉分析报告','Visual Analysis'));
+    _sumSpan('#pmReanalyzeDetails>summary',t('AI 反推工作流','Reverse Analysis'));
+    _sumSpan('#pmOutfitWrap summary',t('服装提示词','Outfit Prompt'));
+    _sumSpan('#pmCharWrap summary',t('人物提示词','Character Prompt'));
+    _sumSpan('#pmSceneWrap summary',t('场景提示词','Scene Prompt'));
+    _sumSpan('#pmStyleWrap summary',t('画风提示词','Style Prompt'));
+    _sumSpan('#pmCamWrap summary',t('运镜提示词','Camera Prompt'));
+    // AI config summary text node
+    const raCS=document.querySelector('#pmReanalyzeDetails>div>details>summary');
+    if(raCS){ const tn=raCS.firstChild; if(tn&&tn.nodeType===3) tn.textContent=t('⚙️ AI 配置','⚙️ AI Config'); }
+    // ra-chips + mode label
+    [['auto','全面','All'],['outfit','服装','Outfit'],['char','人物','Char'],['scene','场景','Scene'],['style','画风','Style'],['cam','运镜','Camera']].forEach(([ra,cn,en])=>{ const el=document.querySelector(`[data-ra="${ra}"]`); if(el) el.textContent=t(cn,en); });
+    const raMSp=document.querySelector('[data-ra]')?.previousElementSibling;
+    if(raMSp) raMSp.textContent=t('模式：','Mode:');
+    // raApiBase / raModel placeholders
+    const raAB=document.getElementById('raApiBase'); if(raAB) raAB.placeholder=t('API Base（默认 OpenAI）','API Base (default OpenAI)');
+    const raM=document.getElementById('raModel'); if(raM) raM.placeholder=t('模型（如 gpt-4o）','Model (e.g. gpt-4o)');
+    // fileViewerModal
+    const fvCopy=document.getElementById('fileViewerCopyBtn'); if(fvCopy) fvCopy.textContent=t('📋 复制','📋 Copy');
+    // gallery title attrs
+    const gLocal=document.querySelector('[title="从本地上传"]'); if(gLocal) gLocal.title=t('从本地上传','Upload from local');
+    const gLib=document.getElementById('pmGalleryFromLibBtn'); if(gLib) gLib.title=t('从资产库选择','Select from library');
+    const pmIPh=document.getElementById('promptModalImgPh'); if(pmIPh) pmIPh.title=t('点击上传图片','Click to upload image');
   }
 
   let data = {projects:[]};  // populated in boot
@@ -2675,7 +2882,7 @@
     const count = uiState.selectedIds.size;
     bar.classList.toggle('show', count > 0);
     const countEl = document.getElementById('batchCount');
-    if (countEl) countEl.textContent = `已选择 ${count} 项`;
+    if (countEl) countEl.textContent = t(`已选择 ${count} 项`,`${count} selected`);
   }
   function clearSelection() {
     uiState.selectedIds.clear();
@@ -2760,23 +2967,23 @@
     const chipEl = document.getElementById('inspectorTypeChip');
     const body = document.getElementById('inspectorBody');
     if (!item) {
-      titleEl.textContent = '详情面板';
-      chipEl.textContent = '未选择';
+      titleEl.textContent = t('详情面板','Detail Panel');
+      chipEl.textContent = t('未选择','None');
       chipEl.className = 'chip';
       body.className = 'inspector-placeholder';
-      body.textContent = '这里会显示你当前选中的项目或提示词详情，包括基本信息、提示词内容、反推分析摘要和常用操作。';
+      body.textContent = t('这里会显示你当前选中的项目或提示词详情，包括基本信息、提示词内容、反推分析摘要和常用操作。','Select a project or prompt to see its details, including info, prompt content, analysis, and quick actions.');
       return;
     }
     const typeMap = {
-      project: { label: '项目详情', className: 'chip label-project' },
-      image: { label: '图片提示词', className: 'chip label-image' },
-      video: { label: '视频提示词', className: 'chip label-video' },
+      project: { label: t('项目详情','Project'), className: 'chip label-project' },
+      image: { label: t('图片提示词','Image Prompt'), className: 'chip label-image' },
+      video: { label: t('视频提示词','Video Prompt'), className: 'chip label-video' },
       skill: { label: 'Skills / Agent', className: 'chip label-skill' },
     };
-    const t = typeMap[item.__type] || typeMap.project;
-    titleEl.textContent = item.title || item.name || '未命名';
-    chipEl.textContent = t.label;
-    chipEl.className = t.className;
+    const typeInfo = typeMap[item.__type] || typeMap.project;
+    titleEl.textContent = item.title || item.name || t('未命名','Untitled');
+    chipEl.textContent = typeInfo.label;
+    chipEl.className = typeInfo.className;
 
     const projectTags = item.__type === 'project'
       ? Array.from(new Set([
@@ -2785,16 +2992,17 @@
           ...((item.skill_prompts||[]).flatMap(x => x.tags || [])),
         ])).slice(0, 12)
       : [];
+    const noTagsHtml = `<span style="color:var(--subtle)">${t('无标签','No tags')}</span>`;
     const tags = item.__type === 'project'
-      ? (projectTags.length ? projectTags.map(x => `<span class="chip">${h(x)}</span>`).join('') : '<span style="color:var(--subtle)">无标签</span>')
+      ? (projectTags.length ? projectTags.map(x => `<span class="chip">${h(x)}</span>`).join('') : noTagsHtml)
       : (Array.isArray(item.tags) && item.tags.length
           ? item.tags.map(x => `<span class="chip">${h(x)}</span>`).join('')
-          : '<span style="color:var(--subtle)">无标签</span>');
+          : noTagsHtml);
     const promptBlock = item.prompt
-      ? `<div class="inspector-field"><div class="inspector-field-label">提示词</div><div class="inspector-main">${h(item.prompt)}</div></div>`
+      ? `<div class="inspector-field"><div class="inspector-field-label">${t('提示词','Prompt')}</div><div class="inspector-main">${h(item.prompt)}</div></div>`
       : '';
     const analysisBlock = item.analysis
-      ? `<div class="inspector-field"><div class="inspector-field-label">反推分析</div><div class="inspector-main">${h(item.analysis)}</div></div>`
+      ? `<div class="inspector-field"><div class="inspector-field-label">${t('反推分析','Analysis')}</div><div class="inspector-main">${h(item.analysis)}</div></div>`
       : '';
     const thumb = item.image
       ? `<img class="inspector-thumb" src="${h(item.image)}" alt="">`
@@ -2804,37 +3012,37 @@
       const dur = item.duration ? formatSec(item.duration) : (item.__type === 'video' ? (item.duration_text || '-') : '-');
       const fps = item.fps ? `${item.fps} fps` : '-';
       return `<dl class="inspector-meta">
-        <dt>模型</dt><dd>${h(item.model || '-')}</dd>
-        <dt>尺寸</dt><dd>${h(dims || '-')}</dd>
-        <dt>时长</dt><dd>${h(dur || '-')}</dd>
-        <dt>帧率</dt><dd>${h(fps)}</dd>
-        <dt>大小</dt><dd>${h(item.file_size_text || '-')}</dd>
-        <dt>创建时间</dt><dd>${h(item.created_at || '-')}</dd>
-        <dt>更新时间</dt><dd>${h(item.updated_at || '-')}</dd>
+        <dt>${t('模型','Model')}</dt><dd>${h(item.model || '-')}</dd>
+        <dt>${t('尺寸','Size')}</dt><dd>${h(dims || '-')}</dd>
+        <dt>${t('时长','Duration')}</dt><dd>${h(dur || '-')}</dd>
+        <dt>${t('帧率','FPS')}</dt><dd>${h(fps)}</dd>
+        <dt>${t('大小','File Size')}</dt><dd>${h(item.file_size_text || '-')}</dd>
+        <dt>${t('创建时间','Created')}</dt><dd>${h(item.created_at || '-')}</dd>
+        <dt>${t('更新时间','Updated')}</dt><dd>${h(item.updated_at || '-')}</dd>
       </dl>`;
     };
     const metaRows = item.__type === 'project'
       ? `<dl class="inspector-meta">
-           <dt>图片</dt><dd>${(item.image_prompts||[]).length}</dd>
-           <dt>视频</dt><dd>${(item.video_prompts||[]).length}</dd>
+           <dt>${t('图片','Images')}</dt><dd>${(item.image_prompts||[]).length}</dd>
+           <dt>${t('视频','Videos')}</dt><dd>${(item.video_prompts||[]).length}</dd>
            <dt>Skills</dt><dd>${(item.skill_prompts||[]).length}</dd>
-           <dt>创建时间</dt><dd>${h(item.created_at || '-')}</dd>
+           <dt>${t('创建时间','Created')}</dt><dd>${h(item.created_at || '-')}</dd>
          </dl>`
       : buildPromptMetaRows();
     const paletteBlock = item.__type === 'image'
-      ? `<div class="palette-row" id="paletteRow"><span style="font-size:10px;color:var(--subtle)">提取中…</span></div>`
+      ? `<div class="palette-row" id="paletteRow"><span style="font-size:10px;color:var(--subtle)">${t('提取中…','Extracting…')}</span></div>`
       : '';
-      const openText = item.__type === 'project' ? '进入项目' : '编辑';
-    const secondText = item.__type === 'project' ? '查看资产' : '复制提示词';
+    const openText = item.__type === 'project' ? t('进入项目','Open Project') : t('编辑','Edit');
+    const secondText = item.__type === 'project' ? t('查看资产','View Assets') : t('复制提示词','Copy Prompt');
     const projectRecent = item.__type === 'project'
       ? (() => {
           const recents = buildProjectAssets(item)
             .sort((a,b) => toTs(b.updated_at || b.created_at) - toTs(a.updated_at || a.created_at))
             .slice(0, 5);
-          if (!recents.length) return `<div class="inspector-section"><div class="inspector-label">最近内容</div><div class="inspector-main" style="color:var(--subtle)">暂无内容</div></div>`;
-          return `<div class="inspector-section"><div class="inspector-label">最近内容</div>${
+          if (!recents.length) return `<div class="inspector-section"><div class="inspector-label">${t('最近内容','Recent')}</div><div class="inspector-main" style="color:var(--subtle)">${t('暂无内容','No content yet')}</div></div>`;
+          return `<div class="inspector-section"><div class="inspector-label">${t('最近内容','Recent')}</div>${
             recents.map(r => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px">
-              <span style="color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(r.title || '未命名')}</span>
+              <span style="color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(r.title || t('未命名','Untitled'))}</span>
               <span style="color:var(--subtle)">${h((r.updated_at || r.created_at || '').replace('T',' ').slice(0,16))}</span>
             </div>`).join('')
           }</div>`;
@@ -2846,9 +3054,9 @@
            <button class="btn btn-primary" id="inspectorCopyBtn">${secondText}</button>
          </div>
          <div class="inspector-actions">
-           <button class="btn btn-secondary" id="inspectorCreateAssetBtn">新建资产</button>
-           <button class="btn btn-secondary" id="inspectorEditProjectBtn">编辑项目</button>
-           <button class="btn btn-danger" id="inspectorDeleteProjectBtn">删除项目</button>
+           <button class="btn btn-secondary" id="inspectorCreateAssetBtn">${t('新建资产','New Asset')}</button>
+           <button class="btn btn-secondary" id="inspectorEditProjectBtn">${t('编辑项目','Edit Project')}</button>
+           <button class="btn btn-danger" id="inspectorDeleteProjectBtn">${t('删除项目','Delete Project')}</button>
          </div>`
       : '';
     const opsBlock = '';
@@ -2867,20 +3075,20 @@
       body.innerHTML = `
         ${thumb}
         ${paletteBlock}
-        <div class="inspector-field"><div class="inspector-field-val" style="font-weight:600">${h(item.title || '未命名')}</div></div>
+        <div class="inspector-field"><div class="inspector-field-val" style="font-weight:600">${h(item.title || t('未命名','Untitled'))}</div></div>
         <div class="inspector-field"><div style="display:flex;gap:4px;flex-wrap:wrap">${tags}</div></div>
         ${promptBlock}
         ${analysisBlock}
-        <div class="inspector-info-title">素材信息</div>
+        <div class="inspector-info-title">${t('素材信息','Media Info')}</div>
         <dl class="inspector-meta" style="align-items:center;margin:0">
-          <dt>评分</dt><dd><span class="inspector-stars" id="inspectorStars">${starsHtml}</span></dd>
+          <dt>${t('评分','Rating')}</dt><dd><span class="inspector-stars" id="inspectorStars">${starsHtml}</span></dd>
         </dl>
         ${metaRows}
         <div class="inspector-links">
-          <a id="inspectorOpenBtn">编辑</a>
-          <a id="inspectorCopyBtn">复制提示词</a>
-          <a id="inspectorReanalyzeBtn">反推</a>
-          <a class="danger" id="inspectorDeleteBtn">删除</a>
+          <a id="inspectorOpenBtn">${t('编辑','Edit')}</a>
+          <a id="inspectorCopyBtn">${t('复制提示词','Copy Prompt')}</a>
+          <a id="inspectorReanalyzeBtn">${t('反推','Reverse')}</a>
+          <a class="danger" id="inspectorDeleteBtn">${t('删除','Delete')}</a>
         </div>
         ${opsBlock}
       `;
@@ -2930,9 +3138,9 @@
           pickItem(null);
           await reloadData();
           if (state.projectId === item.id) navigate('projects');
-          toast('✅ 项目已删除');
+          toast(t('✅ 项目已删除','✅ Project deleted'));
         } catch (err) {
-          toast('❌ 删除失败：' + err.message, 4000);
+          toast(t('❌ 删除失败：','❌ Delete failed: ') + err.message, 4000);
         }
       };
     }
@@ -3062,8 +3270,8 @@
     if (activeType !== 'all') sourceItems = sourceItems.filter(item => item.__type === activeType);
     const models = Array.from(new Set(sourceItems.map(item => item.model || '').filter(Boolean)));
     const tags = Array.from(new Set(sourceItems.flatMap(item => Array.isArray(item.tags) ? item.tags : [])));
-    modelSel.innerHTML = `<option value="all">模型</option>${models.map(m => `<option value="${h(m)}">${h(m)}</option>`).join('')}`;
-    tagSel.innerHTML = `<option value="all" disabled hidden>标签</option><option value="all">全部</option>${tags.map(t => `<option value="${h(t)}">${h(t)}</option>`).join('')}`;
+    modelSel.innerHTML = `<option value="all">${t('模型','Model')}</option>${models.map(m => `<option value="${h(m)}">${h(m)}</option>`).join('')}`;
+    tagSel.innerHTML = `<option value="all" disabled hidden>${t('标签','Tags')}</option><option value="all">${t('全部','All')}</option>${tags.map(tg => `<option value="${h(tg)}">${h(tg)}</option>`).join('')}`;
     if (!models.includes(uiState.filterModel)) uiState.filterModel = 'all';
     if (!tags.includes(uiState.filterTag)) uiState.filterTag = 'all';
     modelSel.value = uiState.filterModel;
@@ -3376,7 +3584,7 @@
 
     if (!projs.length) {
       grid.innerHTML = ''; empty.style.display = 'flex';
-      empty.innerHTML = `<div class="empty-icon">📂</div><h3>还没有项目</h3><p>点击右上角「新建项目」开始创作</p>`;
+      empty.innerHTML = `<div class="empty-icon">📂</div><h3>${t('还没有项目','No projects yet')}</h3><p>${t('点击右上角「新建项目」开始创作','Click “New Project” to get started')}</p>`;
       pickItem(null);
       return;
     }
@@ -3391,9 +3599,9 @@
         <div class="card" data-proj-id="${h(proj.id)}">
           <div class="proj-card-cover" style="--c1:${g[0]};--c2:${g[1]}">${GRADIENT_EMOJIS[proj.colorIdx||0]}</div>
           <div class="card-body">
-            <div class="card-label label-project">项目</div>
+            <div class="card-label label-project">${t('项目','Project')}</div>
             <div class="card-title">${h(proj.name)}</div>
-            <div class="card-meta">${h(proj.description || '无描述')}</div>
+            <div class="card-meta">${h(proj.description || t('无描述','No description'))}</div>
           </div>
           <div class="card-footer">
             <span class="card-stat">🖼️ ${imgCount}</span>
@@ -3416,13 +3624,14 @@
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const proj = getProject(btn.dataset.delProj);
-        if (!confirm(`确认删除项目「${proj?.name}」？这只会删除项目记录，不会删除素材。`)) return;
+        const _delMsg = _lang === 'en' ? `Delete project "${proj?.name}"? This only removes the record, not the media files.` : `确认删除项目「${proj?.name}」？这只会删除项目记录，不会删除素材。`;
+        if (!confirm(_delMsg)) return;
         try {
           await postJson('/api/delete-project', {projectId: btn.dataset.delProj, deleteMedia: false});
           await reloadData();
-          toast('✅ 项目已删除');
+          toast(t('✅ 项目已删除','✅ Project deleted'));
         } catch (err) {
-          toast('❌ 删除失败：' + err.message, 4000);
+          toast(t('❌ 删除失败：','❌ Delete failed: ') + err.message, 4000);
         }
       });
     });
@@ -3649,7 +3858,7 @@
 
     if (!prompts.length) {
       grid.innerHTML = ''; empty.style.display = 'flex';
-      empty.innerHTML = `<div class="empty-icon">🧩</div><h3>当前筛选下没有资产</h3><p>试试切换类型、时间或搜索关键词</p>`;
+      empty.innerHTML = `<div class="empty-icon">🧩</div><h3>${t('当前筛选下没有资产','No assets match your filter')}</h3><p>${t('试试切换类型、时间或搜索关键词','Try switching type, time, or search keyword')}</p>`;
       pickItem(null);
       return;
     }
@@ -3669,8 +3878,8 @@
       // Count items inside asset folder
       const assetFolderItems = isAssetFolder ? (proj?.[state.view]||[]).filter(x => x.folder_id === p.id) : [];
       const cardLabelText = isAssetFolder
-        ? `文件夹 · ${assetFolderItems.length} 个${isImg ? '图片' : '视频'}`
-        : isImg ? '图片' : ((isSkill && p.is_folder) ? `文件夹 · ${(p.files||[]).length} 个文件` : (isSkill ? 'Skills' : '视频'));
+        ? t('文件夹','Folder') + ' · ' + assetFolderItems.length + (isImg ? t(' 个图片',' Images') : t(' 个视频',' Videos'))
+        : isImg ? t('图片','Image') : ((isSkill && p.is_folder) ? t('文件夹','Folder') + ' · ' + (p.files||[]).length + t(' 个文件',' Files') : (isSkill ? 'Skills' : t('视频','Video')));
       const galleryCount = isImg && !isAssetFolder && (p.gallery||[]).length > 0 ? p.gallery.length + 1 : 0;
       const galleryBadge = galleryCount > 1 ? `<div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,.55);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;font-weight:700;backdrop-filter:blur(4px);pointer-events:none">×${galleryCount}</div>` : '';
       const assetFolderThumb = isAssetFolder ? (() => {
@@ -3703,7 +3912,7 @@
           : `<div class="card-thumb-placeholder">${cardIcon}</div>`);
       const modelChip = p.model ? `<span class="chip" style="font-size:10px">${h(p.model)}</span>` : '';
       const snip = (p.prompt||'').replace(/[#*`>~\-_]/g,'').replace(/\s+/g,' ').trim().slice(0, isSkill ? 200 : 80);
-      const starPill = p.quality?.star ? `<div class="quality-pill">★ 星标</div>` : '';
+      const starPill = p.quality?.star ? `<div class="quality-pill">★ ${t('星标','Starred')}</div>` : '';
       const statusPill = p.quality?.status ? `<div class="quality-pill status">${h(p.quality.status)}</div>` : '';
       const metaLine = [
         !isSkill && p.aspect ? p.aspect : '',
@@ -3718,7 +3927,7 @@
           ${thumbHtml}
           <div class="card-body">
             <div class="card-label ${cardLabelClass}">${cardLabelText}</div>
-            <div class="card-title">${h(p.title||'无标题')}</div>
+            <div class="card-title">${h(p.title||t('无标题','Untitled'))}</div>
             <div class="card-meta" style="${isSkill?'white-space:pre-wrap;-webkit-line-clamp:4;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden':''}">${h(snip)}</div>
           </div>
           <div class="card-footer">
@@ -4517,7 +4726,7 @@
     pdfTags = [...(item.tags||[])];
     pdfColor = item.color || '';
     const chip = document.getElementById('pdfModalChip');
-    if (chip) chip.innerHTML = `${docIcon(item.filename||'')} 文档`;
+    if (chip) chip.innerHTML = `${docIcon(item.filename||'')} ${t('文档','Doc')}`;
     document.getElementById('pdfModalTitle').textContent = item.title || item.filename || '';
     document.getElementById('pdfTitleInput').value = item.title || '';
     document.getElementById('pdfFilenameDisplay').value = item.filename || '';
@@ -4731,7 +4940,7 @@
   function openProjModal(projId) {
     editingProjId = projId;
     const proj = projId ? getProject(projId) : null;
-    document.getElementById('projModalTitle').textContent = proj ? '编辑项目' : '新建项目';
+    document.getElementById('projModalTitle').textContent = proj ? t('编辑项目','Edit Project') : t('新建项目','New Project');
     document.getElementById('pName').value = proj ? proj.name : '';
     document.getElementById('pDesc').value = proj ? (proj.description||'') : '';
     buildSwatches(proj ? (proj.colorIdx||0) : 0);
@@ -4756,7 +4965,7 @@
     }
     const ok = await saveData(data);
     if (!ok) return;
-    closeProjModal(); renderSidebar(); renderPage(); toast('✅ 已保存');
+    closeProjModal(); renderSidebar(); renderPage(); toast(t('✅ 已保存','✅ Saved'));
   };
 
   // ── Desktop settings modal ────────────────────────────────────────────
@@ -4909,8 +5118,8 @@
     const model   = document.getElementById(modelId).value.trim();
     const btnId = type === 'image' ? 'testImageApiBtn' : type === 'video' ? 'testVideoApiBtn' : 'testLlmApiBtn';
     const btn = document.getElementById(btnId);
-    if (!apiBase || !apiKey) { toast('⚠️ 请先填写 API Base 和 API Key'); return; }
-    const orig = btn.textContent; btn.disabled = true; btn.textContent = '测试中…';
+    if (!apiBase || !apiKey) { toast(t('⚠️ 请先填写 API Base 和 API Key','⚠️ Please enter API Base and API Key')); return; }
+    const orig = btn.textContent; btn.disabled = true; btn.textContent = t('测试中…','Testing…');
     try {
       let ok = false, msg = '';
       if (/googleapis\.com/i.test(apiBase)) {
@@ -4918,17 +5127,17 @@
         const r = await fetch(`${apiBase}/models?key=${encodeURIComponent(apiKey)}`);
         const j = await r.json();
         ok = r.ok && Array.isArray(j.models);
-        msg = ok ? `✅ 连接成功，可用模型 ${j.models.length} 个` : `❌ ${j.error?.message || r.status}`;
+        msg = ok ? t(`✅ 连接成功，可用模型 ${j.models.length} 个`,`✅ Connected, ${j.models.length} models available`) : `❌ ${j.error?.message || r.status}`;
       } else {
         // OpenAI-compatible: list models
         const r = await fetch(`${apiBase}/models`, { headers: { Authorization: `Bearer ${apiKey}` } });
         const j = await r.json().catch(() => ({}));
         ok = r.ok;
-        msg = ok ? `✅ 连接成功` : `❌ ${j.error?.message || r.status}`;
+        msg = ok ? t('✅ 连接成功','✅ Connected') : `❌ ${j.error?.message || r.status}`;
       }
       toast(msg, ok ? 2500 : 5000);
     } catch (e) {
-      toast(`❌ 请求失败：${e.message}`, 5000);
+      toast(t(`❌ 请求失败：${e.message}`,`❌ Request failed: ${e.message}`), 5000);
     } finally {
       btn.disabled = false; btn.textContent = orig;
     }
@@ -5487,7 +5696,7 @@
       videoEl.style.display = 'none'; videoEl.src = '';
       phEl2.style.display = 'flex';
       phEl2.style.background = type==='video' ? '#0f1828' : '';
-      phEl2.innerHTML = type==='video' ? '<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:52px;height:52px;border-radius:50%;border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">▶</div><div style="color:#667;font-size:12px">视频预览</div></div>' : '🖼️';
+      phEl2.innerHTML = type==='video' ? `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:52px;height:52px;border-radius:50%;border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">▶</div><div style="color:#667;font-size:12px">${t('视频预览','Video Preview')}</div></div>` : '🖼️';
     }
     document.getElementById('pmModel').onchange = () => {
       document.getElementById('pmCustomModelWrap').style.display =
@@ -5513,7 +5722,7 @@
       if (!(type === 'video' && pmVideoPath)) {
         phEl.style.display = 'flex';
         if (type === 'image') {
-          phEl.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;opacity:.55"><div style="font-size:48px">🖼️</div><div style="font-size:12px">点击上传图片</div></div>';
+          phEl.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;opacity:.55"><div style="font-size:48px">🖼️</div><div style="font-size:12px">${t('点击上传图片','Click to upload image')}</div></div>`;
         } else if (type === 'skill') {
           phEl.innerHTML = '<div style="font-size:52px;display:flex;flex-direction:column;align-items:center;gap:8px"><div>🤖</div><div style="font-size:12px;color:#9fb8e9;margin-top:4px">Skills / Agent</div></div>';
         } else {
@@ -5545,12 +5754,11 @@
     }
 
     // Chip & title
-    const typeLabel = type === 'image' ? '🖼️ 图片提示词' : (type === 'skill' ? '🤖 Skills 提示词' : '🎬 视频提示词');
+    const typeLabel = type === 'image' ? t('🖼️ 图片提示词','🖼️ Image Prompt') : (type === 'skill' ? '🤖 Skills / Agent' : t('🎬 视频提示词','🎬 Video Prompt'));
     const typeLabelClass = type === 'image' ? 'label-image' : (type === 'skill' ? 'label-skill' : 'label-video');
-    const typeNameCn = type === 'image' ? '图片' : (type === 'skill' ? 'Skills' : '视频');
     document.getElementById('promptTypeChip').textContent = typeLabel;
     document.getElementById('promptTypeChip').className = `chip ${typeLabelClass}`;
-    document.getElementById('promptModalTitle').textContent = item ? (item.title||'无标题') : `新建${typeNameCn}提示词`;
+    document.getElementById('promptModalTitle').textContent = item ? (item.title||t('无标题','Untitled')) : (type==='image' ? t('新建图片提示词','New Image Prompt') : (type==='skill' ? t('新建 Skills 提示词','New Skills Prompt') : t('新建视频提示词','New Video Prompt')));
     document.getElementById('pmDeleteBtn').style.display = promptId ? '' : 'none';
     document.getElementById('pmDeleteMediaBtn').style.display = (promptId && type !== 'skill' && hasLocalMedia(item)) ? '' : 'none';
 
@@ -5559,7 +5767,7 @@
   }
 
   function buildVideoPlaceholder() {
-    return `<div class="modal-video-ph" style="width:100%;height:100%"><div class="play-btn">▶</div><div style="color:#667;font-size:12px;margin-top:8px">视频预览</div></div>`;
+    return `<div class="modal-video-ph" style="width:100%;height:100%"><div class="play-btn">▶</div><div style="color:#667;font-size:12px;margin-top:8px">${t('视频预览','Video Preview')}</div></div>`;
   }
 
   function closePromptModal() { document.getElementById('promptModal').classList.remove('open'); }
@@ -6241,7 +6449,7 @@
     document.getElementById('spTagInput').value = '';
     spTags = item ? [...(item.tags||[])] : [];
     renderSpTags();
-    document.getElementById('spHeadTitle').textContent = item ? (item.title || '无标题') : '新建 Skills 提示词';
+    document.getElementById('spHeadTitle').textContent = item ? (item.title || t('无标题','Untitled')) : t('新建 Skills 提示词','New Skills Prompt');
     document.getElementById('spDeleteBtn').style.display = promptId ? '' : 'none';
     // folder vs normal mode
     const folderView = document.getElementById('spFolderView');
@@ -7005,14 +7213,14 @@
   function openMoveModal(mode, items) {
     _moveItems = items;
     document.getElementById('moveMode').value = mode;
-    document.getElementById('moveModalTitle').textContent = mode === 'copy' ? '复制到项目' : '移动到项目';
+    document.getElementById('moveModalTitle').textContent = mode === 'copy' ? t('复制到项目','Copy to Project') : t('移动到项目','Move to Project');
     const list = document.getElementById('moveProjList');
     list.innerHTML = data.projects.map(p => {
       const isCurrent = p.id === state.projectId;
       return `<div class="move-proj-item${isCurrent?' current':''}" data-pid="${h(p.id)}">
         <span>${GRADIENT_EMOJIS[p.colorIdx||0]}</span>
         <span style="flex:1">${h(p.name)}</span>
-        ${isCurrent ? '<span style="font-size:11px;color:var(--subtle)">当前</span>' : ''}
+        ${isCurrent ? `<span style="font-size:11px;color:var(--subtle)">${t('当前','Current')}</span>` : ''}
       </div>`;
     }).join('');
     list.querySelectorAll('.move-proj-item:not(.current)').forEach(el => {
