@@ -1204,8 +1204,8 @@ class Handler(SimpleHTTPRequestHandler):
         tags         = body.get("tags", [])
         if isinstance(tags, str):
             tags = [t.strip() for t in tags.split(",") if t.strip()]
-        if not prompt:
-            return self._err(400, "prompt is required")
+        if not prompt and type_ == "skill":
+            return self._err(400, "prompt is required for skill type")
         cat_map = {"image": "image_prompts", "video": "video_prompts", "skill": "skill_prompts"}
         category = cat_map.get(type_, "skill_prompts")
         data = json.loads(DATA_FILE.read_text(encoding="utf-8"))

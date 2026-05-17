@@ -241,11 +241,11 @@ document.getElementById('cSendBtn').addEventListener('click', async () => {
   for (let i = 0; i < list.length; i++) {
     sendBtn.textContent = `发送中 ${i+1}/${list.length}…`;
     try {
-      await fetch(`${SERVER_URL}/api/cli/push`, {
+      const res = await fetch(`${SERVER_URL}/api/cli/push`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: projId || undefined, type: 'image_prompts', image_url: list[i].url, title: '', prompt: '' }),
+        body: JSON.stringify({ project_id: projId || undefined, type: 'image', image_url: list[i].url, title: '', prompt: list[i].url }),
       });
-      ok++;
+      if (res.ok) ok++;
     } catch {}
   }
   sendBtn.textContent = `✅ 已保存 ${ok}/${list.length} 张`;
