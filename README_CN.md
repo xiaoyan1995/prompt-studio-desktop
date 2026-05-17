@@ -15,6 +15,29 @@
 
 ---
 
+## 🖼️ 界面预览
+
+<div align="center">
+
+<img src="docs/screenshots/main.png" alt="图片提示词主界面" width="720">
+
+<br><br>
+
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/detail.png" alt="提示词详情" width="340"><br><sub>提示词详情 & 画廊</sub></td>
+<td align="center"><img src="docs/screenshots/audio.png" alt="音效库" width="340"><br><sub>音效库 & 波形预览</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/docs.png" alt="文档库" width="340"><br><sub>文档库</sub></td>
+<td align="center"><img src="docs/screenshots/extension.png" alt="浏览器插件" width="340"><br><sub>浏览器插件</sub></td>
+</tr>
+</table>
+
+</div>
+
+---
+
 ## ✨ 功能特性
 
 - 📁 **项目式管理** — 按项目组织图片和视频提示词
