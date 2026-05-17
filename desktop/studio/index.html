@@ -1708,7 +1708,7 @@
   </div>
 </div>
 
-<input type="file" id="pdfUploadInput" accept=".pdf,.docx,.doc,.txt,.md,.markdown,.xlsx,.xls,.csv,.pptx,.ppt,.rtf,.odt,.ods,.odp" multiple style="display:none">
+<input type="file" id="pdfUploadInput" accept=".pdf,.docx,.doc,.txt,.md,.markdown,.xlsx,.xls,.csv,.pptx,.ppt,.rtf,.odt,.ods,.odp,.html" multiple style="display:none">
 
 <!-- Panel: PDF / document detail (right drawer) -->
 <div id="pdfModal">
@@ -2157,6 +2157,7 @@
 
   // ── State ─────────────────────────────────────────────────────────────
   let state = { view: 'projects', projectId: null, promptId: null, skillFolderId: null, skillFolderPath: [], folderFilter: null };
+  let _dragItems = []; // items being dragged for internal folder-drop
   let uiState = {
     viewMode: 'grid',
     filterModel: 'all',
@@ -2199,12 +2200,12 @@
     while (size >= 1024 && i < units.length - 1) { size /= 1024; i++; }
     return size.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
   }
-  const DOC_EXTS = ['pdf','docx','doc','txt','md','markdown','xlsx','xls','csv','pptx','ppt','rtf','odt','ods','odp'];
+  const DOC_EXTS = ['pdf','docx','doc','txt','md','markdown','xlsx','xls','csv','pptx','ppt','rtf','odt','ods','odp','html'];
   function docIcon(filename) {
     const ext = (filename||'').split('.').pop().toLowerCase();
     return {pdf:'\ud83d\udcc4',docx:'\ud83d\udcdd',doc:'\ud83d\udcdd',txt:'\ud83d\udcc3',md:'\ud83d\udcc3',markdown:'\ud83d\udcc3',
             xlsx:'\ud83d\udcca',xls:'\ud83d\udcca',csv:'\ud83d\udccb',pptx:'\ud83d\udcf0',ppt:'\ud83d\udcf0',
-            rtf:'\ud83d\udcdd',odt:'\ud83d\udcdd',ods:'\ud83d\udcca',odp:'\ud83d\udcf0'}[ext] || '\ud83d\udcc1';
+            rtf:'\ud83d\udcdd',odt:'\ud83d\udcdd',ods:'\ud83d\udcca',odp:'\ud83d\udcf0',html:'\ud83c\udf10'}[ext] || '\ud83d\udcc1';
   }
   function isPdfFile(filename) { return (filename||'').split('.').pop().toLowerCase() === 'pdf'; }
   async function uploadPdf(file, projectName) {
@@ -3103,7 +3104,8 @@
         document.getElementById('primaryBtn').onclick = () => { state.folderFilter = null; renderPage(); syncToolbarControls(); };
         const _cb = document.getElementById('catBar');
         _cb.style.display = 'flex';
-        _cb.innerHTML = `<span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)">📁 ${h(assetFolder.title)}</span><span style="margin-left:auto;font-size:11px;color:var(--subtle)">${isImg ? '图片' : '视频'}文件夹</span>`;
+        const _folderTypeLabel = isImg ? '图片' : (state.view === 'pdf_files' ? '文档' : '视频');
+        _cb.innerHTML = `<span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)">📁 ${h(assetFolder.title)}</span><span style="margin-left:auto;font-size:11px;color:var(--subtle)">${_folderTypeLabel}文件夹</span>`;
       } else {
         document.getElementById('pageTitle').textContent = pageTitle;
         const folderText = folder ? ` · 智能文件夹：${folder.name}` : '';
@@ -3306,6 +3308,7 @@
 
     // ── PDF files view ──────────────────────────────────────────────────
     if (state.view === 'pdf_files') {
+      if (state.folderFilter) { /* catBar set by renderPage */ renderPdfGrid(proj, q); return; }
       // build tag bar + color filter for docs
       const allDocTags = new Set();
       (proj.pdf_files||[]).forEach(p => (p.tags||[]).forEach(t => allDocTags.add(t)));
@@ -3520,13 +3523,25 @@
       const selectKey = `${card.dataset.promptType}:${card.dataset.promptId}`;
       card.classList.toggle('selected', uiState.selectedIds.has(selectKey));
       attachPromptCtxMenu(card, prompts);
-      // ── Drag-Out (TODO2) ──────────────────────────────────────────────
+      // ── Drag-Out + internal folder-drop ──────────────────────────────
       card.setAttribute('draggable', 'true');
       card.addEventListener('dragstart', (de) => {
-        if (!window.electronAPI) return;
         const dtype = card.dataset.promptType;
         const ditem = prompts.find(p => p.id === card.dataset.promptId && p.__type === dtype);
-        if (!ditem) { de.preventDefault(); return; }
+        if (!ditem || ditem.is_folder) { de.preventDefault(); return; }
+        // Set _dragItems for internal folder-drop
+        const _thisKey = `${dtype}:${ditem.id}`;
+        const _cat = dtype === 'image' ? 'image_prompts' : 'video_prompts';
+        if (uiState.selectedIds.has(_thisKey) && uiState.selectedIds.size > 1) {
+          _dragItems = [...uiState.selectedIds].map(k => {
+            const [t,id] = k.split(':'); const c = {image:'image_prompts',video:'video_prompts'}[t];
+            return c ? {id, category:c} : null;
+          }).filter(Boolean);
+        } else {
+          _dragItems = [{id: ditem.id, category: _cat}];
+        }
+        de.dataTransfer.setData('text/plain', ditem.id);
+        if (!window.electronAPI) return;
 
         // Collect paths: if this card is selected and there are other selections, drag all selected
         const thisKey = `${dtype}:${ditem.id}`;
@@ -3561,6 +3576,32 @@
         // Native OS drag (works for Explorer/Finder/desktop and some browsers)
         window.electronAPI.startFileDrag(dragPaths.length === 1 ? dragPaths[0] : dragPaths);
       });
+      card.addEventListener('dragend', () => { setTimeout(() => { _dragItems = []; }, 200); });
+    });
+    // ── Folder card drop receivers (image/video) ─────────────────────────
+    grid.querySelectorAll('.card[data-prompt-id]').forEach(card => {
+      const type = card.dataset.promptType;
+      const item = prompts.find(p => p.id === card.dataset.promptId && p.__type === type);
+      if (!item || !item.is_folder) return;
+      card.addEventListener('dragover', (e) => {
+        if (!_dragItems.length) return;
+        e.preventDefault(); e.stopPropagation();
+        card.style.outline = '2px solid var(--primary)'; card.style.outlineOffset = '-2px';
+      });
+      card.addEventListener('dragleave', () => { card.style.outline = ''; card.style.outlineOffset = ''; });
+      card.addEventListener('drop', async (e) => {
+        e.preventDefault(); e.stopPropagation();
+        card.style.outline = ''; card.style.outlineOffset = '';
+        if (!_dragItems.length) return;
+        const pr = getProject(state.projectId);
+        for (const { id, category } of _dragItems) {
+          const idx = (pr[category]||[]).findIndex(p => p.id === id);
+          if (idx !== -1) pr[category][idx].folder_id = item.id;
+        }
+        _dragItems = [];
+        const ok = await saveData(data);
+        if (ok) { data = await loadData(); renderPage(); toast(`✅ 已移到「${item.title||'文件夹'}」`); }
+      });
     });
     grid.querySelectorAll('[data-del-prompt]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -3590,82 +3631,151 @@
     const grid = document.getElementById('mainGrid');
     const empty = document.getElementById('emptyState');
     let pdfs = proj.pdf_files || [];
-    // full-text search (title + filename + notes + content_text)
-    if (q) pdfs = pdfs.filter(p =>
-      (p.title||'').toLowerCase().includes(q) ||
-      (p.filename||'').toLowerCase().includes(q) ||
-      (p.notes||'').toLowerCase().includes(q) ||
-      (p.content_text||'').toLowerCase().includes(q)
-    );
-    // tag filter
-    if (activeCategory) pdfs = pdfs.filter(p => (p.tags||[]).includes(activeCategory));
-    // color filter
-    if (uiState.pdfColorFilter !== 'all') pdfs = pdfs.filter(p => p.color === uiState.pdfColorFilter);
-    // sort
+    // Folder filter
+    if (state.folderFilter) {
+      pdfs = pdfs.filter(p => !p.is_folder && p.folder_id === state.folderFilter);
+    } else {
+      pdfs = pdfs.filter(p => p.is_folder || !p.folder_id);
+    }
+    // full-text search
+    if (q) pdfs = pdfs.filter(p => p.is_folder
+      ? (p.title||'').toLowerCase().includes(q)
+      : ((p.title||'').toLowerCase().includes(q) || (p.filename||'').toLowerCase().includes(q) ||
+         (p.notes||'').toLowerCase().includes(q) || (p.content_text||'').toLowerCase().includes(q)));
+    // tag / color filter (root only)
+    if (!state.folderFilter) {
+      if (activeCategory) pdfs = pdfs.filter(p => (p.tags||[]).includes(activeCategory));
+      if (uiState.pdfColorFilter !== 'all') pdfs = pdfs.filter(p => p.color === uiState.pdfColorFilter);
+    }
     pdfs = sortByUi(pdfs);
     if (!pdfs.length) {
       grid.innerHTML = '';
       empty.style.display = 'flex';
-      empty.innerHTML = `<div class="empty-icon">📁</div><h3>还没有文档</h3><p>点击右上角「上传文档」或拖放文件到此处</p>`;
+      empty.innerHTML = state.folderFilter
+        ? `<div class="empty-icon">📁</div><h3>文件夹为空</h3><p>拖拽文件到此处或使用「上传文档」添加</p>`
+        : `<div class="empty-icon">📁</div><h3>还没有文档</h3><p>点击右上角「上传文档」或拖放文件到此处</p>`;
     } else {
       empty.style.display = 'none';
       grid.innerHTML = pdfs.map(p => {
+        const selKey = `pdf:${p.id}`;
+        const selected = uiState.selectedIds.has(selKey);
+        if (p.is_folder) {
+          const cnt = (proj.pdf_files||[]).filter(x => !x.is_folder && x.folder_id === p.id).length;
+          return `<div class="card${selected?' selected':''}" data-pdf-id="${h(p.id)}" data-is-folder="1">
+            <div class="skill-folder-cover"><div class="skill-folder-icon">📁</div></div>
+            <div class="card-body">
+              <div class="card-label label-pdf">文档文件夹</div>
+              <div class="card-title">${h(p.title||'文件夹')}</div>
+              <div class="card-meta">${cnt} 个文档</div>
+            </div>
+            <button class="card-del" data-del-pdf-folder="${h(p.id)}">✕</button>
+          </div>`;
+        }
         const sizeStr = p.size ? formatFileSize(p.size) : '';
         const icon = docIcon(p.filename||p.title||'');
         const colorDot = p.color ? `<span class="color-dot" style="background:${(DOC_COLORS.find(c=>c.id===p.color)||{}).color||'transparent'}"></span>` : '';
-        const selKey = `pdf:${p.id}`;
-        const selected = uiState.selectedIds.has(selKey);
-        return `
-          <div class="card${selected?' selected':''}" data-pdf-id="${h(p.id)}">
-            ${colorDot}
-            <div class="card-thumb-pdf">${icon}<div class="pdf-fn">${h(p.filename||'')}</div></div>
-            <div class="card-body">
-              <div class="card-label label-pdf">文档</div>
-              <div class="card-title">${h(p.title||'未命名文档')}</div>
-              <div class="card-meta">${h((sizeStr?sizeStr+' · ':'')+((p.notes||'').replace(/\s+/g,' ').trim().slice(0,60)))}</div>
-            </div>
-            <div class="card-footer">
-              ${sizeStr?`<span class="card-stat">📦 ${sizeStr}</span>`:''}
-              <span style="margin-left:auto;font-size:11px">${p.created_at?p.created_at.slice(0,10):''}</span>
-            </div>
-            <button class="card-del" data-del-pdf="${h(p.id)}">✕</button>
-          </div>`;
+        return `<div class="card${selected?' selected':''}" data-pdf-id="${h(p.id)}">
+          ${colorDot}
+          <div class="card-thumb-pdf">${icon}<div class="pdf-fn">${h(p.filename||'')}</div></div>
+          <div class="card-body">
+            <div class="card-label label-pdf">文档</div>
+            <div class="card-title">${h(p.title||'未命名文档')}</div>
+            <div class="card-meta">${h((sizeStr?sizeStr+' · ':'')+((p.notes||'').replace(/\s+/g,' ').trim().slice(0,60)))}</div>
+          </div>
+          <div class="card-footer">
+            ${sizeStr?`<span class="card-stat">📦 ${sizeStr}</span>`:''}
+            <span style="margin-left:auto;font-size:11px">${p.created_at?p.created_at.slice(0,10):''}</span>
+          </div>
+          <button class="card-del" data-del-pdf="${h(p.id)}">✕</button>
+        </div>`;
       }).join('');
     }
-    // drag-drop onto grid
-    grid.ondragover = e => { if (state.view === 'pdf_files') { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } };
-    grid.ondrop = async (e) => {
+    // drag-drop onto grid (file upload)
+    grid.ondragover = e => {
       if (state.view !== 'pdf_files') return;
+      if (_dragItems.length) return; // internal drag handled by folder cards
+      e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+    };
+    grid.ondrop = async (e) => {
+      if (state.view !== 'pdf_files' || _dragItems.length) return;
       e.preventDefault();
       const docFiles = [...(e.dataTransfer.files||[])].filter(f => DOC_EXTS.includes(f.name.split('.').pop().toLowerCase()));
       if (!docFiles.length) { toast('⚠️ 不支持的文件格式'); return; }
       for (const f of docFiles) await handleDocUpload(f);
     };
     grid.querySelectorAll('.card[data-pdf-id]').forEach(card => {
+      const isFolder = card.dataset.isFolder === '1';
       card.addEventListener('click', (e) => {
         if (e.target.closest('.card-del')) return;
-        const selKey = `pdf:${card.dataset.pdfId}`;
-        if (e.ctrlKey || e.metaKey) {
-          toggleSelect(selKey, card);
-          return;
+        if (isFolder) {
+          state.folderFilter = card.dataset.pdfId;
+          renderPage(); syncToolbarControls(); return;
         }
+        const selKey = `pdf:${card.dataset.pdfId}`;
+        if (e.ctrlKey || e.metaKey) { toggleSelect(selKey, card); return; }
         openPdfModal(card.dataset.pdfId);
       });
-      // right-click context menu
-      card.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        const pdfItem = pdfs.find(p => p.id === card.dataset.pdfId);
-        if (pdfItem) showCtxMenu(e.clientX, e.clientY, pdfItem, 'pdf');
-      });
+      if (!isFolder) {
+        card.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          const pdfItem = pdfs.find(p => p.id === card.dataset.pdfId);
+          if (pdfItem) showCtxMenu(e.clientX, e.clientY, pdfItem, 'pdf');
+        });
+        // draggable for folder-drop
+        card.setAttribute('draggable', 'true');
+        card.addEventListener('dragstart', (de) => {
+          const pdfItem = pdfs.find(p => p.id === card.dataset.pdfId);
+          if (!pdfItem) { de.preventDefault(); return; }
+          const selKey = `pdf:${pdfItem.id}`;
+          if (uiState.selectedIds.has(selKey) && uiState.selectedIds.size > 1) {
+            _dragItems = [...uiState.selectedIds].filter(k => k.startsWith('pdf:')).map(k => ({ id: k.slice(4), category: 'pdf_files' }));
+          } else {
+            _dragItems = [{ id: pdfItem.id, category: 'pdf_files' }];
+          }
+          de.dataTransfer.effectAllowed = 'move';
+          de.dataTransfer.setData('text/plain', pdfItem.id);
+        });
+        card.addEventListener('dragend', () => { setTimeout(() => { _dragItems = []; }, 200); });
+      } else {
+        // folder card: accept drops
+        card.addEventListener('dragover', (e) => {
+          if (!_dragItems.length) return;
+          e.preventDefault(); e.stopPropagation();
+          card.style.outline = '2px solid var(--primary)'; card.style.outlineOffset = '-2px';
+        });
+        card.addEventListener('dragleave', () => { card.style.outline = ''; card.style.outlineOffset = ''; });
+        card.addEventListener('drop', async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          card.style.outline = ''; card.style.outlineOffset = '';
+          if (!_dragItems.length) return;
+          const folderId = card.dataset.pdfId;
+          const pr = getProject(state.projectId);
+          for (const { id, category } of _dragItems) {
+            const idx = (pr[category]||[]).findIndex(p => p.id === id);
+            if (idx !== -1) pr[category][idx].folder_id = folderId;
+          }
+          _dragItems = [];
+          const ok = await saveData(data);
+          if (ok) { data = await loadData(); renderPage(); toast('✅ 已移到文件夹'); }
+        });
+      }
     });
     grid.querySelectorAll('[data-del-pdf]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         if (!confirm('确认删除此文档？文件将被永久删除。')) return;
-        try {
-          await postJson('/api/delete-pdf', { projectId: state.projectId, pdfId: btn.dataset.delPdf });
-        } catch {}
+        try { await postJson('/api/delete-pdf', { projectId: state.projectId, pdfId: btn.dataset.delPdf }); } catch {}
         data = await loadData(); renderPage(); renderSidebar(); toast('✅ 已删除');
+      });
+    });
+    grid.querySelectorAll('[data-del-pdf-folder]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm('删除文件夹后，其中的文档将移回根目录。确认吗？')) return;
+        const pr = getProject(state.projectId);
+        (pr.pdf_files||[]).forEach(p => { if (p.folder_id === btn.dataset.delPdfFolder) delete p.folder_id; });
+        pr.pdf_files = (pr.pdf_files||[]).filter(p => p.id !== btn.dataset.delPdfFolder);
+        await saveData(data); data = await loadData(); renderPage(); renderSidebar(); toast('✅ 文件夹已删除');
       });
     });
   }
@@ -3823,6 +3933,18 @@
         richDiv.innerHTML = `<div style="text-align:center;padding:40px;color:#94a3b8;font-size:32px">${docIcon(filename)}<br><br><span style="font-size:14px">表格预览加载失败，请下载后查看</span></div>`;
       }
       finally { loading.style.display = 'none'; }
+      return;
+    }
+
+    // ── HTML ──────────────────────────────────────────────────────────────
+    if (ext === 'html') {
+      richDiv.style.cssText = 'flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;height:100%';
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'width:100%;flex:1;border:none;background:#fff;border-radius:4px;min-height:400px';
+      iframe.sandbox = 'allow-scripts allow-same-origin';
+      iframe.src = fullUrl;
+      richDiv.appendChild(iframe);
+      loading.style.display = 'none';
       return;
     }
 
@@ -6519,7 +6641,7 @@
   // Grid background right-click → new folder
   document.getElementById('mainGrid').addEventListener('contextmenu', (e) => {
     if (e.target.closest('.card')) return; // card has its own handler
-    const isAssetView = state.view === 'image_prompts' || state.view === 'video_prompts';
+    const isAssetView = state.view === 'image_prompts' || state.view === 'video_prompts' || state.view === 'pdf_files';
     if (!isAssetView || state.folderFilter) return;
     e.preventDefault();
     const m = document.getElementById('ctxMenu');
