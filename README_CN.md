@@ -129,13 +129,6 @@
 
 ## 📦 安装使用（无需编译）
 
-<div align="center">
-<img src="docs/screenshots/projects.png" alt="项目管理" width="600">
-<br><sub>项目管理页 — 按项目组织所有资产，支持图片 · 视频 · Skills · 文档 · 音效</sub>
-</div>
-
-<br>
-
 从 [Releases](https://github.com/xiaoyan1995/prompt-studio-desktop/releases) 下载最新分发包，解压后目录结构如下：
 
 ```
