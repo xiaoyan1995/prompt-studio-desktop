@@ -3118,7 +3118,17 @@
     state.promptId = null;
     state.skillFolderId = null;
     state.folderFilter = null;
-    if (view !== 'audio_library') { state.audioFolderId = null; state.audioSubPath = ''; _audioSelected.clear(); }
+    if (view !== 'audio_library') {
+      state.audioFolderId = null; state.audioSubPath = ''; _audioSelected.clear();
+      if (_audioEl) { _audioEl.pause(); }
+      document.getElementById('audioMiniPlayer')?.classList.remove('visible');
+      document.querySelector('.workspace-shell')?.classList.remove('audio-player-open');
+    } else {
+      if (_audioEl && !_audioEl.ended) {
+        document.getElementById('audioMiniPlayer')?.classList.add('visible');
+        document.querySelector('.workspace-shell')?.classList.add('audio-player-open');
+      }
+    }
     activeCategory = null;
     clearSelection();
     pickItem(null);
