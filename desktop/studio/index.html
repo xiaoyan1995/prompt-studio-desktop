@@ -5582,6 +5582,7 @@
       filename: file.name, path: result.path,
       size: result.size, tags: [], notes: '', color: '',
       content_text: result.content_text || '',
+      folder_id: state.folderFilter || undefined,
       created_at: new Date().toISOString()
     });
     await saveData(data); renderPage(); renderSidebar(); toast('✅ 文档已保存');
