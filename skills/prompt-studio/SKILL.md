@@ -79,9 +79,10 @@ const file = await fetch('http://localhost:8767' + items[0].download_url).then(r
 > Always call `/api/cli/audio/folders` first to get `folder_id` and `project_name`, then pass both to `/api/cli/audio/files`.
 
 ```js
-// Step 1 — list all linked audio folders (across all projects)
+// Step 1 — list all linked audio folders (already includes file_count per folder)
 const { folders } = await fetch('http://localhost:8767/api/cli/audio/folders').then(r => r.json());
-// folders[n]: { project_id, project_name, folder_id, folder_name, local_path, added_at }
+// folders[n]: { project_id, project_name, folder_id, folder_name, local_path, file_count, accessible, added_at }
+// file_count tells you how many audio files are in the folder WITHOUT fetching them all
 
 // Step 2 — list files in a specific folder (use project_name + folder_id from step 1)
 const f = folders[0];

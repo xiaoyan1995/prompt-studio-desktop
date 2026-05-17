@@ -1324,6 +1324,7 @@ class Handler(SimpleHTTPRequestHandler):
     # ── CLI audio helpers ─────────────────────────────────────────────────
     def _handle_cli_audio_folders(self, query):
         """GET /api/cli/audio/folders?project=<name|id>"""
+        AUDIO_EXTS = {'.mp3', '.wav', '.flac', '.ogg', '.aac', '.m4a', '.opus', '.weba', '.m4r', '.aiff', '.au'}
         project_ref = (query.get("project") or [""])[0]
         data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
         results = []
@@ -1331,12 +1332,24 @@ class Handler(SimpleHTTPRequestHandler):
             if project_ref and project_ref not in (proj["id"], proj["name"]):
                 continue
             for folder in proj.get("audio_folders", []):
+                local_path = folder.get("localPath", "")
+                file_count = 0
+                accessible = False
+                if local_path and os.path.isdir(local_path):
+                    accessible = True
+                    try:
+                        for _, _, files in os.walk(local_path):
+                            file_count += sum(1 for f in files if os.path.splitext(f)[1].lower() in AUDIO_EXTS)
+                    except Exception:
+                        pass
                 results.append({
                     "project_id":   proj["id"],
                     "project_name": proj["name"],
                     "folder_id":    folder["id"],
                     "folder_name":  folder["name"],
-                    "local_path":   folder.get("localPath", ""),
+                    "local_path":   local_path,
+                    "file_count":   file_count,
+                    "accessible":   accessible,
                     "added_at":     folder.get("added_at", ""),
                 })
         self._json_resp({"ok": True, "count": len(results), "folders": results})
