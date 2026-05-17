@@ -50,6 +50,8 @@
   }
   .window-action:hover{background:#eef2f7;color:var(--text)}
   .window-action.close:hover{background:#e81123;color:#fff}
+  .window-action.pinned{background:#dbeafe;color:#1d4ed8}
+  .window-action.pinned:hover{background:#bfdbfe}
   .app-shell{flex:1;min-height:0;display:flex;overflow:hidden;background:var(--bg)}
 
   /* ── Sidebar ─────────────────────────────────────── */
@@ -1158,6 +1160,8 @@
   .content.view-projects #workspaceToolbar{justify-content:flex-end}
   .content.view-projects .inspector{display:none !important}
   .content.view-projects{grid-template-columns:1fr !important}
+  .content.view-audio .inspector{display:none !important}
+  .content.view-audio{grid-template-columns:1fr !important}
   .content.view-projects .workspace-main{
     background:transparent;border:none;box-shadow:none;padding:12px;
   }
@@ -1352,6 +1356,75 @@
   #fileViewerBox{background:var(--surface);border-radius:16px;width:min(800px,92vw);max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}
   #fileViewerHead{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
   #fileViewerBody{flex:1;overflow-y:auto;padding:20px 24px;user-select:text;-webkit-user-select:text;cursor:text}
+  /* ── Audio library (light theme = default) ─────────── */
+  .audio-card{position:relative;background:linear-gradient(160deg,#f0f6ff 0%,#e8f1fd 100%);border:1px solid rgba(59,130,246,.15);border-radius:13px;overflow:hidden;cursor:pointer;transition:transform .2s cubic-bezier(.4,0,.2,1),box-shadow .2s,border-color .2s;user-select:none}
+  .audio-card:hover{transform:translateY(-2px);border-color:rgba(59,130,246,.35);box-shadow:0 8px 20px rgba(59,130,246,.14)}
+  .audio-card.is-playing{border-color:rgba(59,130,246,.7)!important;box-shadow:0 0 0 1px rgba(59,130,246,.3),0 6px 20px rgba(59,130,246,.15)!important}
+  .audio-card.audio-selected{outline:2px solid #3b82f6;outline-offset:-2px;background:linear-gradient(160deg,#dbeafe 0%,#bfdbfe 100%)!important}
+  body.dark .audio-card.audio-selected{background:linear-gradient(160deg,#1e3a5f 0%,#172a47 100%)!important}
+  .audio-rubber-band{position:fixed;border:1.5px solid #3b82f6;background:rgba(59,130,246,.08);pointer-events:none;z-index:9999;border-radius:3px}
+  body.dark .audio-card{background:linear-gradient(160deg,#1b2b3e 0%,#131c27 100%);border-color:rgba(255,255,255,.07)}
+  body.dark .audio-card:hover{border-color:rgba(255,255,255,.18);box-shadow:0 10px 28px rgba(0,0,0,.45)}
+  .audio-card-stripe{height:3px;width:100%}
+  .audio-card-header{display:flex;align-items:center;gap:6px;padding:9px 11px 5px}
+  .audio-fmt{font-size:9px;font-weight:800;padding:2px 6px;border-radius:5px;letter-spacing:.06em;flex-shrink:0}
+  .audio-fmt-mp3{background:rgba(139,92,246,.14);color:#7c3aed}
+  .audio-fmt-wav{background:rgba(59,130,246,.14);color:#1d4ed8}
+  .audio-fmt-flac{background:rgba(245,158,11,.14);color:#b45309}
+  .audio-fmt-ogg{background:rgba(16,185,129,.14);color:#047857}
+  .audio-fmt-aac,.audio-fmt-m4a{background:rgba(249,115,22,.14);color:#c2410c}
+  .audio-fmt-other{background:rgba(100,116,139,.12);color:#475569}
+  body.dark .audio-fmt-mp3{background:rgba(139,92,246,.22);color:#a78bfa}
+  body.dark .audio-fmt-wav{background:rgba(59,130,246,.22);color:#60a5fa}
+  body.dark .audio-fmt-flac{background:rgba(245,158,11,.22);color:#fbbf24}
+  body.dark .audio-fmt-ogg{background:rgba(16,185,129,.22);color:#34d399}
+  body.dark .audio-fmt-aac,body.dark .audio-fmt-m4a{background:rgba(249,115,22,.22);color:#fb923c}
+  body.dark .audio-fmt-other{background:rgba(148,163,184,.15);color:#94a3b8}
+  .audio-duration{font-size:10px;color:var(--subtle);margin-left:auto;flex-shrink:0}
+  .audio-star-btn{background:none;border:none;cursor:pointer;color:var(--subtle);font-size:12px;padding:0 2px;flex-shrink:0;line-height:1;transition:color .15s}
+  .audio-star-btn.starred{color:#f59e0b}
+  .audio-card-viz{position:relative;height:58px;margin:0 10px 2px;display:flex;align-items:center;justify-content:center}
+  .audio-waveform{position:absolute;inset:0;width:100%;height:100%;opacity:.25;pointer-events:none}
+  .audio-card:hover .audio-waveform{opacity:.45}
+  .audio-card.is-playing .audio-waveform{opacity:0}
+  .audio-eq{position:absolute;inset:0;display:none;align-items:flex-end;justify-content:center;gap:2.5px;padding:6px 10px}
+  .audio-card.is-playing .audio-eq{display:flex}
+  .audio-eq-bar{flex:1;max-width:5px;min-height:3px;border-radius:3px 3px 0 0;background:linear-gradient(to top,#3b82f6,#8b5cf6);transform-origin:bottom;animation:eq-bounce var(--spd,0.7s) ease-in-out infinite alternate}
+  @keyframes eq-bounce{from{transform:scaleY(.08)}to{transform:scaleY(1)}}
+  .audio-play-btn{width:36px;height:36px;border-radius:50%;border:1.5px solid rgba(59,130,246,.3);background:rgba(59,130,246,.08);color:#1e40af;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;z-index:2;transition:all .15s;flex-shrink:0}
+  body.dark .audio-play-btn{border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#e2e8f0}
+  .audio-card:hover .audio-play-btn{border-color:rgba(59,130,246,.7);background:rgba(59,130,246,.18);box-shadow:0 0 14px rgba(59,130,246,.3);color:#1d4ed8}
+  body.dark .audio-card:hover .audio-play-btn{color:#fff}
+  .audio-card.is-playing .audio-play-btn{border-color:#3b82f6;background:rgba(59,130,246,.2);box-shadow:0 0 16px rgba(59,130,246,.4);color:#1d4ed8}
+  body.dark .audio-card.is-playing .audio-play-btn{color:#fff;background:rgba(59,130,246,.3)}
+  .audio-card-info{padding:5px 11px 10px}
+  .audio-cn{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+  .audio-en{font-size:10px;color:var(--subtle);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+  /* folder cards for audio lib */
+  .audio-folder-card{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px dashed rgba(59,130,246,.35);border-radius:13px;cursor:pointer;padding:14px 12px;display:flex;flex-direction:column;gap:6px;transition:all .2s}
+  body.dark .audio-folder-card{background:linear-gradient(135deg,#1e3050,#0f1d2e);border-color:rgba(99,179,237,.35)}
+  .audio-folder-card:hover{border-color:rgba(59,130,246,.6);box-shadow:0 6px 16px rgba(59,130,246,.14)}
+  body.dark .audio-folder-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.3)}
+  .audio-folder-name{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .audio-folder-count{font-size:10px;color:var(--subtle)}
+  /* mini player */
+  #audioMiniPlayer{position:fixed;bottom:0;left:220px;right:0;background:rgba(239,246,255,.97);backdrop-filter:blur(14px);border-top:1px solid rgba(59,130,246,.25);padding:8px 18px;display:none;align-items:center;gap:12px;z-index:200}
+  body.dark #audioMiniPlayer{background:rgba(15,23,42,.95);border-top-color:rgba(59,130,246,.35)}
+  #audioMiniPlayer.visible{display:flex}
+  .workspace-shell.audio-player-open{padding-bottom:52px}
+  .amp-play{width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(59,130,246,.5);background:rgba(59,130,246,.1);color:#1d4ed8;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+  body.dark .amp-play{color:#60a5fa;background:rgba(59,130,246,.15);border-color:rgba(59,130,246,.6)}
+  .amp-play:hover{background:rgba(59,130,246,.2)}
+  .amp-info{min-width:0;flex:1}
+  .amp-title{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .amp-sub{font-size:10px;color:var(--subtle)}
+  .amp-prog-wrap{flex:2;display:flex;align-items:center;gap:8px;min-width:0}
+  .amp-time{font-size:10px;color:var(--subtle);white-space:nowrap}
+  .amp-prog{flex:1;height:3px;background:rgba(59,130,246,.15);border-radius:2px;cursor:pointer;position:relative}
+  body.dark .amp-prog{background:rgba(255,255,255,.12)}
+  .amp-prog-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:2px;width:0%;transition:width .1s linear}
+  .amp-vol{display:flex;align-items:center;gap:5px;flex-shrink:0}
+  .amp-vol input{width:60px;accent-color:#3b82f6}
 </style>
 </head>
 <body>
@@ -1362,6 +1435,7 @@
     <span>Prompt Studio</span>
   </div>
   <div class="window-actions">
+    <button class="window-action" id="pinWindowBtn" title="窗口置顶（置顶后始终显示在其他应用上方）">📌</button>
     <button class="window-action" data-window-action="minimize" title="最小化">—</button>
     <button class="window-action" data-window-action="maximize" title="最大化">□</button>
     <button class="window-action close" data-window-action="close" title="关闭">×</button>
@@ -1450,6 +1524,7 @@
         <input type="file" id="skillFolderInput" webkitdirectory style="display:none">
         <button class="btn btn-secondary btn-sm" id="importSkillFolderBtn" style="display:none" title="导入 Skills 文件夹（多文件）">📂 导入文件夹</button>
         <button class="btn btn-secondary btn-sm" id="newAssetFolderBtn" style="display:none" title="新建文件夹">📁 新建文件夹</button>
+        <button class="btn btn-secondary btn-sm" id="audioTranslateBtn" style="display:none" title="用 AI 将当前文件夹里的音效文件名翻译成中文">🌐 翻译音效名</button>
         <button class="btn btn-secondary btn-sm" id="desktopSettingsBtn">设置</button>
         <button class="btn btn-primary btn-sm" id="primaryBtn">新建</button>
       </div>
@@ -1465,6 +1540,21 @@
           <p>点击右上角「新建项目」开始创作</p>
         </div>
       </section>
+    </div>
+
+    <!-- Audio mini player (sticky bottom) -->
+    <div id="audioMiniPlayer">
+      <button class="amp-play" id="ampPlayBtn">▶</button>
+      <div class="amp-info">
+        <div class="amp-title" id="ampTitle">—</div>
+        <div class="amp-sub" id="ampSub"></div>
+      </div>
+      <div class="amp-prog-wrap">
+        <span class="amp-time" id="ampCur">0:00</span>
+        <div class="amp-prog" id="ampProg"><div class="amp-prog-fill" id="ampFill"></div></div>
+        <span class="amp-time" id="ampDur">0:00</span>
+      </div>
+      <div class="amp-vol">🔊<input type="range" id="ampVol" min="0" max="1" step="0.05" value="1"></div>
     </div>
 
     <aside class="inspector" id="rightInspector">
@@ -1584,6 +1674,7 @@
     <div style="display:flex;height:min(540px,72vh);overflow:hidden">
       <nav style="width:100px;border-right:1px solid var(--border);padding:8px 6px;flex-shrink:0;display:flex;flex-direction:column;gap:2px">
         <button class="settings-nav-btn active" data-sec="settings">API 配置</button>
+        <button class="settings-nav-btn" data-sec="llm">文本 LLM</button>
         <button class="settings-nav-btn" data-sec="tools">增强功能</button>
       </nav>
       <div style="flex:1;overflow-y:auto;padding:16px 20px">
@@ -1633,6 +1724,16 @@
               <div style="font-size:12px;color:var(--subtle);margin-top:6px">清理未被任何提示词引用的图片和视频。</div>
             </div>
             <button class="btn btn-danger btn-sm" id="desktopCleanupMedia">清理未引用素材</button>
+          </div>
+        </div>
+        <!-- ── 文本 LLM ──────────────────────────── -->
+        <div id="settingsSec-llm" style="display:none;flex-direction:column;gap:16px">
+          <div style="display:grid;gap:12px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:14px">
+            <div class="chip label-skill" style="width:max-content">文本 LLM</div>
+            <div class="hint" style="margin-top:-4px">用于音效名翻译、智能文本处理等纯文字任务。支持任何兼容 OpenAI Chat Completions 格式的接口。<br>LM Studio 填写 <code style="font-size:11px;background:var(--bg);padding:1px 4px;border-radius:3px">http://localhost:1234/v1</code>，注意末尾要带 <b>/v1</b>。</div>
+            <div class="field"><label>API Base</label><input id="dsLlmApiBase" placeholder="http://localhost:1234/v1  或  https://api.openai.com/v1"></div>
+            <div class="field"><label>API Key</label><div style="display:flex;gap:6px"><input id="dsLlmApiKey" type="password" placeholder="sk-..." style="flex:1"><button class="btn btn-secondary btn-sm" id="testLlmApiBtn" style="white-space:nowrap">🔌 测试</button></div></div>
+            <div class="field"><label>模型</label><input id="dsLlmModel" placeholder="gpt-4o-mini"></div>
           </div>
         </div>
         <!-- ── 资源工具 ──────────────────────────── -->
@@ -2149,6 +2250,9 @@
     videoApiBase: 'https://generativelanguage.googleapis.com/v1beta',
     videoApiKey: '',
     videoModel: 'gemini-2.5-pro',
+    llmApiBase: 'https://api.openai.com/v1',
+    llmApiKey: '',
+    llmModel: 'gpt-4o-mini',
     videoUploadTimeoutSec: '240',
     videoUploadRetries: '1',
     imageReverseInstruction: '',
@@ -2157,8 +2261,13 @@
   };
 
   // ── State ─────────────────────────────────────────────────────────────
-  let state = { view: 'projects', projectId: null, promptId: null, skillFolderId: null, skillFolderPath: [], folderFilter: null };
+  let state = { view: 'projects', projectId: null, promptId: null, skillFolderId: null, skillFolderPath: [], folderFilter: null, audioFolderId: null, audioSubPath: '' };
   let _dragItems = []; // items being dragged for internal folder-drop
+  let _audioScanCache = {}; // folderId → {items, ts}
+  let _audioEl = null;      // current Audio element
+  let _playingCardEl = null; // DOM card that's playing
+  let _audioSelected = new Set(); // absPath of selected audio cards
+  let _dragStartMonitor = null;   // { startX, startY, paths } for native drag detection
   let uiState = {
     viewMode: 'grid',
     filterModel: 'all',
@@ -2903,13 +3012,23 @@
       uiState.filterModel = 'all';
       uiState.filterTag = 'all';
     }
-    modelSel.disabled = isProjects;
-    tagSel.disabled = isProjects;
+    const isAudio = state.view === 'audio_library';
+    modelSel.style.display = isAudio ? 'none' : '';
+    tagSel.style.display = isAudio ? 'none' : '';
+    sortSel.style.display = isAudio ? 'none' : '';
+    timeSel.style.display = isAudio ? 'none' : '';
+    typeSel.style.display = 'none';
+    const smartSelEl = document.getElementById('smartFolderFilter');
+    if (smartSelEl) smartSelEl.style.display = 'none';
+    modelSel.disabled = isProjects || isAudio;
+    tagSel.disabled = isProjects || isAudio;
     typeSel.disabled = isProjects || !isAll;
     const folderBtn = document.getElementById('importSkillFolderBtn');
     if (folderBtn) folderBtn.style.display = state.view === 'skill_prompts' ? '' : 'none';
     const newFolderBtn = document.getElementById('newAssetFolderBtn');
     if (newFolderBtn) newFolderBtn.style.display = 'none';
+    const audioTrBtn = document.getElementById('audioTranslateBtn');
+    if (audioTrBtn) audioTrBtn.style.display = (isAudio && state.audioFolderId) ? '' : 'none';
     const smartSel = document.getElementById('smartFolderFilter');
     if (smartSel) smartSel.disabled = isProjects;
     typeSel.value = uiState.filterType;
@@ -2925,6 +3044,16 @@
       if (btn.dataset.windowAction === 'maximize') controls.toggleMaximize();
       if (btn.dataset.windowAction === 'close') controls.close();
     });
+  });
+  // ── Pin / always-on-top toggle ─────────────────────────────────────────
+  let _windowPinned = false;
+  document.getElementById('pinWindowBtn')?.addEventListener('click', async () => {
+    _windowPinned = !_windowPinned;
+    await window.promptStudioWindow?.setAlwaysOnTop(_windowPinned);
+    const btn = document.getElementById('pinWindowBtn');
+    btn?.classList.toggle('pinned', _windowPinned);
+    btn?.setAttribute('title', _windowPinned ? '取消置顶' : '窗口置顶（置顶后始终显示在其他应用上方）');
+    toast(_windowPinned ? '📌 已置顶，窗口将始终显示在其他应用上方' : '📌 已取消置顶', 2000);
   });
 
   async function loadDesktopSettings() {
@@ -2984,6 +3113,7 @@
     state.promptId = null;
     state.skillFolderId = null;
     state.folderFilter = null;
+    if (view !== 'audio_library') { state.audioFolderId = null; state.audioSubPath = ''; _audioSelected.clear(); }
     activeCategory = null;
     clearSelection();
     pickItem(null);
@@ -3041,6 +3171,10 @@
           <span class="nav-icon">📄</span><span class="nav-label">文档库</span>
           <span class="nav-badge">${(proj?.pdf_files||[]).length}</span>
         </div>
+        <div class="nav-item ${state.view==='audio_library'?'active':''}" data-view="audio_library">
+          <span class="nav-icon">🎵</span><span class="nav-label">音效库</span>
+          <span class="nav-badge">${(proj?.audio_folders||[]).length}</span>
+        </div>
       `;
     }
 
@@ -3059,6 +3193,7 @@
     if (contentEl) contentEl.classList.toggle('view-skills', state.view === 'skill_prompts');
     if (contentEl) contentEl.classList.toggle('view-skill-folder', state.view === 'skill_folder');
     if (contentEl) contentEl.classList.toggle('view-pdfs', state.view === 'pdf_files');
+    if (contentEl) contentEl.classList.toggle('view-audio', state.view === 'audio_library');
     syncToolbarControls();
     applyGridMode();
     const _catBarEl = document.getElementById('catBar');
@@ -3071,6 +3206,31 @@
       document.getElementById('primaryBtn').textContent = '新建项目';
       document.getElementById('primaryBtn').onclick = () => openProjModal(null);
       renderProjects(q);
+    } else if (state.view === 'audio_library') {
+      const proj = getProject(state.projectId);
+      document.getElementById('catBar').style.display = 'none';
+      if (state.audioFolderId) {
+        const folder = (proj?.audio_folders||[]).find(f => f.id === state.audioFolderId);
+        document.getElementById('pageTitle').textContent = folder?.name || '音效库';
+        document.getElementById('pageSubtitle').textContent = `${proj?.name||''} · 音效库 › ${folder?.name||''}`;
+        document.getElementById('primaryBtn').textContent = '← 返回';
+        document.getElementById('primaryBtn').onclick = () => { state.audioFolderId = null; state.audioSubPath = ''; renderPage(); };
+      } else {
+        document.getElementById('pageTitle').textContent = '音效库';
+        document.getElementById('pageSubtitle').textContent = `${proj?.name||''} · 音效库`;
+        document.getElementById('primaryBtn').textContent = '📁 添加文件夹';
+        document.getElementById('primaryBtn').onclick = async () => {
+          const folderPath = await window.electronAPI?.pickFolder?.();
+          if (!folderPath) return;
+          const pr = getProject(state.projectId);
+          pr.audio_folders = pr.audio_folders || [];
+          const name = folderPath.split(/[/\\]/).filter(Boolean).pop() || folderPath;
+          pr.audio_folders.push({ id: uid(), name, localPath: folderPath, added_at: new Date().toISOString() });
+          await saveData(data); data = await loadData(); renderPage(); renderSidebar();
+        };
+      }
+      renderAudioGrid(proj);
+      return;
     } else if (state.view === 'skill_folder') {
       const proj = getProject(state.projectId);
       const folder = (proj?.skill_prompts||[]).find(p => p.id === state.skillFolderId);
@@ -3627,6 +3787,446 @@
     if (!uiState.selectedItem && prompts.length) pickItem(prompts[0], prompts[0].__type);
   }
 
+  // ── Audio library ──────────────────────────────────────────────────────
+  function fmtAudioTime(sec) {
+    if (!isFinite(sec) || isNaN(sec) || sec < 0) return '0:00';
+    const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+    return m + ':' + String(s).padStart(2,'0');
+  }
+  function drawFakeWaveform(canvas, seed) {
+    const W = canvas.clientWidth || 180, H = canvas.clientHeight || 58;
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    let s = 0;
+    for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) & 0xffffffff;
+    function rand() { s = (s*1664525+1013904223)&0xffffffff; return (s>>>0)/0x100000000; }
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0,'rgba(139,92,246,0.75)'); grad.addColorStop(1,'rgba(59,130,246,0.75)');
+    ctx.fillStyle = grad;
+    const bars = Math.floor(W/3);
+    for (let i=0; i<bars; i++) {
+      const env = Math.sin(i/bars*Math.PI)*0.65+0.35;
+      const bar = env*(rand()*0.55+0.45)*H*0.88;
+      ctx.fillRect(i*3, (H-bar)/2, 2, bar);
+    }
+  }
+  async function scanLinkedFolder(folder) {
+    const cached = _audioScanCache[folder.id];
+    if (cached && Date.now()-cached.ts < 5*60*1000) return cached.items;
+    if (!window.electronAPI?.scanAudioFolder) { toast('⚠️ 需要 Electron 环境'); return []; }
+    grid_inner_loading();
+    const res = await window.electronAPI.scanAudioFolder(folder.localPath);
+    if (!res?.ok) { toast('⚠️ 扫描失败: '+(res?.error||'未知')); return []; }
+    _audioScanCache[folder.id] = { items: res.items, ts: Date.now() };
+    return res.items;
+  }
+  function grid_inner_loading() {
+    const g = document.getElementById('mainGrid');
+    if (g) g.innerHTML = '<div style="grid-column:1/-1;padding:28px 16px;color:var(--subtle);font-size:13px;display:flex;align-items:center;gap:8px"><span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> 正在扫描文件夹…</div>';
+  }
+  function playAudioItem(cardEl, file, proj) {
+    const url = `http://127.0.0.1:8767/api/local-audio?path=${encodeURIComponent(file.absPath)}`;
+    const playBtn = cardEl?.querySelector('.audio-play-btn');
+    if (_playingCardEl === cardEl && _audioEl) {
+      if (_audioEl.paused) { _audioEl.play(); cardEl.classList.add('is-playing'); if(playBtn) playBtn.textContent='⏸'; document.getElementById('ampPlayBtn').textContent='⏸'; }
+      else { _audioEl.pause(); cardEl.classList.remove('is-playing'); if(playBtn) playBtn.textContent='▶'; document.getElementById('ampPlayBtn').textContent='▶'; }
+      return;
+    }
+    if (_audioEl) { _audioEl.pause(); _audioEl.src=''; }
+    if (_playingCardEl) { _playingCardEl.classList.remove('is-playing'); const pb=_playingCardEl.querySelector('.audio-play-btn'); if(pb)pb.textContent='▶'; }
+    _audioEl = new Audio(url);
+    _audioEl.volume = parseFloat(document.getElementById('ampVol')?.value ?? 1);
+    _playingCardEl = cardEl;
+    cardEl.classList.add('is-playing'); if(playBtn) playBtn.textContent='⏸';
+    const folderId = state.audioFolderId;
+    const translations = proj?.audio_translations?.[folderId] || {};
+    const cnName = translations[file.nameNoExt] || file.nameNoExt.replace(/[_-]/g,' ').trim();
+    document.getElementById('ampTitle').textContent = cnName;
+    document.getElementById('ampSub').textContent = file.name;
+    document.getElementById('ampPlayBtn').textContent = '⏸';
+    document.getElementById('audioMiniPlayer').classList.add('visible');
+    document.querySelector('.workspace-shell')?.classList.add('audio-player-open');
+    document.getElementById('ampFill').style.width = '0%';
+    document.getElementById('ampCur').textContent = '0:00';
+    document.getElementById('ampDur').textContent = '…';
+    _audioEl.addEventListener('loadedmetadata', () => {
+      document.getElementById('ampDur').textContent = fmtAudioTime(_audioEl.duration);
+      const durEl = cardEl.querySelector('.audio-duration');
+      if (durEl) durEl.textContent = fmtAudioTime(_audioEl.duration);
+    });
+    _audioEl.addEventListener('timeupdate', () => {
+      const cur=_audioEl.currentTime, dur=_audioEl.duration||1;
+      document.getElementById('ampCur').textContent = fmtAudioTime(cur);
+      document.getElementById('ampFill').style.width = (cur/dur*100)+'%';
+    });
+    _audioEl.addEventListener('ended', () => {
+      cardEl.classList.remove('is-playing'); if(playBtn) playBtn.textContent='▶';
+      document.getElementById('ampPlayBtn').textContent='▶';
+      document.getElementById('ampFill').style.width='0%';
+    });
+    _audioEl.play().catch(()=>{});
+  }
+  async function renderAudioGrid(proj) {
+    const grid = document.getElementById('mainGrid');
+    const empty = document.getElementById('emptyState');
+    const catBar = document.getElementById('catBar');
+    grid.innerHTML = ''; empty.style.display = 'none'; catBar.style.display = 'none';
+    const folders = proj?.audio_folders || [];
+    // ── Root: show linked folder cards (or global search results) ──────────
+    if (!state.audioFolderId) {
+      if (!folders.length) {
+        empty.style.display = 'flex';
+        empty.querySelector('.empty-icon').textContent = '🎵';
+        empty.querySelector('h3').textContent = '还没有音效文件夹';
+        empty.querySelector('p').textContent = '点击右上角「添加文件夹」链接本地音效库';
+        return;
+      }
+      const rootQ = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+      // ── Global search mode ────────────────────────────────────
+      if (rootQ) {
+        grid.innerHTML = `<div style="grid-column:1/-1;padding:20px 8px;color:var(--subtle);font-size:13px;display:flex;align-items:center;gap:8px"><span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> 正在搜索「${h(rootQ)}」…</div>`;
+        const allResults = [];
+        for (const folder of folders) {
+          const items = await scanLinkedFolder(folder);
+          const trans = proj.audio_translations?.[folder.id] || {};
+          items.filter(i => i.type === 'file').forEach(f => {
+            const cn = (trans[f.nameNoExt] || '').toLowerCase();
+            if (f.nameNoExt.toLowerCase().includes(rootQ) || f.name.toLowerCase().includes(rootQ) || cn.includes(rootQ)) {
+              allResults.push({ ...f, _folderName: folder.name, _folderId: folder.id, _trans: trans });
+            }
+          });
+        }
+        grid.innerHTML = '';
+        if (!allResults.length) {
+          empty.style.display = 'flex';
+          empty.querySelector('.empty-icon').textContent = '🔍';
+          empty.querySelector('h3').textContent = `未找到「${rootQ}」`;
+          empty.querySelector('p').textContent = '尝试其他关键词，或先进入文件夹触发扫描';
+          return;
+        }
+        const stripeMap = {mp3:'#8b5cf6',wav:'#3b82f6',flac:'#f59e0b',ogg:'#10b981',aac:'#f97316',m4a:'#f97316'};
+        const stars = proj.audio_stars || [];
+        allResults.forEach(file => {
+          const fmtCls = ['mp3','wav','flac','ogg','aac','m4a'].includes(file.ext) ? `audio-fmt-${file.ext}` : 'audio-fmt-other';
+          const stripe = stripeMap[file.ext] || '#64748b';
+          const cn = file._trans[file.nameNoExt] || file.nameNoExt.replace(/[_\-]/g,' ').trim();
+          const starred = stars.includes(file.absPath);
+          const spds = Array.from({length:16},()=>(0.35+Math.random()*0.75).toFixed(2));
+          const eqBars = spds.map(spd=>`<div class="audio-eq-bar" style="--spd:${spd}s"></div>`).join('');
+          const card = document.createElement('div');
+          card.className = 'audio-card'; card.dataset.absPath = file.absPath;
+          card.innerHTML = `
+            <div class="audio-card-stripe" style="background:${stripe}"></div>
+            <div class="audio-card-header">
+              <span class="audio-fmt ${fmtCls}">${file.ext.toUpperCase()}</span>
+              <span style="font-size:9px;color:var(--subtle);margin-left:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px" title="${h(file._folderName)}">${h(file._folderName)}</span>
+              <span class="audio-duration" style="margin-left:auto"></span>
+              <button class="audio-star-btn${starred?' starred':''}" title="星标">★</button>
+            </div>
+            <div class="audio-card-viz">
+              <canvas class="audio-waveform"></canvas>
+              <div class="audio-eq">${eqBars}</div>
+              <button class="audio-play-btn" title="播放/暂停">▶</button>
+            </div>
+            <div class="audio-card-info">
+              <div class="audio-cn" title="${h(cn)}">${h(cn)}</div>
+              <div class="audio-en" title="${h(file.name)}">${h(file.name)}</div>
+            </div>`;
+          requestAnimationFrame(() => { const c=card.querySelector('.audio-waveform'); if(c) drawFakeWaveform(c, file.nameNoExt); });
+          card.querySelector('.audio-play-btn').addEventListener('click', e => { e.stopPropagation(); playAudioItem(card, file, proj); });
+          card.addEventListener('click', e => {
+            if (e.target.closest('.audio-play-btn') || e.target.closest('.audio-star-btn')) return;
+            if (e.ctrlKey || e.metaKey) {
+              if (_audioSelected.has(file.absPath)) { _audioSelected.delete(file.absPath); card.classList.remove('audio-selected'); }
+              else { _audioSelected.add(file.absPath); card.classList.add('audio-selected'); }
+            } else {
+              document.querySelectorAll('#mainGrid .audio-card.audio-selected').forEach(c => c.classList.remove('audio-selected'));
+              _audioSelected.clear(); _audioSelected.add(file.absPath); card.classList.add('audio-selected');
+            }
+          });
+          card.querySelector('.audio-star-btn').addEventListener('click', async e => {
+            e.stopPropagation();
+            proj.audio_stars = proj.audio_stars || [];
+            if (proj.audio_stars.includes(file.absPath)) { proj.audio_stars = proj.audio_stars.filter(p=>p!==file.absPath); e.target.classList.remove('starred'); }
+            else { proj.audio_stars.push(file.absPath); e.target.classList.add('starred'); }
+            await saveData(data);
+          });
+          if (_audioSelected.has(file.absPath)) card.classList.add('audio-selected');
+          card.addEventListener('mousedown', e => {
+            if (e.button !== 0 || e.target.closest('.audio-play-btn') || e.target.closest('.audio-star-btn')) return;
+            e.stopPropagation();
+            const paths = _audioSelected.size > 0 && _audioSelected.has(file.absPath) ? [..._audioSelected] : [file.absPath];
+            _dragStartMonitor = { startX: e.clientX, startY: e.clientY, paths };
+          });
+          grid.appendChild(card);
+        });
+        return;
+      }
+      // ── Normal root view: folder cards ───────────────────────
+      folders.forEach(folder => {
+        const card = document.createElement('div');
+        card.className = 'audio-folder-card';
+        card.style.cssText = 'height:120px;justify-content:center';
+        card.innerHTML = `<div style="font-size:26px">🎵</div>
+          <div class="audio-folder-name">${h(folder.name)}</div>
+          <div class="audio-folder-count">${h(folder.localPath)}</div>
+          <button class="audio-star-btn" data-del-af="${h(folder.id)}" style="position:absolute;top:8px;right:10px;font-size:14px;color:var(--subtle)" title="移除">✕</button>`;
+        card.style.position = 'relative';
+        card.addEventListener('click', async e => {
+          if (e.target.dataset.delAf) return;
+          state.audioFolderId = folder.id; state.audioSubPath = '';
+          renderPage();
+        });
+        card.querySelector('[data-del-af]')?.addEventListener('click', async e => {
+          e.stopPropagation();
+          if (!confirm(`移除「${folder.name}」链接？文件不会被删除。`)) return;
+          proj.audio_folders = (proj.audio_folders||[]).filter(f => f.id !== folder.id);
+          delete _audioScanCache[folder.id];
+          await saveData(data); data = await loadData(); renderPage(); renderSidebar();
+        });
+        grid.appendChild(card);
+      });
+      return;
+    }
+    // ── Inside a linked folder ─────────────────────────────────
+    const folder = folders.find(f => f.id === state.audioFolderId);
+    if (!folder) { state.audioFolderId = null; renderPage(); return; }
+    const subPath = state.audioSubPath || '';
+    // CatBar = breadcrumb
+    catBar.style.display = 'flex'; catBar.innerHTML = '';
+    const crumbs = subPath ? subPath.split('/').filter(Boolean) : [];
+    let html = `<button class="cat-btn${!subPath?' active':''}" data-crumb="">🏠 ${h(folder.name)}</button>`;
+    let cum = '';
+    crumbs.forEach(c => { cum += (cum?'/':'')+c; const cp=cum; html += ` <span style="color:var(--subtle);font-size:12px">›</span> <button class="cat-btn${cp===subPath?' active':''}" data-crumb="${h(cp)}">${h(c)}</button>`; });
+    html += `<button id="audioRescan" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--subtle);font-size:11px;padding:3px 8px" title="重新扫描">🔄</button>`;
+    catBar.innerHTML = html;
+    catBar.querySelectorAll('[data-crumb]').forEach(btn => btn.addEventListener('click', () => { state.audioSubPath = btn.dataset.crumb; renderPage(); }));
+    document.getElementById('audioRescan')?.addEventListener('click', () => { delete _audioScanCache[state.audioFolderId]; renderPage(); });
+    // Scan
+    const allItems = await scanLinkedFolder(folder);
+    grid.innerHTML = '';
+    const q = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+    const subFolders = allItems.filter(i => i.type==='folder' && i.subPath===subPath);
+    const trans2 = proj.audio_translations?.[folder.id] || {};
+    const files = allItems.filter(i => {
+      if (i.type !== 'file') return false;
+      if (q) {
+        const cn = (trans2[i.nameNoExt] || '').toLowerCase();
+        return i.nameNoExt.toLowerCase().includes(q) || i.name.toLowerCase().includes(q) || cn.includes(q);
+      }
+      return i.subPath === subPath;
+    });
+    if (!subFolders.length && !files.length) {
+      empty.style.display='flex';
+      empty.querySelector('.empty-icon').textContent='🎵';
+      empty.querySelector('h3').textContent='此文件夹为空';
+      empty.querySelector('p').textContent='没有找到音频文件';
+      return;
+    }
+    const stripeMap = {mp3:'#8b5cf6',wav:'#3b82f6',flac:'#f59e0b',ogg:'#10b981',aac:'#f97316',m4a:'#f97316'};
+    const stars = proj.audio_stars || [];
+    const trans = proj.audio_translations?.[folder.id] || {};
+    // Subfolder cards (hidden during search)
+    if (!q) subFolders.forEach(sf => {
+      const cnt = allItems.filter(i => i.type==='file' && i.subPath.startsWith(sf.relPath)).length;
+      const card = document.createElement('div');
+      card.className = 'audio-folder-card'; card.style.cssText = 'height:110px;justify-content:center';
+      card.innerHTML = `<div style="font-size:22px">📂</div><div class="audio-folder-name">${h(sf.name)}</div><div class="audio-folder-count">${cnt} 个音效</div>`;
+      card.addEventListener('click', () => { state.audioSubPath = sf.relPath; renderPage(); });
+      grid.appendChild(card);
+    }); // end if(!q) subfolder cards
+    // Audio file cards
+    files.forEach(file => {
+      const fmtCls = ['mp3','wav','flac','ogg','aac','m4a'].includes(file.ext) ? `audio-fmt-${file.ext}` : 'audio-fmt-other';
+      const stripe = stripeMap[file.ext] || '#64748b';
+      const cn = trans[file.nameNoExt] || file.nameNoExt.replace(/[_\-]/g,' ').trim();
+      const starred = stars.includes(file.absPath);
+      const spds = Array.from({length:16},()=>(0.35+Math.random()*0.75).toFixed(2));
+      const eqBars = spds.map(spd=>`<div class="audio-eq-bar" style="--spd:${spd}s"></div>`).join('');
+      const card = document.createElement('div');
+      card.className = 'audio-card'; card.dataset.absPath = file.absPath;
+      card.innerHTML = `
+        <div class="audio-card-stripe" style="background:${stripe}"></div>
+        <div class="audio-card-header">
+          <span class="audio-fmt ${fmtCls}">${file.ext.toUpperCase()}</span>
+          <span class="audio-duration"></span>
+          <button class="audio-star-btn${starred?' starred':''}" title="星标">★</button>
+        </div>
+        <div class="audio-card-viz">
+          <canvas class="audio-waveform"></canvas>
+          <div class="audio-eq">${eqBars}</div>
+          <button class="audio-play-btn" title="播放/暂停">▶</button>
+        </div>
+        <div class="audio-card-info">
+          <div class="audio-cn" title="${h(cn)}">${h(cn)}</div>
+          <div class="audio-en" title="${h(file.name)}">${h(file.name)}</div>
+        </div>`;
+      requestAnimationFrame(() => { const c=card.querySelector('.audio-waveform'); if(c) drawFakeWaveform(c, file.nameNoExt); });
+      card.querySelector('.audio-play-btn').addEventListener('click', e => { e.stopPropagation(); playAudioItem(card, file, proj); });
+      card.addEventListener('click', e => {
+        if (e.target.closest('.audio-play-btn') || e.target.closest('.audio-star-btn')) return;
+        if (e.ctrlKey || e.metaKey) {
+          if (_audioSelected.has(file.absPath)) { _audioSelected.delete(file.absPath); card.classList.remove('audio-selected'); }
+          else { _audioSelected.add(file.absPath); card.classList.add('audio-selected'); }
+        } else {
+          document.querySelectorAll('#mainGrid .audio-card.audio-selected').forEach(c => c.classList.remove('audio-selected'));
+          _audioSelected.clear(); _audioSelected.add(file.absPath); card.classList.add('audio-selected');
+        }
+      });
+      card.querySelector('.audio-star-btn').addEventListener('click', async e => {
+        e.stopPropagation();
+        proj.audio_stars = proj.audio_stars || [];
+        if (proj.audio_stars.includes(file.absPath)) { proj.audio_stars = proj.audio_stars.filter(p=>p!==file.absPath); e.target.classList.remove('starred'); }
+        else { proj.audio_stars.push(file.absPath); e.target.classList.add('starred'); }
+        await saveData(data);
+      });
+      if (_audioSelected.has(file.absPath)) card.classList.add('audio-selected');
+      card.addEventListener('mousedown', e => {
+        if (e.button !== 0 || e.target.closest('.audio-play-btn') || e.target.closest('.audio-star-btn')) return;
+        e.stopPropagation();
+        const paths = _audioSelected.size > 0 && _audioSelected.has(file.absPath) ? [..._audioSelected] : [file.absPath];
+        _dragStartMonitor = { startX: e.clientX, startY: e.clientY, paths };
+      });
+      grid.appendChild(card);
+    });
+    setupAudioRubberBand(grid);
+  }
+  function setupAudioRubberBand(grid) {
+    if (grid._rbCleanup) grid._rbCleanup();
+    let rb = null, sx = 0, sy = 0;
+    const onDown = e => {
+      if (e.button !== 0 || e.target.closest('.audio-card') || e.target.closest('.audio-folder-card')) return;
+      sx = e.clientX; sy = e.clientY;
+      rb = document.createElement('div'); rb.className = 'audio-rubber-band';
+      Object.assign(rb.style, {left:sx+'px',top:sy+'px',width:'0',height:'0'}); document.body.appendChild(rb);
+      if (!e.ctrlKey && !e.metaKey) { document.querySelectorAll('#mainGrid .audio-card.audio-selected').forEach(c=>c.classList.remove('audio-selected')); _audioSelected.clear(); }
+      e.preventDefault();
+    };
+    const onMove = e => {
+      if (!rb) return;
+      const x=Math.min(e.clientX,sx), y=Math.min(e.clientY,sy), w=Math.abs(e.clientX-sx), h=Math.abs(e.clientY-sy);
+      Object.assign(rb.style,{left:x+'px',top:y+'px',width:w+'px',height:h+'px'});
+    };
+    const onUp = () => {
+      if (!rb) return;
+      const rr = rb.getBoundingClientRect();
+      if (rr.width > 5 || rr.height > 5) {
+        grid.querySelectorAll('.audio-card').forEach(card => {
+          const r = card.getBoundingClientRect();
+          if (r.left < rr.right && r.right > rr.left && r.top < rr.bottom && r.bottom > rr.top) {
+            card.classList.add('audio-selected');
+            if (card.dataset.absPath) _audioSelected.add(card.dataset.absPath);
+          }
+        });
+      }
+      rb.remove(); rb = null;
+    };
+    grid.addEventListener('mousedown', onDown);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    grid._rbCleanup = () => { grid.removeEventListener('mousedown',onDown); document.removeEventListener('mousemove',onMove); document.removeEventListener('mouseup',onUp); if(rb){rb.remove();rb=null;} };
+  }
+  // ── Audio native drag monitor (mousedown-based, bypasses HTML5 drag) ──
+  document.addEventListener('mousemove', e => {
+    if (!_dragStartMonitor) return;
+    if (Math.abs(e.clientX - _dragStartMonitor.startX) > 6 || Math.abs(e.clientY - _dragStartMonitor.startY) > 6) {
+      const { paths } = _dragStartMonitor;
+      _dragStartMonitor = null;
+      if (window.electronAPI?.startLocalFileDrag) window.electronAPI.startLocalFileDrag(paths);
+    }
+  });
+  document.addEventListener('mouseup', () => { _dragStartMonitor = null; });
+  // ── Mini player controls ───────────────────────────────────────────────
+  document.getElementById('ampPlayBtn')?.addEventListener('click', () => {
+    if (!_audioEl) return;
+    if (_audioEl.paused) { _audioEl.play(); document.getElementById('ampPlayBtn').textContent='⏸'; if(_playingCardEl){_playingCardEl.classList.add('is-playing');const pb=_playingCardEl.querySelector('.audio-play-btn');if(pb)pb.textContent='⏸';} }
+    else { _audioEl.pause(); document.getElementById('ampPlayBtn').textContent='▶'; if(_playingCardEl){_playingCardEl.classList.remove('is-playing');const pb=_playingCardEl.querySelector('.audio-play-btn');if(pb)pb.textContent='▶';} }
+  });
+  document.getElementById('ampProg')?.addEventListener('click', e => {
+    if (!_audioEl || !_audioEl.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    _audioEl.currentTime = ((e.clientX - rect.left) / rect.width) * _audioEl.duration;
+  });
+  document.getElementById('ampVol')?.addEventListener('input', e => { if (_audioEl) _audioEl.volume = parseFloat(e.target.value); });
+
+  // ── Filename translation ────────────────────────────────────────────────
+  async function translateAudioNames() {
+    const proj = getProject(state.projectId);
+    if (!proj || !state.audioFolderId) return;
+    const folder = (proj.audio_folders||[]).find(f => f.id === state.audioFolderId);
+    if (!folder) return;
+    const _rawBase = (desktopSettings.llmApiBase || desktopSettings.imageApiBase || 'https://api.openai.com/v1').replace(/\/$/, '');
+    const apiBase = /^https?:\/\/[^/]+(:\d+)?$/.test(_rawBase) ? _rawBase + '/v1' : _rawBase;
+    const apiKey = desktopSettings.llmApiKey || desktopSettings.imageApiKey || '';
+    if (!apiKey) { toast('⚠️ 请先在「设置 → 文本 LLM」里填写 API Key'); return; }
+    const cached = _audioScanCache[state.audioFolderId];
+    if (!cached) { toast('⚠️ 请先进入文件夹等扫描完成'); return; }
+    // Collect all untranslated files
+    proj.audio_translations = proj.audio_translations || {};
+    const existing = proj.audio_translations[state.audioFolderId] || {};
+    const allFiles = cached.items.filter(i => i.type === 'file');
+    const todo = allFiles.filter(f => !existing[f.nameNoExt]);
+    if (!todo.length) { toast('✅ 所有文件名已翻译'); return; }
+    const BATCH = 30, CONCURRENCY = 3;
+    let done = 0, failed = 0, lastErr = '', aborted = false;
+    const btn = document.getElementById('audioTranslateBtn');
+    const origText = btn?.textContent;
+    const model = desktopSettings.llmModel || desktopSettings.imageModel || 'gpt-4o-mini';
+    // Switch button to cancel mode
+    if (btn) {
+      btn.textContent = '⏹ 中断';
+      btn.onclick = () => { aborted = true; btn.disabled = true; btn.textContent = '中断中…'; };
+    }
+    const restore = () => {
+      if (btn) { btn.textContent = origText; btn.disabled = false; btn.onclick = translateAudioNames; }
+    };
+    async function runBatch(batch) {
+      const names = batch.map(f => f.nameNoExt);
+      const prompt = `你是专业音效命名专家。将下列英文音效文件名翻译成简洁中文（2-6个汉字，不加标点）。返回纯 JSON，格式：{"原名":"中文名",...}，不附加任何解释。\n\n${names.join('\n')}`;
+      const r = await fetch(`${apiBase}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_tokens: 2000 })
+      });
+      if (!r.ok) { const t = await r.text(); throw new Error(`HTTP ${r.status}: ${t.slice(0,120)}`); }
+      const d = await r.json();
+      if (d.error) throw new Error(d.error.message || JSON.stringify(d.error));
+      const txt = d.choices?.[0]?.message?.content || '';
+      const m = txt.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error(`模型未返回 JSON：${txt.slice(0,80)}`);
+      return JSON.parse(m[0]);
+    }
+    // Split into batches
+    const batches = [];
+    for (let i = 0; i < todo.length; i += BATCH) batches.push(todo.slice(i, i + BATCH));
+    // Process with concurrency limit
+    let batchIdx = 0;
+    const updateBtn = () => { if (btn && !aborted) btn.textContent = `⏹ 中断  ${done+failed}/${todo.length}`; };
+    async function worker() {
+      while (batchIdx < batches.length && !aborted) {
+        const myIdx = batchIdx++;
+        const batch = batches[myIdx];
+        try {
+          const result = await runBatch(batch);
+          proj.audio_translations[state.audioFolderId] = proj.audio_translations[state.audioFolderId] || {};
+          Object.assign(proj.audio_translations[state.audioFolderId], result);
+          Object.assign(existing, result);
+          done += Object.keys(result).length;
+        } catch (e) { failed += batch.length; lastErr = e.message; }
+        updateBtn();
+      }
+    }
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+    await saveData(data);
+    data = await loadData();
+    restore();
+    renderPage();
+    if (aborted) toast(`⏹ 已中断，已完成 ${done} 个`, 3000);
+    else if (failed) toast(`⚠️ 翻译 ${done} 个成功，${failed} 个失败。错误：${lastErr}`, 6000);
+    else toast(`✅ 翻译完成，共 ${done} 个`);
+  }
+  document.getElementById('audioTranslateBtn')?.addEventListener('click', translateAudioNames);
+
   // ── PDF grid ───────────────────────────────────────────────────────────
   function renderPdfGrid(proj, q='') {
     const grid = document.getElementById('mainGrid');
@@ -4049,6 +4649,9 @@
     document.getElementById('dsVideoUploadRetries').value = desktopSettings.videoUploadRetries || '1';
     document.getElementById('dsImageInstruction').value = desktopSettings.imageReverseInstruction || '';
     document.getElementById('dsVideoInstruction').value = desktopSettings.videoReverseInstruction || '';
+    document.getElementById('dsLlmApiBase').value = desktopSettings.llmApiBase || '';
+    document.getElementById('dsLlmApiKey').value = desktopSettings.llmApiKey || '';
+    document.getElementById('dsLlmModel').value = desktopSettings.llmModel || '';
     renderDesktopPresets();
   }
   function renderDesktopPresets() {
@@ -4151,6 +4754,9 @@
         videoUploadRetries: document.getElementById('dsVideoUploadRetries').value.trim() || '1',
         imageReverseInstruction: document.getElementById('dsImageInstruction').value.trim(),
         videoReverseInstruction: document.getElementById('dsVideoInstruction').value.trim(),
+        llmApiBase: document.getElementById('dsLlmApiBase').value.trim().replace(/\/$/, ''),
+        llmApiKey: document.getElementById('dsLlmApiKey').value.trim(),
+        llmModel: document.getElementById('dsLlmModel').value.trim(),
         promptPresets: Array.isArray(desktopSettings.promptPresets) ? desktopSettings.promptPresets : [],
       });
       closeDesktopSettings();
@@ -4163,10 +4769,13 @@
     }
   };
   async function testApiConnection(type) {
-    const apiBase = document.getElementById(type === 'image' ? 'dsImageApiBase' : 'dsVideoApiBase').value.trim().replace(/\/$/, '');
-    const apiKey  = document.getElementById(type === 'image' ? 'dsImageApiKey'  : 'dsVideoApiKey').value.trim();
-    const model   = document.getElementById(type === 'image' ? 'dsImageModel'   : 'dsVideoModel').value.trim();
-    const btn = document.getElementById(type === 'image' ? 'testImageApiBtn' : 'testVideoApiBtn');
+    const idMap = { image: ['dsImageApiBase','dsImageApiKey','dsImageModel'], video: ['dsVideoApiBase','dsVideoApiKey','dsVideoModel'], llm: ['dsLlmApiBase','dsLlmApiKey','dsLlmModel'] };
+    const [baseId, keyId, modelId] = idMap[type] || idMap.image;
+    const apiBase = document.getElementById(baseId).value.trim().replace(/\/$/, '');
+    const apiKey  = document.getElementById(keyId).value.trim();
+    const model   = document.getElementById(modelId).value.trim();
+    const btnId = type === 'image' ? 'testImageApiBtn' : type === 'video' ? 'testVideoApiBtn' : 'testLlmApiBtn';
+    const btn = document.getElementById(btnId);
     if (!apiBase || !apiKey) { toast('⚠️ 请先填写 API Base 和 API Key'); return; }
     const orig = btn.textContent; btn.disabled = true; btn.textContent = '测试中…';
     try {
@@ -4193,6 +4802,7 @@
   }
   document.getElementById('testImageApiBtn').addEventListener('click', () => testApiConnection('image'));
   document.getElementById('testVideoApiBtn').addEventListener('click', () => testApiConnection('video'));
+  document.getElementById('testLlmApiBtn').addEventListener('click', () => testApiConnection('llm'));
 
   document.getElementById('desktopCleanupMedia').onclick = async () => {
     if (!confirm('确认清理所有未被当前提示词引用的本地图片/视频？')) return;
@@ -5677,7 +6287,15 @@
   });
 
   // Search + toolbar
-  document.getElementById('searchInput').addEventListener('input', () => renderPage());
+  let _searchDebounce = null;
+  document.getElementById('searchInput').addEventListener('input', () => {
+    if (state.view === 'audio_library') {
+      clearTimeout(_searchDebounce);
+      _searchDebounce = setTimeout(() => renderPage(), 400);
+    } else {
+      renderPage();
+    }
+  });
   document.getElementById('filterModel').addEventListener('change', (e) => {
     uiState.filterModel = e.target.value;
     renderPage();

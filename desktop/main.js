@@ -284,6 +284,11 @@ function registerWindowControls() {
   ipcMain.handle('window:close', (event) => {
     BrowserWindow.fromWebContents(event.sender)?.close();
   });
+  ipcMain.handle('window:set-always-on-top', (event, flag) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) win.setAlwaysOnTop(flag, 'floating');
+    return flag;
+  });
   ipcMain.handle('shell:open-external', (_event, url) => {
     if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
       shell.openExternal(url);
@@ -384,6 +389,55 @@ function registerDragHandlers() {
     } catch (e) { logLine('drag:start error ' + e.message); }
     event.returnValue = null;
   });
+  // Drag local (non-uploads) file to OS/editing software
+  ipcMain.on('drag:start-local', (event, absPathOrPaths) => {
+    try {
+      const paths = Array.isArray(absPathOrPaths) ? absPathOrPaths : [absPathOrPaths];
+      const valid = paths.filter(p => { try { return fs.existsSync(p) && fs.statSync(p).isFile(); } catch { return false; } });
+      if (valid.length === 1) {
+        event.sender.startDrag({ file: valid[0], icon: getDragIcon() });
+      } else if (valid.length > 1) {
+        event.sender.startDrag({ files: valid, icon: getDragIcon() });
+      }
+    } catch (e) { logLine('drag:start-local error ' + e.message); }
+  });
+}
+
+function registerAudioHandlers() {
+  const AUDIO_EXTS = new Set(['.mp3','.wav','.ogg','.flac','.aac','.m4a','.opus','.weba','.m4r','.aiff','.au']);
+  ipcMain.handle('folder:scan-audio', async (_event, folderPath) => {
+    function scanDir(dirPath, subPath, depth) {
+      if (depth > 8) return [];
+      const results = [];
+      let entries;
+      try { entries = fs.readdirSync(dirPath, { withFileTypes: true }); } catch { return []; }
+      entries.sort((a, b) => {
+        if (a.isDirectory() !== b.isDirectory()) return a.isDirectory() ? -1 : 1;
+        return a.name.localeCompare(b.name, 'zh');
+      });
+      for (const entry of entries) {
+        if (entry.name.startsWith('.')) continue;
+        const absPath = path.join(dirPath, entry.name);
+        const relPath = subPath ? subPath + '/' + entry.name : entry.name;
+        if (entry.isDirectory()) {
+          results.push({ type: 'folder', name: entry.name, relPath, absPath, subPath: subPath || '' });
+          results.push(...scanDir(absPath, relPath, depth + 1));
+        } else if (entry.isFile()) {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (AUDIO_EXTS.has(ext)) {
+            let size = 0;
+            try { size = fs.statSync(absPath).size; } catch {}
+            results.push({ type: 'file', name: entry.name,
+              nameNoExt: path.basename(entry.name, ext),
+              ext: ext.slice(1), relPath, absPath, size, subPath: subPath || '' });
+          }
+        }
+      }
+      return results;
+    }
+    try { return { ok: true, items: scanDir(folderPath, '', 0) }; }
+    catch (e) { return { ok: false, error: e.message, items: [] }; }
+  });
 }
 
 async function createWindow() {
@@ -469,6 +523,7 @@ if (!gotLock) {
     registerDialogHandlers();
     registerClipboardHandlers();
     registerDragHandlers();
+    registerAudioHandlers();
     buildMenu();
     await createWindow();
     setupAutoUpdater();

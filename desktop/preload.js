@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('promptStudioWindow', {
   minimize: () => ipcRenderer.invoke('window:minimize'),
   toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
   close: () => ipcRenderer.invoke('window:close'),
+  setAlwaysOnTop: (flag) => ipcRenderer.invoke('window:set-always-on-top', flag),
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -15,6 +16,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Native file drag-out (TODO2) ──────────────────────────────────────
   startFileDrag: (uploadPathOrPaths) =>
     ipcRenderer.sendSync('drag:start', uploadPathOrPaths),
-  // ── Open URL in system default browser ──────────────────────────
+  // ── Open URL in system default browser ──────────────────────
   openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
+  // ── Audio folder scan ────────────────────────────────────────
+  scanAudioFolder: (folderPath) => ipcRenderer.invoke('folder:scan-audio', folderPath),
+  startLocalFileDrag: (absPathOrPaths) => ipcRenderer.send('drag:start-local', absPathOrPaths),
 });

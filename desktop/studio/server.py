@@ -106,6 +106,9 @@ DEFAULT_DESKTOP_SETTINGS = {
     "videoApiKey": "",
     "videoModel": "gemini-2.5-pro",
     "videoUploadTimeoutSec": "240",
+    "llmApiBase": "https://api.openai.com/v1",
+    "llmApiKey": "",
+    "llmModel": "gpt-4o-mini",
     "videoUploadRetries": "1",
     "imageReverseInstruction": "",
     "videoReverseInstruction": "",
@@ -803,6 +806,8 @@ class Handler(SimpleHTTPRequestHandler):
         elif path == "/api/ffmpeg-status":
             ff = find_ffmpeg()
             self._json_resp({"ok": bool(ff), "path": ff or "", "install": _ffmpeg_install})
+        elif path == "/api/local-audio":
+            self._serve_local_audio(query)
         elif path.startswith("/uploads/"):
             self._serve_upload(path)
         elif path.startswith("/exports/"):
@@ -2362,6 +2367,59 @@ class Handler(SimpleHTTPRequestHandler):
             self._json_resp({"ok": True, "meta": meta, "file_map": extracted_files})
         except Exception as e:
             self._err(500, f"Import failed: {e}")
+
+    def _serve_local_audio(self, query):
+        AUDIO_EXTS = {'.mp3','.wav','.ogg','.flac','.aac','.m4a','.opus','.weba','.aiff','.au','.m4r'}
+        MIME_MAP = {'.mp3':'audio/mpeg','.wav':'audio/wav','.ogg':'audio/ogg','.flac':'audio/flac',
+                    '.aac':'audio/aac','.m4a':'audio/mp4','.opus':'audio/opus','.weba':'audio/webm',
+                    '.aiff':'audio/aiff','.au':'audio/basic','.m4r':'audio/mp4'}
+        file_path = unquote((query.get('path') or [''])[0])
+        if not file_path:
+            return self._err(400, 'missing path')
+        p = Path(file_path)
+        if not p.is_file():
+            return self._err(404, 'file not found')
+        ext = p.suffix.lower()
+        if ext not in AUDIO_EXTS:
+            return self._err(400, 'not an audio file')
+        mime = MIME_MAP.get(ext, 'audio/mpeg')
+        file_size = p.stat().st_size
+        range_header = self.headers.get('Range', '')
+        try:
+            with open(file_path, 'rb') as f:
+                if range_header and range_header.startswith('bytes='):
+                    parts = range_header[6:].split('-')
+                    start = int(parts[0]) if parts[0] else 0
+                    end = int(parts[1]) if len(parts) > 1 and parts[1] else file_size - 1
+                    end = min(end, file_size - 1)
+                    length = end - start + 1
+                    self.send_response(206)
+                    self.send_header('Content-Type', mime)
+                    self.send_header('Content-Range', f'bytes {start}-{end}/{file_size}')
+                    self.send_header('Content-Length', str(length))
+                    self.send_header('Accept-Ranges', 'bytes')
+                    self._cors_headers()
+                    self.end_headers()
+                    f.seek(start)
+                    remaining = length
+                    while remaining > 0:
+                        chunk = f.read(min(65536, remaining))
+                        if not chunk: break
+                        self.wfile.write(chunk)
+                        remaining -= len(chunk)
+                else:
+                    self.send_response(200)
+                    self.send_header('Content-Type', mime)
+                    self.send_header('Content-Length', str(file_size))
+                    self.send_header('Accept-Ranges', 'bytes')
+                    self._cors_headers()
+                    self.end_headers()
+                    shutil.copyfileobj(f, self.wfile)
+        except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+            pass
+        except Exception as e:
+            try: self._err(500, str(e))
+            except: pass
 
     def _cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
