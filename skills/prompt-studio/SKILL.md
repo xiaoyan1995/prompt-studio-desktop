@@ -1,6 +1,6 @@
 ---
 name: prompt-studio
-description: Read and write prompts, skills, images, and videos in the local Prompt Studio app (http://localhost:8767). Use when user asks to save a prompt to Prompt Studio, search existing prompts, retrieve a skill by name, push AI-generated content into the app, or list/download media assets from it.
+description: Read and write ALL assets in the local Prompt Studio app (http://localhost:8767). Covers 4 asset types: (1) prompts/skills/images/videos via /api/cli/prompts, (2) document library (文档库, PDF/Word/Excel files) via /api/cli/docs, (3) audio library (音效库, local sound files) via /api/cli/audio/folders + /api/cli/audio/files, (4) push AI-generated content back via /api/cli/push. Use when user asks to list, search, read, save, or push anything in Prompt Studio, or asks about their asset library (资产库), document library, audio library, or project contents.
 ---
 
 # Prompt Studio
@@ -99,11 +99,21 @@ const { items } = await fetch('http://localhost:8767/api/cli/audio/files?project
 2. Get full content: `GET /api/cli/prompt?id=<id>`
 3. Extract field: add `?id=<id>` → read `item.prompt`, `item.analysis`, etc.
 
-### Get project overview (counts without fetching all items)
+### Get complete asset library overview
+Always start with this sequence to see everything:
 ```
-GET /api/cli/projects
+1. GET /api/cli/projects
+   → returns each project with skill_count, image_count, video_count
+   → does NOT include doc_count or audio_count (fetch separately if needed)
+
+2. GET /api/cli/docs?project=<name>
+   → lists all documents in 文档库 (PDF / Word / Excel / TXT etc.)
+
+3. GET /api/cli/audio/folders?project=<name>
+   → lists linked audio folders in 音效库
+   → then GET /api/cli/audio/files?project=<name>&folder=<id> to list files
 ```
-Returns each project with `skill_count`, `image_count`, `video_count` — **use this first** to see how many items exist before deciding whether to fetch them.
+Never skip steps 2 and 3 when the user asks about their full asset library (资产库).
 
 ### List items in a project
 ```
