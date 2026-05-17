@@ -23,6 +23,8 @@ Local prompt manager running at `http://localhost:8767`. No auth required.
 | List audio folders | `GET /api/cli/audio/folders?project=X` |
 | List / search audio files | `GET /api/cli/audio/files?project=X&folder=Y&q=keyword&starred=1` |
 | Stream audio file | `GET /api/local-audio?path=<absPath>` (Range-request capable) |
+| List / search documents (文档库) | `GET /api/cli/docs?project=X&q=keyword&limit=50` |
+| Download a document | `GET /uploads/<path from item.path>` |
 
 All operations use plain HTTP — no CLI, no Python, no extra tools needed.
 
@@ -56,6 +58,17 @@ await fetch('http://localhost:8767/api/cli/push', {
     gallery_images: ['https://…/v2.jpg', 'https://…/v3.jpg']
   })
 });
+```
+
+## Document library (文档库)
+
+```js
+// List docs in a project
+const { items } = await fetch('http://localhost:8767/api/cli/docs?project=我的项目').then(r => r.json());
+// items[n]: { id, project_id, project_name, title, filename, path, size, tags, notes, download_url }
+
+// Download a document
+const file = await fetch('http://localhost:8767' + items[0].download_url).then(r => r.arrayBuffer());
 ```
 
 ## Audio library

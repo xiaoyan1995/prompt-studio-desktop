@@ -813,6 +813,8 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_cli_audio_folders(query)
         elif path == "/api/cli/audio/files":
             self._handle_cli_audio_files(query)
+        elif path == "/api/cli/docs":
+            self._handle_cli_docs(query)
         elif path == "/api/search-assets":
             self._handle_search_assets(query)
         elif path == "/api/detect-duplicates":
@@ -2473,6 +2475,39 @@ class Handler(SimpleHTTPRequestHandler):
             self._json_resp({"ok": True, "meta": meta, "file_map": extracted_files})
         except Exception as e:
             self._err(500, f"Import failed: {e}")
+
+    def _handle_cli_docs(self, query):
+        """GET /api/cli/docs?project=<name|id>&q=keyword&limit=100"""
+        project_ref = (query.get("project") or [""])[0]
+        q           = (query.get("q") or [""])[0].lower().strip()
+        limit       = int((query.get("limit") or ["200"])[0])
+        data        = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        results = []
+        for proj in data.get("projects", []):
+            if project_ref and project_ref not in (proj["id"], proj["name"]):
+                continue
+            for doc in proj.get("pdf_files", []):
+                if doc.get("is_folder"):
+                    continue
+                if q and q not in (doc.get("title") or "").lower() and q not in (doc.get("filename") or "").lower() and q not in (doc.get("notes") or "").lower():
+                    continue
+                results.append({
+                    "id":           doc.get("id", ""),
+                    "project_id":   proj["id"],
+                    "project_name": proj["name"],
+                    "title":        doc.get("title", ""),
+                    "filename":     doc.get("filename", ""),
+                    "path":         doc.get("path", ""),
+                    "size":         doc.get("size", 0),
+                    "tags":         doc.get("tags", []),
+                    "notes":        doc.get("notes", ""),
+                    "color":        doc.get("color", ""),
+                    "created_at":   doc.get("created_at", ""),
+                    "download_url": doc.get("path", ""),
+                })
+                if len(results) >= limit:
+                    break
+        self._json_resp({"ok": True, "count": len(results), "items": results})
 
     def _serve_local_audio(self, query):
         AUDIO_EXTS = {'.mp3','.wav','.ogg','.flac','.aac','.m4a','.opus','.weba','.aiff','.au','.m4r'}

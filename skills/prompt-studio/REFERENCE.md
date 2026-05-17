@@ -8,7 +8,7 @@ Base URL: `http://localhost:8767`
 
 | Path | Params | Returns |
 |------|--------|---------|
-| `/api/cli/projects` | — | `{ projects: [{id, name}] }` |
+| `/api/cli/projects` | — | `{ projects: [{id, name, skill_count, image_count, video_count}] }` |
 | `/api/cli/prompts` | `project`, `type`, `limit` | `{ count, items: [summary…] }` |
 | `/api/cli/prompt` | `id` **or** `project`+`title`+`type` | `{ type, project_name, item }` |
 | `/api/cli/search` | `q` (required), `project`, `type`, `limit` | `{ count, items }` |
@@ -63,6 +63,22 @@ All of the above plus: `prompt` · `ref_image` · `analysis` · `outfit_prompt` 
 Response: `{ ok, id, project_id, project_name, type, image, gallery, video }`
 
 ---
+
+---
+
+## Document Library API (文档库)
+
+### GET /api/cli/docs
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `project` | no | Project name or id; omit to list all projects |
+| `q` | no | Search in title, filename, or notes |
+| `limit` | no | Max results (default 200) |
+
+Response item fields: `id` · `project_id` · `project_name` · `title` · `filename` · `path` · `size` · `tags` · `notes` · `color` · `created_at` · `download_url`
+
+Download file: `GET http://localhost:8767` + `item.download_url`
 
 ---
 
