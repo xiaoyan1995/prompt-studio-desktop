@@ -225,8 +225,9 @@ async function cLoadProjects() {
     const r = await fetch(`${SERVER_URL}/api/projects`);
     const data = await r.json();
     const projects = data.projects || data;
-    sel.innerHTML = '<option value="">（选择项目）</option>' +
-      projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    sel.innerHTML = projects.map((p, i) =>
+      `<option value="${p.id}"${i===0?' selected':''}>${p.name}</option>`).join('');
+    if (!projects.length) sel.innerHTML = '<option value="">⚠️ 无项目</option>';
   } catch { sel.innerHTML = '<option value="">⚠️ 未连接</option>'; }
 }
 
