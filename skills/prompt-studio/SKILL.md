@@ -62,6 +62,8 @@ await fetch('http://localhost:8767/api/cli/push', {
 
 ## Document library (文档库)
 
+Supported file types: **PDF · Word (.docx) · Excel (.xlsx/.xls) · TXT · Markdown (.md) · CSV**
+
 ```js
 // List docs in a project
 const { items } = await fetch('http://localhost:8767/api/cli/docs?project=我的项目').then(r => r.json());
@@ -73,13 +75,19 @@ const file = await fetch('http://localhost:8767' + items[0].download_url).then(r
 
 ## Audio library
 
+> **Note**: Audio folders are local paths linked via the app UI. The server scans them live from disk.
+> Always call `/api/cli/audio/folders` first to get `folder_id` and `project_name`, then pass both to `/api/cli/audio/files`.
+
 ```js
-// List audio folders in a project
-const { folders } = await fetch('http://localhost:8767/api/cli/audio/folders?project=我的项目').then(r => r.json());
+// Step 1 — list all linked audio folders (across all projects)
+const { folders } = await fetch('http://localhost:8767/api/cli/audio/folders').then(r => r.json());
 // folders[n]: { project_id, project_name, folder_id, folder_name, local_path, added_at }
 
-// List / search audio files
-const { items } = await fetch('http://localhost:8767/api/cli/audio/files?project=我的项目&folder=SFX&q=door').then(r => r.json());
+// Step 2 — list files in a specific folder (use project_name + folder_id from step 1)
+const f = folders[0];
+const { items } = await fetch(
+  `http://localhost:8767/api/cli/audio/files?project=${encodeURIComponent(f.project_name)}&folder=${f.folder_id}&q=door`
+).then(r => r.json());
 // items[n]: { name, nameNoExt, ext, relPath, absPath, size, cnName, starred, stream_url }
 
 // Stream an audio file

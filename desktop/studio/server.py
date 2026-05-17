@@ -1350,14 +1350,18 @@ class Handler(SimpleHTTPRequestHandler):
         starred_only = (query.get("starred") or [""])[0].lower() in ("1", "true", "yes")
         limit        = int((query.get("limit") or ["500"])[0])
         data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-        proj = next((p for p in data.get("projects", [])
-                     if not project_ref or project_ref in (p["id"], p["name"])), None)
+        if project_ref:
+            proj = next((p for p in data.get("projects", []) if project_ref in (p["id"], p["name"])), None)
+        else:
+            # pick first project that actually has audio folders
+            proj = next((p for p in data.get("projects", []) if p.get("audio_folders")), None)
         if not proj:
-            return self._err(404, "Project not found")
+            return self._err(404, "No project with audio folders found")
         folder = next((f for f in proj.get("audio_folders", [])
                        if not folder_ref or folder_ref in (f["id"], f["name"])), None)
         if not folder:
-            return self._err(404, "Audio folder not found")
+            return self._err(404, f"Audio folder not found in project '{proj['name']}'."
+                             " Use /api/cli/audio/folders to list available folders.")
         local_path = folder.get("localPath", "")
         if not local_path or not os.path.isdir(local_path):
             return self._err(400, f"Local path not accessible: {local_path}")
