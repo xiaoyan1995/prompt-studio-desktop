@@ -1760,6 +1760,7 @@
     <!-- Footer -->
     <div class="sp-footer">
       <button class="btn btn-secondary btn-sm" id="pdfDownloadBtn">⬇️ 下载</button>
+      <button class="btn btn-secondary btn-sm" id="pdfOpenBrowserBtn" style="display:none">🌐 在浏览器中打开</button>
       <div style="flex:1"></div>
       <button class="btn btn-danger btn-sm" id="pdfDeleteBtn">🗑️ 删除</button>
       <button class="btn btn-primary" id="pdfSaveMetaBtn">💾 保存</button>
@@ -3941,12 +3942,17 @@
       richDiv.style.cssText = 'flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;height:100%';
       const iframe = document.createElement('iframe');
       iframe.style.cssText = 'width:100%;flex:1;border:none;background:#fff;border-radius:4px;min-height:400px';
-      iframe.sandbox = 'allow-scripts allow-same-origin';
+      iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-pointer-lock';
       iframe.src = fullUrl;
       richDiv.appendChild(iframe);
+      const openBtn = document.getElementById('pdfOpenBrowserBtn');
+      if (openBtn) { openBtn.style.display = ''; openBtn._htmlUrl = fullUrl; }
       loading.style.display = 'none';
       return;
     }
+    // hide open-in-browser for non-html
+    const _ob = document.getElementById('pdfOpenBrowserBtn');
+    if (_ob) { _ob.style.display = 'none'; _ob._htmlUrl = ''; }
 
     // ── 不支持预览 ────────────────────────────────────────────────────────
     loading.style.display = 'none';
@@ -5648,6 +5654,17 @@
     a.href = `http://127.0.0.1:8767${item.path}`;
     a.download = item.filename || 'document.pdf';
     a.click();
+  });
+
+  document.getElementById('pdfOpenBrowserBtn').addEventListener('click', () => {
+    const btn = document.getElementById('pdfOpenBrowserBtn');
+    const url = btn._htmlUrl;
+    if (!url) return;
+    if (window.electronAPI?.openExternal) {
+      window.electronAPI.openExternal(url);
+    } else {
+      window.open(url, '_blank');
+    }
   });
 
   document.getElementById('pdfTagInput').addEventListener('keydown', e => {

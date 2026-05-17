@@ -284,6 +284,11 @@ function registerWindowControls() {
   ipcMain.handle('window:close', (event) => {
     BrowserWindow.fromWebContents(event.sender)?.close();
   });
+  ipcMain.handle('shell:open-external', (_event, url) => {
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      shell.openExternal(url);
+    }
+  });
 }
 
 // ── Upload path resolver ───────────────────────────────────────────────────

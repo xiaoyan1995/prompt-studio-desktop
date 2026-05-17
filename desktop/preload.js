@@ -15,4 +15,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Native file drag-out (TODO2) ──────────────────────────────────────
   startFileDrag: (uploadPathOrPaths) =>
     ipcRenderer.sendSync('drag:start', uploadPathOrPaths),
+  // ── Open URL in system default browser ──────────────────────────
+  openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
 });
