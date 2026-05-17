@@ -102,7 +102,11 @@
       <div id="cNoResult" style="display:none;text-align:center;padding:16px;color:var(--subtle);font-size:12px">当前筛选无结果</div>
     </div>
     <!-- Send footer -->
-    <div style="padding:8px 10px;border-top:1px solid var(--border);background:var(--bg);display:flex;justify-content:flex-end">
+    <div style="padding:8px 10px;border-top:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--subtle);cursor:pointer;white-space:nowrap" title="勾选：所有图片合并到一张卡片的画廊&#10;取消：每张图片单独创建一张卡片">
+        <input type="checkbox" id="cGalleryMode" checked style="margin:0;cursor:pointer">
+        合并到同一卡片
+      </label>
       <button id="cSendBtn" disabled style="padding:6px 16px;background:#16a34a;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;opacity:.4">💾 发送到 Prompt Studio</button>
     </div>
   </div>

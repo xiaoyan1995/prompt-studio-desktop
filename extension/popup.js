@@ -236,19 +236,40 @@ document.getElementById('cSendBtn').addEventListener('click', async () => {
   const list = [...cSelected].map(i => cAllImages[i]).filter(Boolean);
   if (!list.length) return;
   const projId = document.getElementById('cProjSel').value;
+  const galleryMode = document.getElementById('cGalleryMode').checked;
   const sendBtn = document.getElementById('cSendBtn');
-  sendBtn.disabled = true; sendBtn.textContent = `发送中 0/${list.length}…`;
+  sendBtn.disabled = true;
   let ok = 0;
-  for (let i = 0; i < list.length; i++) {
-    sendBtn.textContent = `发送中 ${i+1}/${list.length}…`;
-    try {
+  try {
+    if (galleryMode) {
+      // All images → one card with gallery
+      sendBtn.textContent = `发送中…`;
       const res = await fetch(`${SERVER_URL}/api/cli/push`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: projId || undefined, type: 'image', image_url: list[i].url, title: '', prompt: list[i].url }),
+        body: JSON.stringify({
+          project_id: projId || undefined,
+          type: 'image',
+          image_url: list[0].url,
+          gallery_images: list.map(img => img.url),
+          title: '',
+          prompt: list[0].url,
+        }),
       });
-      if (res.ok) ok++;
-    } catch {}
-  }
+      if (res.ok) ok = list.length;
+    } else {
+      // One card per image
+      for (let i = 0; i < list.length; i++) {
+        sendBtn.textContent = `发送中 ${i+1}/${list.length}…`;
+        try {
+          const res = await fetch(`${SERVER_URL}/api/cli/push`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_id: projId || undefined, type: 'image', image_url: list[i].url, title: '', prompt: list[i].url }),
+          });
+          if (res.ok) ok++;
+        } catch {}
+      }
+    }
+  } catch {}
   sendBtn.textContent = `✅ 已保存 ${ok}/${list.length} 张`;
   sendBtn.style.background = '#166534';
   setTimeout(() => {
