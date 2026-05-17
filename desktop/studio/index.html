@@ -2178,6 +2178,11 @@
       return false;
     }
   }
+  let _saveDebounceTimer = null;
+  function _debouncedSaveData() {
+    clearTimeout(_saveDebounceTimer);
+    _saveDebounceTimer = setTimeout(() => saveData(data), 600);
+  }
   async function postJson(path, payload={}) {
     const r = await fetch(path, {
       method: 'POST',
@@ -3946,11 +3951,12 @@
         }
         const stripeMap = {mp3:'#8b5cf6',wav:'#3b82f6',flac:'#f59e0b',ogg:'#10b981',aac:'#f97316',m4a:'#f97316'};
         const stars = proj.audio_stars || [];
+        const starsSet = new Set(stars);
         await renderInChunks(allResults, file => {
           const fmtCls = ['mp3','wav','flac','ogg','aac','m4a'].includes(file.ext) ? `audio-fmt-${file.ext}` : 'audio-fmt-other';
           const stripe = stripeMap[file.ext] || '#64748b';
           const cn = file._trans[file.nameNoExt] || file.nameNoExt.replace(/[_\-]/g,' ').trim();
-          const starred = stars.includes(file.absPath);
+          const starred = starsSet.has(file.absPath);
           const spds = getEqSpeeds(file.nameNoExt);
           const eqBars = spds.map(spd=>`<div class="audio-eq-bar" style="--spd:${spd}s"></div>`).join('');
           const card = document.createElement('div');
@@ -3980,16 +3986,17 @@
               if (_audioSelected.has(file.absPath)) { _audioSelected.delete(file.absPath); card.classList.remove('audio-selected'); }
               else { _audioSelected.add(file.absPath); card.classList.add('audio-selected'); }
             } else {
-              document.querySelectorAll('#mainGrid .audio-card.audio-selected').forEach(c => c.classList.remove('audio-selected'));
+              _audioSelected.forEach(p => { const c = grid.querySelector(`.audio-card[data-abs-path="${CSS.escape(p)}"]`); if(c) c.classList.remove('audio-selected'); });
               _audioSelected.clear(); _audioSelected.add(file.absPath); card.classList.add('audio-selected');
             }
           });
           card.querySelector('.audio-star-btn').addEventListener('click', async e => {
             e.stopPropagation();
             proj.audio_stars = proj.audio_stars || [];
-            if (proj.audio_stars.includes(file.absPath)) { proj.audio_stars = proj.audio_stars.filter(p=>p!==file.absPath); e.target.classList.remove('starred'); }
+            const idx = proj.audio_stars.indexOf(file.absPath);
+            if (idx !== -1) { proj.audio_stars.splice(idx, 1); e.target.classList.remove('starred'); }
             else { proj.audio_stars.push(file.absPath); e.target.classList.add('starred'); }
-            await saveData(data);
+            _debouncedSaveData();
           });
           if (_audioSelected.has(file.absPath)) card.classList.add('audio-selected');
           card.addEventListener('mousedown', e => {
@@ -4066,6 +4073,7 @@
     }
     const stripeMap = {mp3:'#8b5cf6',wav:'#3b82f6',flac:'#f59e0b',ogg:'#10b981',aac:'#f97316',m4a:'#f97316'};
     const stars = proj.audio_stars || [];
+    const starsSet = new Set(stars);
     const trans = proj.audio_translations?.[folder.id] || {};
     // Subfolder cards (hidden during search)
     if (!q) subFolders.forEach(sf => {
@@ -4081,7 +4089,7 @@
       const fmtCls = ['mp3','wav','flac','ogg','aac','m4a'].includes(file.ext) ? `audio-fmt-${file.ext}` : 'audio-fmt-other';
       const stripe = stripeMap[file.ext] || '#64748b';
       const cn = trans[file.nameNoExt] || file.nameNoExt.replace(/[_\-]/g,' ').trim();
-      const starred = stars.includes(file.absPath);
+      const starred = starsSet.has(file.absPath);
       const spds = getEqSpeeds(file.nameNoExt);
       const eqBars = spds.map(spd=>`<div class="audio-eq-bar" style="--spd:${spd}s"></div>`).join('');
       const card = document.createElement('div');
@@ -4110,16 +4118,17 @@
           if (_audioSelected.has(file.absPath)) { _audioSelected.delete(file.absPath); card.classList.remove('audio-selected'); }
           else { _audioSelected.add(file.absPath); card.classList.add('audio-selected'); }
         } else {
-          document.querySelectorAll('#mainGrid .audio-card.audio-selected').forEach(c => c.classList.remove('audio-selected'));
+          _audioSelected.forEach(p => { const c = grid.querySelector(`.audio-card[data-abs-path="${CSS.escape(p)}"]`); if(c) c.classList.remove('audio-selected'); });
           _audioSelected.clear(); _audioSelected.add(file.absPath); card.classList.add('audio-selected');
         }
       });
       card.querySelector('.audio-star-btn').addEventListener('click', async e => {
         e.stopPropagation();
         proj.audio_stars = proj.audio_stars || [];
-        if (proj.audio_stars.includes(file.absPath)) { proj.audio_stars = proj.audio_stars.filter(p=>p!==file.absPath); e.target.classList.remove('starred'); }
+        const idx = proj.audio_stars.indexOf(file.absPath);
+        if (idx !== -1) { proj.audio_stars.splice(idx, 1); e.target.classList.remove('starred'); }
         else { proj.audio_stars.push(file.absPath); e.target.classList.add('starred'); }
-        await saveData(data);
+        _debouncedSaveData();
       });
       if (_audioSelected.has(file.absPath)) card.classList.add('audio-selected');
       card.addEventListener('mousedown', e => {
