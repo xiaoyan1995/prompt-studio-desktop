@@ -19,18 +19,41 @@
 
 <div align="center">
 
-<img src="docs/screenshots/main.png" alt="图片提示词主界面" width="720">
+### 图片提示词 · 卡片网格 + 实时预览面板
+
+<img src="docs/screenshots/main.png" alt="图片提示词主界面" width="760">
 
 <br><br>
 
+### 提示词详情 & 多图画廊 · 音效库波形预览
+
 <table>
 <tr>
-<td align="center"><img src="docs/screenshots/detail.png" alt="提示词详情" width="340"><br><sub>提示词详情 & 画廊</sub></td>
-<td align="center"><img src="docs/screenshots/audio.png" alt="音效库" width="340"><br><sub>音效库 & 波形预览</sub></td>
+<td align="center" width="50%">
+  <img src="docs/screenshots/detail.png" alt="提示词详情弹窗" width="360"><br>
+  <sub>📝 提示词详情 — 大图预览 · 参考图 · 多图画廊 · AI 反推</sub>
+</td>
+<td align="center" width="50%">
+  <img src="docs/screenshots/audio.png" alt="音效库" width="360"><br>
+  <sub>🎵 音效库 — 实时波形 · 子目录浏览 · 收藏 · 拖拽导出</sub>
+</td>
 </tr>
+</table>
+
+<br>
+
+### 文档库 · 浏览器插件
+
+<table>
 <tr>
-<td align="center"><img src="docs/screenshots/docs.png" alt="文档库" width="340"><br><sub>文档库</sub></td>
-<td align="center"><img src="docs/screenshots/extension.png" alt="浏览器插件" width="340"><br><sub>浏览器插件</sub></td>
+<td align="center" width="50%">
+  <img src="docs/screenshots/docs.png" alt="文档库" width="360"><br>
+  <sub>📚 文档库 — PDF / Word / Excel / PPT / Markdown 多格式预览</sub>
+</td>
+<td align="center" width="50%">
+  <img src="docs/screenshots/extension.png" alt="浏览器插件" width="260"><br>
+  <sub>🌐 浏览器插件 — 任意页面一键发送素材到桌面端</sub>
+</td>
 </tr>
 </table>
 
@@ -105,6 +128,13 @@
 ---
 
 ## 📦 安装使用（无需编译）
+
+<div align="center">
+<img src="docs/screenshots/projects.png" alt="项目管理" width="600">
+<br><sub>项目管理页 — 按项目组织所有资产，支持图片 · 视频 · Skills · 文档 · 音效</sub>
+</div>
+
+<br>
 
 从 [Releases](https://github.com/xiaoyan1995/prompt-studio-desktop/releases) 下载最新分发包，解压后目录结构如下：
 
