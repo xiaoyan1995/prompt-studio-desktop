@@ -12,6 +12,10 @@ Base URL: `http://localhost:8767`
 | `/api/cli/prompts` | `project`, `type`, `limit` | `{ count, items: [summary…] }` |
 | `/api/cli/prompt` | `id` **or** `project`+`title`+`type` | `{ type, project_name, item }` |
 | `/api/cli/search` | `q` (required), `project`, `type`, `limit` | `{ count, items }` |
+| `/api/cli/docs` | `project`, `q`, `limit` | `{ count, items: [doc…] }` |
+| `/api/cli/audio/folders` | `project` | `{ count, folders: […] }` |
+| `/api/cli/audio/files` | `project`, `folder`, `q`, `starred`, `limit` | `{ count, items: [file…] }` |
+| `/api/local-audio` | `path` (abs path, URL-encoded) | audio stream (Range-capable) |
 | `/uploads/<file>` | — | binary file |
 
 ### Item summary fields (list)
