@@ -3810,6 +3810,46 @@
       ctx.fillRect(i*3, (H-bar)/2, 2, bar);
     }
   }
+  // ── Audio perf helpers ───────────────────────────────────────────────
+  function _seededRand(seed) {
+    let s = 0;
+    for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) & 0xffffffff;
+    return () => { s = (s*1664525+1013904223)&0xffffffff; return (s>>>0)/0x100000000; };
+  }
+  function getEqSpeeds(seed) {
+    const r = _seededRand(seed);
+    return Array.from({length:16}, () => (0.35 + r()*0.75).toFixed(2));
+  }
+  // Shared observer: draw waveform only when card scrolls into view
+  const _waveformObs = ('IntersectionObserver' in window) ? new IntersectionObserver(entries => {
+    for (const e of entries) {
+      if (e.isIntersecting) {
+        const c = e.target;
+        if (!c.dataset.drawn) { drawFakeWaveform(c, c.dataset.seed || ''); c.dataset.drawn = '1'; }
+        _waveformObs.unobserve(c);
+      }
+    }
+  }, { rootMargin: '200px' }) : null;
+  function attachLazyWaveform(canvas, seed) {
+    canvas.dataset.seed = seed;
+    if (_waveformObs) _waveformObs.observe(canvas);
+    else requestAnimationFrame(() => drawFakeWaveform(canvas, seed));
+  }
+  // Render items in chunks of N to keep main thread responsive
+  function renderInChunks(items, makeNode, parent, chunkSize = 80) {
+    return new Promise(resolve => {
+      if (!items.length) return resolve();
+      let i = 0;
+      const tick = () => {
+        const frag = document.createDocumentFragment();
+        const end = Math.min(i + chunkSize, items.length);
+        for (; i < end; i++) frag.appendChild(makeNode(items[i], i));
+        parent.appendChild(frag);
+        if (i < items.length) requestAnimationFrame(tick); else resolve();
+      };
+      requestAnimationFrame(tick);
+    });
+  }
   async function scanLinkedFolder(folder) {
     const cached = _audioScanCache[folder.id];
     if (cached && Date.now()-cached.ts < 5*60*1000) return cached.items;
@@ -3906,12 +3946,12 @@
         }
         const stripeMap = {mp3:'#8b5cf6',wav:'#3b82f6',flac:'#f59e0b',ogg:'#10b981',aac:'#f97316',m4a:'#f97316'};
         const stars = proj.audio_stars || [];
-        allResults.forEach(file => {
+        await renderInChunks(allResults, file => {
           const fmtCls = ['mp3','wav','flac','ogg','aac','m4a'].includes(file.ext) ? `audio-fmt-${file.ext}` : 'audio-fmt-other';
           const stripe = stripeMap[file.ext] || '#64748b';
           const cn = file._trans[file.nameNoExt] || file.nameNoExt.replace(/[_\-]/g,' ').trim();
           const starred = stars.includes(file.absPath);
-          const spds = Array.from({length:16},()=>(0.35+Math.random()*0.75).toFixed(2));
+          const spds = getEqSpeeds(file.nameNoExt);
           const eqBars = spds.map(spd=>`<div class="audio-eq-bar" style="--spd:${spd}s"></div>`).join('');
           const card = document.createElement('div');
           card.className = 'audio-card'; card.dataset.absPath = file.absPath;
@@ -3932,7 +3972,7 @@
               <div class="audio-cn" title="${h(cn)}">${h(cn)}</div>
               <div class="audio-en" title="${h(file.name)}">${h(file.name)}</div>
             </div>`;
-          requestAnimationFrame(() => { const c=card.querySelector('.audio-waveform'); if(c) drawFakeWaveform(c, file.nameNoExt); });
+          attachLazyWaveform(card.querySelector('.audio-waveform'), file.nameNoExt);
           card.querySelector('.audio-play-btn').addEventListener('click', e => { e.stopPropagation(); playAudioItem(card, file, proj); });
           card.addEventListener('click', e => {
             if (e.target.closest('.audio-play-btn') || e.target.closest('.audio-star-btn')) return;
@@ -3958,8 +3998,9 @@
             const paths = _audioSelected.size > 0 && _audioSelected.has(file.absPath) ? [..._audioSelected] : [file.absPath];
             _dragStartMonitor = { startX: e.clientX, startY: e.clientY, paths };
           });
-          grid.appendChild(card);
-        });
+          return card;
+        }, grid);
+        setupAudioRubberBand(grid);
         return;
       }
       // ── Normal root view: folder cards ───────────────────────
@@ -4035,13 +4076,13 @@
       card.addEventListener('click', () => { state.audioSubPath = sf.relPath; renderPage(); });
       grid.appendChild(card);
     }); // end if(!q) subfolder cards
-    // Audio file cards
-    files.forEach(file => {
+    // Audio file cards (chunked render for large folders)
+    await renderInChunks(files, file => {
       const fmtCls = ['mp3','wav','flac','ogg','aac','m4a'].includes(file.ext) ? `audio-fmt-${file.ext}` : 'audio-fmt-other';
       const stripe = stripeMap[file.ext] || '#64748b';
       const cn = trans[file.nameNoExt] || file.nameNoExt.replace(/[_\-]/g,' ').trim();
       const starred = stars.includes(file.absPath);
-      const spds = Array.from({length:16},()=>(0.35+Math.random()*0.75).toFixed(2));
+      const spds = getEqSpeeds(file.nameNoExt);
       const eqBars = spds.map(spd=>`<div class="audio-eq-bar" style="--spd:${spd}s"></div>`).join('');
       const card = document.createElement('div');
       card.className = 'audio-card'; card.dataset.absPath = file.absPath;
@@ -4061,7 +4102,7 @@
           <div class="audio-cn" title="${h(cn)}">${h(cn)}</div>
           <div class="audio-en" title="${h(file.name)}">${h(file.name)}</div>
         </div>`;
-      requestAnimationFrame(() => { const c=card.querySelector('.audio-waveform'); if(c) drawFakeWaveform(c, file.nameNoExt); });
+      attachLazyWaveform(card.querySelector('.audio-waveform'), file.nameNoExt);
       card.querySelector('.audio-play-btn').addEventListener('click', e => { e.stopPropagation(); playAudioItem(card, file, proj); });
       card.addEventListener('click', e => {
         if (e.target.closest('.audio-play-btn') || e.target.closest('.audio-star-btn')) return;
@@ -4087,8 +4128,8 @@
         const paths = _audioSelected.size > 0 && _audioSelected.has(file.absPath) ? [..._audioSelected] : [file.absPath];
         _dragStartMonitor = { startX: e.clientX, startY: e.clientY, paths };
       });
-      grid.appendChild(card);
-    });
+      return card;
+    }, grid);
     setupAudioRubberBand(grid);
   }
   function setupAudioRubberBand(grid) {
