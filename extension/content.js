@@ -1012,7 +1012,6 @@
     const el = _pqiFocusedEl;
     if (!el) return;
     pqiHidePanel();
-    pqiHideIcon();
     if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
       const start = el.selectionStart || 0;
       const end = el.selectionEnd || 0;
@@ -1193,19 +1192,24 @@
     if (!isInsertWhitelisted()) return;
     // Ignore focus events inside our own panel/icon
     if (pqiPanel.contains(e.target) || e.target === pqiIcon) return;
-    if (!isInsertTarget(e.target)) return;
-    _pqiFocusedEl = e.target;
-    pqiShowIcon(e.target);
+    if (isInsertTarget(e.target)) {
+      _pqiFocusedEl = e.target;
+      pqiShowIcon(e.target);
+    } else {
+      // Focused a non-input element → hide icon
+      pqiHideIcon();
+      pqiHidePanel();
+    }
   }, true);
 
-  document.addEventListener('focusout', (e) => {
-    // Delay to allow clicking the icon
-    setTimeout(() => {
-      if (pqiPanel.classList.contains('visible')) return;
-      if (document.activeElement === pqiIcon) return;
-      pqiHideIcon();
-    }, 200);
-  }, true);
+  // Reposition icon on scroll / resize so it stays pinned to the input
+  function pqiRepositionIcon() {
+    if (!_pqiFocusedEl || !pqiIcon.classList.contains('visible')) return;
+    if (!document.body.contains(_pqiFocusedEl)) { pqiHideIcon(); return; }
+    pqiShowIcon(_pqiFocusedEl);
+  }
+  window.addEventListener('scroll', pqiRepositionIcon, true);
+  window.addEventListener('resize', pqiRepositionIcon);
 
   // Close panel on Escape
   document.addEventListener('keydown', (e) => {
