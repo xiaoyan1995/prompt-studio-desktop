@@ -8,6 +8,9 @@ const EXT_STRINGS = {
     header_sub: '右键图片/视频使用完整功能',
     checking: '正在检查服务器…',
     block_title: '屏蔽此网站工具栏',
+    insert_toggle_title: '启用提示词快速插入',
+    insert_on_toast: '✅ 已启用快速插入',
+    insert_off_toast: '✅ 已关闭快速插入',
     quick_actions: '快捷操作',
     open_studio: '打开桌面端',
     batch_collect: '批量采集图片',
@@ -39,6 +42,9 @@ const EXT_STRINGS = {
     header_sub: 'Right-click any image/video for full features',
     checking: 'Checking server…',
     block_title: 'Block toolbar on this site',
+    insert_toggle_title: 'Enable prompt quick-insert',
+    insert_on_toast: '✅ Quick insert enabled',
+    insert_off_toast: '✅ Quick insert disabled',
     quick_actions: 'Quick Actions',
     open_studio: 'Open Desktop App',
     batch_collect: 'Batch Collect Images',
@@ -96,9 +102,11 @@ chrome.storage.local.get({ extLang: 'cn' }, ({ extLang }) => {
 });
 document.getElementById('extLangBtnCN').addEventListener('click', () => {
   _extLang = 'cn'; chrome.storage.local.set({ extLang: 'cn' }); applyExtLang();
+  chrome.runtime.sendMessage({ type: 'set-lang', lang: 'cn' });
 });
 document.getElementById('extLangBtnEN').addEventListener('click', () => {
   _extLang = 'en'; chrome.storage.local.set({ extLang: 'en' }); applyExtLang();
+  chrome.runtime.sendMessage({ type: 'set-lang', lang: 'en' });
 });
 
 async function checkServer() {
@@ -460,5 +468,56 @@ document.getElementById('blockSiteBtn').addEventListener('click', async () => {
   }
 });
 
+// ── Insert toggle for current site ──────────────────────────────────────────
+let insertEnabled = false;
+
+function updateInsertBtn() {
+  const btn  = document.getElementById('insertToggleBtn');
+  const icon = document.getElementById('insertToggleIcon');
+  icon.textContent  = insertEnabled ? '✅' : '📋';
+  btn.title         = insertEnabled ? `关闭 ${currentHost} 快速插入` : `启用 ${currentHost} 快速插入`;
+  btn.style.display = 'inline-block';
+}
+
+async function initInsertBtn() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.url) return;
+    const url = new URL(tab.url);
+    if (!url.hostname || url.protocol.startsWith('chrome')) return;
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    const { promptInsertWhitelist = '' } = await new Promise(r =>
+      chrome.storage.sync.get({ promptInsertWhitelist: '' }, r)
+    );
+    const domains = (promptInsertWhitelist || '').split('\n').map(d => d.trim().toLowerCase()).filter(Boolean);
+    insertEnabled = domains.some(d => host === d || host.endsWith('.' + d) || d.endsWith('.' + host));
+    updateInsertBtn();
+  } catch {}
+}
+
+document.getElementById('insertToggleBtn').addEventListener('click', async () => {
+  const { promptInsertWhitelist = '' } = await new Promise(r =>
+    chrome.storage.sync.get({ promptInsertWhitelist: '' }, r)
+  );
+  let domains = (promptInsertWhitelist || '').split('\n').map(d => d.trim().toLowerCase()).filter(Boolean);
+  if (insertEnabled) {
+    domains = domains.filter(d => !(currentHost === d || currentHost.endsWith('.' + d) || d.endsWith('.' + currentHost)));
+  } else {
+    if (!domains.includes(currentHost)) domains.push(currentHost);
+  }
+  try {
+    await chrome.storage.sync.set({ promptInsertWhitelist: domains.join('\n') });
+    insertEnabled = !insertEnabled;
+    updateInsertBtn();
+    const btn = document.getElementById('insertToggleBtn');
+    const orig = btn.title;
+    btn.title = insertEnabled ? et('insert_on_toast') : et('insert_off_toast');
+    setTimeout(() => { btn.title = orig; }, 1500);
+  } catch(e) {
+    console.error('insertToggle save failed', e);
+  }
+});
+
 checkServer();
 initBlockBtn();
+initInsertBtn();
