@@ -928,26 +928,30 @@
     }
     .pqi-sidebar-item:hover { background: #f8faff; color: #1d4ed8; }
     .pqi-sidebar-item.on { background: #eef4ff; color: #1d4ed8; border-left-color: #1d4ed8; font-weight: 600; }
-    .pqi-list { flex: 1; overflow-y: auto; padding: 6px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; align-content: start; }
+    .pqi-list { flex: 1; overflow-y: auto; padding: 8px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; align-content: start; }
     .pqi-item {
       padding: 0; border-radius: 8px; cursor: pointer;
-      border: 1px solid #f0f0f0; transition: all .1s;
+      border: 1px solid #eee; transition: all .12s;
       display: flex; flex-direction: column; overflow: hidden;
+      background: #fff;
     }
-    .pqi-item:hover { background: #eef4ff; border-color: #c7d8f4; }
+    .pqi-item:hover { background: #f8faff; border-color: #c7d8f4; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+    .pqi-item-thumb-wrap {
+      width: 100%; aspect-ratio: 4/3; overflow: hidden; position: relative;
+      background: #f0f4fc;
+    }
     .pqi-item-thumb {
-      width: 100%; height: 80px; object-fit: cover;
-      background: #f0f4fc; border-bottom: 1px solid #e8ecf2; display: block;
+      width: 100%; height: 100%; object-fit: cover; display: block;
     }
     .pqi-item-thumb-placeholder {
-      width: 100%; height: 80px;
+      width: 100%; height: 100%;
       background: linear-gradient(135deg, #eef4ff, #e2ebff);
       display: flex; align-items: center; justify-content: center;
-      font-size: 22px; color: #9fb8e9; border-bottom: 1px solid #e8ecf2;
+      font-size: 24px; color: #9fb8e9;
     }
     .pqi-item-info { padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
     .pqi-item-title { font-size: 11px; font-weight: 600; color: #1a2340; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .pqi-item-prompt { font-size: 10px; color: #6b7a99; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
+    .pqi-item-prompt { display: none; }
     .pqi-item-tags { display: flex; gap: 3px; flex-wrap: wrap; }
     .pqi-item-tag { font-size: 9px; background: #f0f4fc; color: #5b6eae; padding: 1px 5px; border-radius: 4px; }
     .pqi-empty { padding: 24px; text-align: center; color: #9ca3af; font-size: 12px; grid-column: 1 / -1; }
@@ -1131,15 +1135,13 @@
       const titleText = it.title || promptText.substring(0, 40) || '无标题';
       const tags = (it.tags || []).slice(0, 3);
       const imgPath = it.image || (it.gallery && it.gallery[0]) || '';
-      const thumbHtml = imgPath
-        ? `<img class="pqi-item-thumb" src="${esc(_pqiServerUrl + (imgPath.startsWith('/') ? '' : '/uploads/') + imgPath)}" onerror="this.style.display='none'">`
+      const thumbInner = imgPath
+        ? `<img class="pqi-item-thumb" src="${esc(_pqiServerUrl + (imgPath.startsWith('/') ? '' : '/uploads/') + imgPath)}" onerror="this.parentNode.innerHTML='<div class=pqi-item-thumb-placeholder>🖼️</div>'">`
         : `<div class="pqi-item-thumb-placeholder">${_pqiSelectedCat === 'video_prompts' ? '🎬' : _pqiSelectedCat === 'skill_prompts' ? '🤖' : '🖼️'}</div>`;
       div.innerHTML = `
-        ${thumbHtml}
+        <div class="pqi-item-thumb-wrap">${thumbInner}</div>
         <div class="pqi-item-info">
           <div class="pqi-item-title">${esc(titleText)}</div>
-          <div class="pqi-item-prompt">${esc(promptText.substring(0, 80))}</div>
-          ${tags.length ? '<div class="pqi-item-tags">' + tags.map(t => `<span class="pqi-item-tag">${esc(t)}</span>`).join('') + '</div>' : ''}
         </div>`;
       div.onclick = () => pqiInsertText(promptText);
       list.appendChild(div);
