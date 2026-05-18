@@ -4,7 +4,7 @@
 
 **本地桌面端 AI 图片 & 视频提示词管理工具，配套浏览器插件。**
 
-[![版本](https://img.shields.io/badge/版本-1.1.0-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![版本](https://img.shields.io/badge/版本-1.1.1-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
 [![构建](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml)
 [![平台](https://img.shields.io/badge/平台-Windows%20%7C%20macOS-lightgrey.svg)](#打包说明)
 [![Electron](https://img.shields.io/badge/Electron-37-47848F.svg)](https://www.electronjs.org/)
@@ -77,11 +77,15 @@
 - 🖼️ **图片画廊** — 每条提示词支持多张生成图，点击缩略图设为主图
 - 🔎 **大图查看** — 点击图片全屏浏览
 - 🔊 **音效库** — 每个项目可链接本地音效文件夹，支持浏览子目录、水波形预览、收藏、LLM 翻译文件名、拖拽导入 DAW
+- 🌍 **中英文界面** — 设置中心一键切换中文 / English，所有 UI 文字即时更新
 - 🤝 **Agent / CLI 集成** — 完整 HTTP API，外部 agent 可读写提示词、推送 AI 生成的图片和视频，以及查询音效库
 
 ---
 
 ## 🗒️ 版本记录
+
+### v1.1.1
+- **中英文界面本地化**：设置中心新增语言切换按钮（中文 / English），所有 UI 文字——包括弹窗、标签、按钮、提示、占位符——均可一键切换，语言偏好本地持久化
 
 ### v1.1.0
 - **音效库**：每个项目可链接任意本地文件夹作为音效库；支持子目录浏览、WAV/MP3/FLAC/… 水波形预览（含 seek + 音量控制）、收藏、LLM 翻译文件名
