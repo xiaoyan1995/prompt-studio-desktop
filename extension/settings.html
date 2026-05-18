@@ -33,49 +33,61 @@
 <body>
 <div class="card">
   <div>
-    <h1>⚙️ Prompt Studio Desktop Companion 设置</h1>
-    <div class="subtitle">插件只负责网页采集和页面工具栏。AI Key、模型、反推指令、预设库全部以桌面端「设置」为准。</div>
+    <h1 data-i18n="settings_title">⚙️ Prompt Studio Desktop Companion 设置</h1>
+    <div class="subtitle" data-i18n="settings_subtitle">插件只负责网页采集和页面工具栏。AI Key、模型、反推指令、预设库全部以桌面端「设置」为准。</div>
   </div>
 
   <div class="divider"></div>
 
   <div class="info">
-    <div><strong>按谁的？</strong> 桌面端设置优先。</div>
-    <div class="hint">插件反推时会从 <code>/api/desktop/settings</code> 读取桌面端配置。这里不再保存 AI Key，避免两边配置冲突。</div>
+    <div><strong data-i18n="whose_settings">按谁的？</strong></div>
+    <div class="hint" data-i18n="settings_hint_text">插件反推时会从 /api/desktop/settings 读取桌面端配置。这里不再保存 AI Key，避免两边配置冲突。</div>
     <div class="btn-row">
-      <button class="btn btn-secondary" id="openDesktopBtn">打开桌面端</button>
-      <button class="btn btn-secondary" id="testBtn">测试连接</button>
+      <button class="btn btn-secondary" id="openDesktopBtn" data-i18n="open_desktop">打开桌面端</button>
+      <button class="btn btn-secondary" id="testBtn" data-i18n="test_connection">测试连接</button>
     </div>
   </div>
 
   <div class="divider"></div>
 
   <div>
-    <div class="section-title">本地服务器</div>
+    <div class="section-title" data-i18n="server_section">本地服务器</div>
     <div class="field">
-      <label>Prompt Studio Desktop 地址</label>
+      <label data-i18n="server_label">Prompt Studio Desktop 地址</label>
       <input type="text" id="serverUrl" placeholder="http://127.0.0.1:8767">
-      <div class="hint">默认端口 8767。只有你改了桌面端端口时才需要改这里。</div>
+      <div class="hint" data-i18n="server_hint">默认端口 8767。只有你改了桌面端端口时才需要改这里。</div>
     </div>
   </div>
 
   <div class="divider"></div>
 
   <div>
-    <div class="section-title">站点黑名单</div>
+    <div class="section-title" data-i18n="blacklist_section">站点黑名单</div>
     <div class="field">
-      <label>不显示悬浮工具栏的网站（每行一个域名）</label>
+      <label data-i18n="blacklist_label">不显示悬浮工具栏的网站（每行一个域名）</label>
       <textarea id="domainBlacklist" rows="6" placeholder="例：&#10;mail.google.com&#10;github.com&#10;notion.so"></textarea>
-      <div class="hint">这是浏览器侧行为，所以保留在插件里。填写 <code>twitter.com</code> 会匹配它的子域名。</div>
+      <div class="hint" data-i18n="blacklist_hint_text">这是浏览器侧行为，所以保留在插件里。填写 twitter.com 会匹配它的子域名。</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div>
+    <div class="section-title" data-i18n="insert_whitelist_section">提示词快速插入</div>
+    <div class="field">
+      <label data-i18n="insert_whitelist_label">启用输入框插入图标的网站（每行一个域名）</label>
+      <textarea id="promptInsertWhitelist" rows="6" placeholder="例：&#10;chatgpt.com&#10;chat.deepseek.com&#10;lovart.ai"></textarea>
+      <div class="hint" data-i18n="insert_whitelist_hint">在这些网站上，点击输入框时会浮出一个小图标，点击可从你的资产库快速插入提示词。填写 lovart.ai 会匹配它的子域名。</div>
     </div>
   </div>
 
   <div class="btn-row">
-    <button class="btn btn-primary" id="saveBtn">保存插件设置</button>
+    <button class="btn btn-primary" id="saveBtn" data-i18n="save_settings">保存插件设置</button>
     <span class="status" id="statusMsg"></span>
   </div>
 </div>
 
+<script src="ext-i18n.js"></script>
 <script src="settings.js"></script>
 </body>
 </html>

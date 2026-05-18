@@ -1,34 +1,37 @@
 const DEFAULTS = {
   serverUrl: 'http://127.0.0.1:8767',
-  domainBlacklist: ''
+  domainBlacklist: '',
+  promptInsertWhitelist: ''
 };
 
 chrome.storage.sync.get(DEFAULTS, (settings) => {
   document.getElementById('serverUrl').value = settings.serverUrl || DEFAULTS.serverUrl;
   document.getElementById('domainBlacklist').value = settings.domainBlacklist || '';
+  document.getElementById('promptInsertWhitelist').value = settings.promptInsertWhitelist || '';
 });
 
 document.getElementById('saveBtn').addEventListener('click', () => {
   const settings = {
     serverUrl: document.getElementById('serverUrl').value.trim().replace(/\/$/, '') || DEFAULTS.serverUrl,
-    domainBlacklist: document.getElementById('domainBlacklist').value.trim()
+    domainBlacklist: document.getElementById('domainBlacklist').value.trim(),
+    promptInsertWhitelist: document.getElementById('promptInsertWhitelist').value.trim()
   };
-  chrome.storage.sync.set(settings, () => showStatus('已保存', 'ok'));
+  chrome.storage.sync.set(settings, () => showStatus(dt('saved'), 'ok'));
 });
 
 document.getElementById('testBtn').addEventListener('click', async () => {
   const url = document.getElementById('serverUrl').value.trim().replace(/\/$/, '') || DEFAULTS.serverUrl;
-  showStatus('连接中...', '');
+  showStatus(dt('connecting'), '');
   try {
     const [projectsRes, settingsRes] = await Promise.all([
       fetch(`${url}/api/projects`, { signal: AbortSignal.timeout(5000) }),
       fetch(`${url}/api/desktop/settings`, { signal: AbortSignal.timeout(5000) })
     ]);
-    if (!projectsRes.ok || !settingsRes.ok) throw new Error('桌面端 API 响应异常');
+    if (!projectsRes.ok || !settingsRes.ok) throw new Error(dt('api_error'));
     const projects = await projectsRes.json();
-    showStatus(`连接成功，${projects.length} 个项目`, 'ok');
+    showStatus(dt('connect_ok', projects.length), 'ok');
   } catch (error) {
-    showStatus(`连接失败：${error.message}`, 'err');
+    showStatus(dt('connect_fail', error.message), 'err');
   }
 });
 

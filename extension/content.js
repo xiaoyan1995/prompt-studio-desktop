@@ -855,4 +855,347 @@
     if (currentEl && bar.classList.contains('visible')) positionBar(currentEl);
   }, { passive: true });
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── Prompt Quick-Insert (whitelist-based) ─────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  let insertWhitelist = [];
+  let _pqiServerUrl = 'http://127.0.0.1:8767';
+  chrome.storage.sync.get({ promptInsertWhitelist: '', serverUrl: 'http://127.0.0.1:8767' }, s => {
+    insertWhitelist = (s.promptInsertWhitelist || '').split('\n').map(d => d.trim().toLowerCase()).filter(Boolean);
+    _pqiServerUrl = s.serverUrl || 'http://127.0.0.1:8767';
+  });
+  chrome.storage.onChanged.addListener(changes => {
+    if (changes.promptInsertWhitelist) {
+      insertWhitelist = (changes.promptInsertWhitelist.newValue || '').split('\n').map(d => d.trim().toLowerCase()).filter(Boolean);
+    }
+    if (changes.serverUrl) _pqiServerUrl = changes.serverUrl.newValue || 'http://127.0.0.1:8767';
+  });
+
+  function isInsertWhitelisted() {
+    const host = location.hostname.toLowerCase();
+    return insertWhitelist.some(d => host === d || host.endsWith('.' + d));
+  }
+
+  // ── Floating insert icon ──────────────────────────────────────────────────
+  const pqiStyle = document.createElement('style');
+  pqiStyle.textContent = `
+    #pqi-icon {
+      position: fixed; z-index: 2147483646; display: none;
+      width: 26px; height: 26px; border-radius: 7px;
+      background: linear-gradient(135deg, #1d4ed8, #6d28d9);
+      color: #fff; border: none; cursor: pointer;
+      font-size: 14px; line-height: 1;
+      display: none; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+      transition: opacity .12s, transform .12s;
+      pointer-events: auto;
+      font-family: system-ui, sans-serif;
+    }
+    #pqi-icon:hover { transform: scale(1.1); }
+    #pqi-icon.visible { display: flex; }
+    #pqi-panel {
+      position: fixed; z-index: 2147483647; display: none;
+      width: 380px; max-height: 480px;
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08);
+      font-family: Inter, system-ui, sans-serif; font-size: 13px; color: #1a2340;
+      overflow: hidden; flex-direction: column;
+      animation: pqi-pop .15s cubic-bezier(.34,1.56,.64,1);
+      pointer-events: auto;
+    }
+    @keyframes pqi-pop { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: scale(1); } }
+    #pqi-panel.visible { display: flex; }
+    .pqi-head {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; border-bottom: 1px solid #f0f0f0;
+      background: linear-gradient(135deg, #1d4ed8, #6d28d9); color: #fff;
+    }
+    .pqi-head-title { font-size: 13px; font-weight: 700; flex: 1; }
+    .pqi-close { background: rgba(255,255,255,.15); border: none; color: #fff; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+    .pqi-close:hover { background: rgba(255,255,255,.3); }
+    .pqi-search { border: none; outline: none; padding: 8px 14px; font-size: 13px; font-family: inherit; border-bottom: 1px solid #f0f0f0; width: 100%; color: #1a2340; }
+    .pqi-search::placeholder { color: #9ca3af; }
+    .pqi-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+    .pqi-sidebar {
+      width: 110px; border-right: 1px solid #f0f0f0; overflow-y: auto;
+      padding: 6px 0; flex-shrink: 0;
+    }
+    .pqi-sidebar-item {
+      padding: 6px 12px; font-size: 11px; color: #6b7a99; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      border-left: 2px solid transparent; transition: all .1s;
+    }
+    .pqi-sidebar-item:hover { background: #f8faff; color: #1d4ed8; }
+    .pqi-sidebar-item.on { background: #eef4ff; color: #1d4ed8; border-left-color: #1d4ed8; font-weight: 600; }
+    .pqi-list { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+    .pqi-item {
+      padding: 8px 10px; border-radius: 7px; cursor: pointer;
+      border: 1px solid #f0f0f0; transition: all .1s;
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    .pqi-item:hover { background: #eef4ff; border-color: #c7d8f4; }
+    .pqi-item-title { font-size: 12px; font-weight: 600; color: #1a2340; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pqi-item-prompt { font-size: 11px; color: #6b7a99; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
+    .pqi-item-tags { display: flex; gap: 3px; flex-wrap: wrap; }
+    .pqi-item-tag { font-size: 9px; background: #f0f4fc; color: #5b6eae; padding: 1px 5px; border-radius: 4px; }
+    .pqi-empty { padding: 24px; text-align: center; color: #9ca3af; font-size: 12px; }
+    .pqi-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,.85); color: #fff; padding: 8px 18px; border-radius: 8px; font-size: 12px; font-weight: 600; z-index: 2147483647; pointer-events: none; animation: pqi-pop .15s; }
+  `;
+  document.head.appendChild(pqiStyle);
+
+  const pqiIcon = document.createElement('button');
+  pqiIcon.id = 'pqi-icon';
+  pqiIcon.textContent = '📋';
+  pqiIcon.title = '插入提示词';
+  document.body.appendChild(pqiIcon);
+
+  const pqiPanel = document.createElement('div');
+  pqiPanel.id = 'pqi-panel';
+  document.body.appendChild(pqiPanel);
+
+  let _pqiFocusedEl = null;
+  let _pqiProjects = null;
+  let _pqiSelectedProjIdx = 0;
+  let _pqiSelectedCat = 'image_prompts';
+  let _pqiSearch = '';
+
+  function pqiShowIcon(el) {
+    const r = el.getBoundingClientRect();
+    const iconW = 26, iconH = 26, gap = 4;
+    let left = r.right - iconW - gap;
+    let top = r.top + gap;
+    if (r.height < 36) { left = r.right + gap; top = r.top; }
+    left = Math.max(4, Math.min(window.innerWidth - iconW - 4, left));
+    top = Math.max(4, Math.min(window.innerHeight - iconH - 4, top));
+    pqiIcon.style.left = left + 'px';
+    pqiIcon.style.top = top + 'px';
+    pqiIcon.classList.add('visible');
+  }
+
+  function pqiHideIcon() {
+    pqiIcon.classList.remove('visible');
+  }
+
+  function pqiHidePanel() {
+    pqiPanel.classList.remove('visible');
+    pqiPanel.innerHTML = '';
+  }
+
+  function pqiToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'pqi-toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 1800);
+  }
+
+  function pqiInsertText(text) {
+    const el = _pqiFocusedEl;
+    if (!el) return;
+    pqiHidePanel();
+    pqiHideIcon();
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+      const start = el.selectionStart || 0;
+      const end = el.selectionEnd || 0;
+      const before = el.value.substring(0, start);
+      const after = el.value.substring(end);
+      el.value = before + text + after;
+      el.selectionStart = el.selectionEnd = start + text.length;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.focus();
+    } else if (el.isContentEditable || el.contentEditable === 'true' || el.closest('[contenteditable="true"]')) {
+      const target = el.closest('[contenteditable="true"]') || el;
+      target.focus();
+      // Try execCommand first (works in most browsers for contenteditable)
+      const ok = document.execCommand('insertText', false, text);
+      if (!ok) {
+        // Fallback: clipboard-based
+        const dt = new DataTransfer();
+        dt.setData('text/plain', text);
+        target.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      }
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    pqiToast('✅ 已插入');
+  }
+
+  function pqiRenderPanel() {
+    if (!_pqiProjects || !_pqiProjects.length) {
+      pqiPanel.innerHTML = '<div class="pqi-head"><span>📋</span><span class="pqi-head-title">提示词库</span><button class="pqi-close" id="pqiClose">×</button></div><div class="pqi-empty">⚠️ 没有项目或连接失败</div>';
+      pqiPanel.querySelector('#pqiClose').onclick = pqiHidePanel;
+      return;
+    }
+    const proj = _pqiProjects[_pqiSelectedProjIdx] || _pqiProjects[0];
+    const cats = [
+      { id: 'image_prompts', label: '🖼️ 图片' },
+      { id: 'video_prompts', label: '🎬 视频' },
+      { id: 'skill_prompts', label: '🤖 Skills' }
+    ];
+    let items = (proj[_pqiSelectedCat] || []).slice();
+    if (_pqiSearch) {
+      const q = _pqiSearch.toLowerCase();
+      items = items.filter(it => {
+        const hay = ((it.title || '') + ' ' + (it.prompt || '') + ' ' + (it.tags || []).join(' ')).toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    items.sort((a, b) => (b.updated_at || b.created_at || '').localeCompare(a.updated_at || a.created_at || ''));
+
+    pqiPanel.innerHTML = `
+      <div class="pqi-head">
+        <span>📋</span>
+        <span class="pqi-head-title">提示词库</span>
+        <button class="pqi-close" id="pqiClose">×</button>
+      </div>
+      <input class="pqi-search" id="pqiSearch" placeholder="搜索提示词…" value="${_pqiSearch.replace(/"/g, '&quot;')}">
+      <div class="pqi-body">
+        <div class="pqi-sidebar" id="pqiSidebar"></div>
+        <div class="pqi-list" id="pqiList"></div>
+      </div>`;
+
+    pqiPanel.querySelector('#pqiClose').onclick = pqiHidePanel;
+
+    // Search
+    const searchInput = pqiPanel.querySelector('#pqiSearch');
+    searchInput.addEventListener('input', () => {
+      _pqiSearch = searchInput.value;
+      pqiRenderList();
+    });
+    setTimeout(() => searchInput.focus(), 50);
+
+    // Sidebar
+    const sidebar = pqiPanel.querySelector('#pqiSidebar');
+    _pqiProjects.forEach((p, pi) => {
+      const projDiv = document.createElement('div');
+      projDiv.className = 'pqi-sidebar-item' + (pi === _pqiSelectedProjIdx ? ' on' : '');
+      projDiv.textContent = '📁 ' + (p.name || '未命名');
+      projDiv.style.fontWeight = '700';
+      projDiv.style.fontSize = '12px';
+      projDiv.onclick = () => { _pqiSelectedProjIdx = pi; pqiRenderPanel(); };
+      sidebar.appendChild(projDiv);
+    });
+    // Separator
+    const sep = document.createElement('div');
+    sep.style.cssText = 'height:1px;background:#f0f0f0;margin:4px 0';
+    sidebar.appendChild(sep);
+    cats.forEach(c => {
+      const count = (proj[c.id] || []).length;
+      const div = document.createElement('div');
+      div.className = 'pqi-sidebar-item' + (_pqiSelectedCat === c.id ? ' on' : '');
+      div.textContent = c.label + ` (${count})`;
+      div.onclick = () => { _pqiSelectedCat = c.id; pqiRenderPanel(); };
+      sidebar.appendChild(div);
+    });
+
+    pqiRenderList();
+  }
+
+  function pqiRenderList() {
+    const proj = _pqiProjects[_pqiSelectedProjIdx] || _pqiProjects[0];
+    let items = (proj[_pqiSelectedCat] || []).slice();
+    if (_pqiSearch) {
+      const q = _pqiSearch.toLowerCase();
+      items = items.filter(it => {
+        const hay = ((it.title || '') + ' ' + (it.prompt || '') + ' ' + (it.tags || []).join(' ')).toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    items.sort((a, b) => (b.updated_at || b.created_at || '').localeCompare(a.updated_at || a.created_at || ''));
+
+    const list = pqiPanel.querySelector('#pqiList');
+    if (!list) return;
+    if (!items.length) {
+      list.innerHTML = '<div class="pqi-empty">暂无提示词</div>';
+      return;
+    }
+    list.innerHTML = '';
+    items.forEach(it => {
+      const div = document.createElement('div');
+      div.className = 'pqi-item';
+      const promptText = it.prompt || '';
+      const titleText = it.title || promptText.substring(0, 40) || '无标题';
+      const tags = (it.tags || []).slice(0, 3);
+      div.innerHTML = `
+        <div class="pqi-item-title">${esc(titleText)}</div>
+        <div class="pqi-item-prompt">${esc(promptText.substring(0, 120))}</div>
+        ${tags.length ? '<div class="pqi-item-tags">' + tags.map(t => `<span class="pqi-item-tag">${esc(t)}</span>`).join('') + '</div>' : ''}`;
+      div.onclick = () => pqiInsertText(promptText);
+      list.appendChild(div);
+    });
+  }
+
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  async function pqiOpenPanel() {
+    const r = pqiIcon.getBoundingClientRect();
+    let left = r.left - 380 + 26;
+    let top = r.bottom + 6;
+    if (left < 8) left = 8;
+    if (left + 380 > window.innerWidth - 8) left = window.innerWidth - 388;
+    if (top + 480 > window.innerHeight - 8) top = r.top - 486;
+    if (top < 8) top = 8;
+    pqiPanel.style.left = left + 'px';
+    pqiPanel.style.top = top + 'px';
+    pqiPanel.classList.add('visible');
+    pqiPanel.innerHTML = '<div class="pqi-head"><span>📋</span><span class="pqi-head-title">提示词库</span></div><div class="pqi-empty">加载中…</div>';
+
+    try {
+      const res = await fetch(`${_pqiServerUrl}/api/data`);
+      const d = await res.json();
+      _pqiProjects = d.projects || [];
+    } catch {
+      _pqiProjects = [];
+    }
+    pqiRenderPanel();
+  }
+
+  pqiIcon.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (pqiPanel.classList.contains('visible')) { pqiHidePanel(); return; }
+    pqiOpenPanel();
+  });
+
+  // ── Focus/blur tracking ────────────────────────────────────────────────
+  function isInsertTarget(el) {
+    if (!el) return false;
+    const tag = el.tagName;
+    if (tag === 'TEXTAREA') return true;
+    if (tag === 'INPUT' && (!el.type || el.type === 'text' || el.type === 'search' || el.type === 'url')) return true;
+    if (el.isContentEditable || el.contentEditable === 'true') return true;
+    if (el.closest && el.closest('[contenteditable="true"]')) return true;
+    return false;
+  }
+
+  document.addEventListener('focusin', (e) => {
+    if (!isInsertWhitelisted()) return;
+    if (!isInsertTarget(e.target)) return;
+    _pqiFocusedEl = e.target;
+    pqiShowIcon(e.target);
+  }, true);
+
+  document.addEventListener('focusout', (e) => {
+    // Delay to allow clicking the icon
+    setTimeout(() => {
+      if (pqiPanel.classList.contains('visible')) return;
+      if (document.activeElement === pqiIcon) return;
+      pqiHideIcon();
+    }, 200);
+  }, true);
+
+  // Close panel on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && pqiPanel.classList.contains('visible')) {
+      pqiHidePanel();
+    }
+  }, true);
+
+  // Close panel on outside click
+  document.addEventListener('mousedown', (e) => {
+    if (!pqiPanel.classList.contains('visible')) return;
+    if (pqiPanel.contains(e.target) || e.target === pqiIcon) return;
+    pqiHidePanel();
+  }, true);
+
 })();
