@@ -2724,6 +2724,62 @@
       track.addEventListener('dragstart', (e) => e.preventDefault());
     }
   }
+  async function generatePaletteImage(colors) {
+    if (!colors?.length) return;
+    const W = 1920, H = 1080;
+    const barTop = 60, labelH = 120;
+    const barBottom = H - labelH;
+    const gap = 16, outerPad = 48;
+    const n = colors.length;
+    const totalGaps = (n - 1) * gap + outerPad * 2;
+    const barW = Math.floor((W - totalGaps) / n);
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    // Background
+    ctx.fillStyle = '#0f1218'; ctx.fillRect(0, 0, W, H);
+    // Title
+    ctx.fillStyle = '#ffffff'; ctx.font = '600 28px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.fillText('Color Palette', W / 2, 40);
+    // Draw bars + labels
+    colors.forEach(({hex}, i) => {
+      const x = outerPad + i * (barW + gap);
+      // Bar with rounded top corners
+      const r = 12;
+      ctx.beginPath();
+      ctx.moveTo(x + r, barTop);
+      ctx.lineTo(x + barW - r, barTop);
+      ctx.quadraticCurveTo(x + barW, barTop, x + barW, barTop + r);
+      ctx.lineTo(x + barW, barBottom);
+      ctx.lineTo(x, barBottom);
+      ctx.lineTo(x, barTop + r);
+      ctx.quadraticCurveTo(x, barTop, x + r, barTop);
+      ctx.closePath();
+      ctx.fillStyle = hex; ctx.fill();
+      // Hex label
+      ctx.fillStyle = '#ffffff'; ctx.font = '500 22px "SF Mono", Consolas, monospace';
+      ctx.textAlign = 'center'; ctx.fillText(hex.toUpperCase(), x + barW / 2, barBottom + 40);
+      // Color dot
+      ctx.beginPath();
+      ctx.arc(x + barW / 2, barBottom + 70, 10, 0, Math.PI * 2);
+      ctx.fillStyle = hex; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1.5; ctx.stroke();
+    });
+    // Copy to clipboard
+    try {
+      const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      toast('✅ 色卡图已复制到剪贴板');
+    } catch {
+      // Fallback: download
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = 'color-palette.png';
+      a.click();
+      toast('📥 已下载色卡图');
+    }
+  }
+
   function extractPaletteFromImage(src, swatches=8) {
     // RGB → CIE L*a*b* for perceptual distance clustering
     function rgbToLab(r,g,b) {
@@ -3030,7 +3086,7 @@
          </dl>`
       : buildPromptMetaRows();
     const paletteBlock = item.__type === 'image'
-      ? `<div class="palette-row" id="paletteRow"><span style="font-size:10px;color:var(--subtle)">${t('提取中…','Extracting…')}</span></div>`
+      ? `<div style="display:flex;align-items:center;gap:4px"><div class="palette-row" id="paletteRow" style="flex:1"><span style="font-size:10px;color:var(--subtle)">${t('提取中…','Extracting…')}</span></div><button id="paletteCopyImgBtn" title="${t('复制色卡图','Copy palette image')}" style="display:none;flex-shrink:0;background:none;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px 5px;font-size:11px;color:var(--subtle)">🎨</button></div>`
       : '';
     const openText = item.__type === 'project' ? t('进入项目','Open Project') : t('编辑','Edit');
     const secondText = item.__type === 'project' ? t('查看资产','View Assets') : t('复制提示词','Copy Prompt');
@@ -3238,6 +3294,13 @@
             }
           });
         });
+        // Show palette image copy button
+        const copyBtn = document.getElementById('paletteCopyImgBtn');
+        if (copyBtn) {
+          copyBtn.style.display = '';
+          copyBtn._colors = colors;
+          copyBtn.onclick = () => generatePaletteImage(colors);
+        }
       });
     }
     const starsEl = document.getElementById('inspectorStars');
