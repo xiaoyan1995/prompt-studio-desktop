@@ -985,12 +985,12 @@
 
   function pqiShowIcon(el) {
     const r = pqiGetVisibleRect(el);
-    const iconW = 22, iconH = 22;
-    // Bottom-left of the input, inset by 6px
-    let left = r.left + 6;
-    let top = r.bottom - iconH - 6;
-    // If input is very short (single line), center vertically
-    if (r.height < 44) { top = r.top + Math.max(0, (r.height - iconH) / 2); }
+    const iconW = 22, iconH = 22, gap = 4;
+    // Place icon outside the input, to its left, vertically centered
+    let left = r.left - iconW - gap;
+    let top = r.top + Math.max(0, (r.height - iconH) / 2);
+    // If no room on the left, place outside the right edge
+    if (left < 4) { left = r.right + gap; }
     left = Math.max(4, Math.min(window.innerWidth - iconW - 4, left));
     top = Math.max(4, Math.min(window.innerHeight - iconH - 4, top));
     pqiIcon.style.left = left + 'px';
