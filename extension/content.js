@@ -929,13 +929,24 @@
     .pqi-sidebar-item.on { background: #eef4ff; color: #1d4ed8; border-left-color: #1d4ed8; font-weight: 600; }
     .pqi-list { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
     .pqi-item {
-      padding: 8px 10px; border-radius: 7px; cursor: pointer;
+      padding: 6px 8px; border-radius: 7px; cursor: pointer;
       border: 1px solid #f0f0f0; transition: all .1s;
-      display: flex; flex-direction: column; gap: 3px;
+      display: flex; flex-direction: row; gap: 8px; align-items: center;
     }
     .pqi-item:hover { background: #eef4ff; border-color: #c7d8f4; }
+    .pqi-item-thumb {
+      width: 48px; height: 48px; border-radius: 6px; object-fit: cover;
+      flex-shrink: 0; background: #f0f4fc; border: 1px solid #e8ecf2;
+    }
+    .pqi-item-thumb-placeholder {
+      width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0;
+      background: linear-gradient(135deg, #eef4ff, #e2ebff);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; color: #9fb8e9;
+    }
+    .pqi-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
     .pqi-item-title { font-size: 12px; font-weight: 600; color: #1a2340; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .pqi-item-prompt { font-size: 11px; color: #6b7a99; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
+    .pqi-item-prompt { font-size: 11px; color: #6b7a99; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
     .pqi-item-tags { display: flex; gap: 3px; flex-wrap: wrap; }
     .pqi-item-tag { font-size: 9px; background: #f0f4fc; color: #5b6eae; padding: 1px 5px; border-radius: 4px; }
     .pqi-empty { padding: 24px; text-align: center; color: #9ca3af; font-size: 12px; }
@@ -962,9 +973,9 @@
   function pqiShowIcon(el) {
     const r = el.getBoundingClientRect();
     const iconW = 26, iconH = 26, gap = 4;
-    let left = r.right - iconW - gap;
-    let top = r.top + gap;
-    if (r.height < 36) { left = r.right + gap; top = r.top; }
+    let left = r.left - iconW - gap;
+    let top = r.top + Math.max(0, (r.height - iconH) / 2);
+    if (left < 4) { left = r.left + gap; }
     left = Math.max(4, Math.min(window.innerWidth - iconW - 4, left));
     top = Math.max(4, Math.min(window.innerHeight - iconH - 4, top));
     pqiIcon.style.left = left + 'px';
@@ -1062,7 +1073,7 @@
       _pqiSearch = searchInput.value;
       pqiRenderList();
     });
-    setTimeout(() => searchInput.focus(), 50);
+    // Don't auto-focus search to avoid stealing _pqiFocusedEl
 
     // Sidebar
     const sidebar = pqiPanel.querySelector('#pqiSidebar');
@@ -1116,10 +1127,17 @@
       const promptText = it.prompt || '';
       const titleText = it.title || promptText.substring(0, 40) || '无标题';
       const tags = (it.tags || []).slice(0, 3);
+      const imgPath = it.image || (it.gallery && it.gallery[0]) || '';
+      const thumbHtml = imgPath
+        ? `<img class="pqi-item-thumb" src="${esc(_pqiServerUrl + (imgPath.startsWith('/') ? '' : '/uploads/') + imgPath)}" onerror="this.style.display='none'">`
+        : `<div class="pqi-item-thumb-placeholder">${_pqiSelectedCat === 'video_prompts' ? '🎬' : _pqiSelectedCat === 'skill_prompts' ? '🤖' : '🖼️'}</div>`;
       div.innerHTML = `
-        <div class="pqi-item-title">${esc(titleText)}</div>
-        <div class="pqi-item-prompt">${esc(promptText.substring(0, 120))}</div>
-        ${tags.length ? '<div class="pqi-item-tags">' + tags.map(t => `<span class="pqi-item-tag">${esc(t)}</span>`).join('') + '</div>' : ''}`;
+        ${thumbHtml}
+        <div class="pqi-item-info">
+          <div class="pqi-item-title">${esc(titleText)}</div>
+          <div class="pqi-item-prompt">${esc(promptText.substring(0, 80))}</div>
+          ${tags.length ? '<div class="pqi-item-tags">' + tags.map(t => `<span class="pqi-item-tag">${esc(t)}</span>`).join('') + '</div>' : ''}
+        </div>`;
       div.onclick = () => pqiInsertText(promptText);
       list.appendChild(div);
     });
@@ -1170,6 +1188,8 @@
 
   document.addEventListener('focusin', (e) => {
     if (!isInsertWhitelisted()) return;
+    // Ignore focus events inside our own panel/icon
+    if (pqiPanel.contains(e.target) || e.target === pqiIcon) return;
     if (!isInsertTarget(e.target)) return;
     _pqiFocusedEl = e.target;
     pqiShowIcon(e.target);
