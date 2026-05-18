@@ -1600,6 +1600,7 @@
   <button class="batch-btn" id="batchTagBtn">🏷️ 打标签</button>
   <button class="batch-btn" id="batchMoveBtn">📦 移到项目</button>
   <button class="batch-btn" id="batchStarBtn">⭐ 星标</button>
+  <button class="batch-btn" id="batchReverseBtn">🔍 批量反推</button>
   <div class="batch-spacer"></div>
   <button class="batch-btn danger" id="batchDeleteBtn">🗑️ 删除</button>
   <button class="batch-btn" id="batchCancelBtn">取消</button>
@@ -2315,6 +2316,7 @@
       ['#batchTagBtn',    '🏷️ 打标签', '🏷️ Tag'],
       ['#batchMoveBtn',   '📦 移到项目', '📦 Move to'],
       ['#batchStarBtn',   '⭐ 星标', '⭐ Star'],
+      ['#batchReverseBtn','🔍 批量反推', '🔍 Batch Reverse'],
       ['#batchDeleteBtn', '🗑️ 删除', '🗑️ Delete'],
       ['#batchCancelBtn', '取消', 'Cancel'],
     ];
@@ -7469,6 +7471,69 @@
     for (const item of items) { item.quality = item.quality || {}; item.quality.star = newVal; }
     await saveData(data); renderPage();
     toast(newVal ? `✅ 已星标 ${items.length} 项` : `✅ 已取消 ${items.length} 项星标`);
+  });
+
+  // ── Batch Reverse-Prompt ────────────────────────────────────────────
+  document.getElementById('batchReverseBtn').addEventListener('click', async () => {
+    const proj = getProject(state.projectId);
+    if (!proj) return;
+    // Collect image/video items that have media
+    const items = [];
+    for (const key of uiState.selectedIds) {
+      const [type, id] = key.split(':');
+      const cat = { image: 'image_prompts', video: 'video_prompts' }[type];
+      if (!cat) continue;
+      const item = (proj[cat] || []).find(p => p.id === id);
+      if (item && (item.image || item.video)) items.push({ item, cat, type });
+    }
+    if (!items.length) { toast('⚠️ 选中的项目没有可反推的图片/视频'); return; }
+    // Check API key
+    const hasImage = items.some(i => i.type === 'image');
+    const hasVideo = items.some(i => i.type === 'video');
+    if (hasImage && !desktopSettings.imageApiKey) { toast('⚠️ 请先在「设置」里填写图片反推 API Key'); return; }
+    if (hasVideo && !desktopSettings.videoApiKey) { toast('⚠️ 请先在「设置」里填写视频反推 API Key'); return; }
+    if (!confirm(t(`确认对 ${items.length} 项进行批量 AI 反推？\n已有提示词的项会被覆盖。`,`Batch reverse-prompt ${items.length} items?\nExisting prompts will be overwritten.`))) return;
+    const btn = document.getElementById('batchReverseBtn');
+    btn.disabled = true;
+    let done = 0, fail = 0;
+    toast(`⏳ 批量反推开始 (0/${items.length})…`);
+    for (const { item, cat, type } of items) {
+      const mediaPath = item.image || item.video;
+      const mediaUrl = mediaPath.startsWith('/uploads/') ? mediaPath : `/uploads/${mediaPath}`;
+      const mediaType = item.video ? 'video' : 'image';
+      const cfg = mediaType === 'video'
+        ? { apiKey: desktopSettings.videoApiKey, apiBase: desktopSettings.videoApiBase, model: desktopSettings.videoModel }
+        : { apiKey: desktopSettings.imageApiKey, apiBase: desktopSettings.imageApiBase, model: desktopSettings.imageModel };
+      try {
+        const res = await fetch('/api/reverse-prompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: mediaUrl, mediaType,
+            apiKey: cfg.apiKey,
+            apiBase: cfg.apiBase || 'https://api.openai.com/v1',
+            model: cfg.model || 'gpt-4o',
+            lang: 'zh',
+          })
+        });
+        const d = await res.json();
+        if (!d.ok) throw new Error(d.error);
+        item.prompt = d.prompt || item.prompt;
+        if (d.title && !item.title) item.title = d.title;
+        if (d.analysis) item.analysis = d.analysis;
+        item.updated_at = new Date().toISOString();
+        done++;
+      } catch (e) {
+        fail++;
+        console.warn(`Batch reverse failed for ${item.id}:`, e.message);
+      }
+      toast(`⏳ 批量反推进度 (${done + fail}/${items.length})…`);
+    }
+    await saveData(data);
+    renderPage();
+    btn.disabled = false;
+    const msg = fail ? t(`✅ 完成 ${done} 项，❌ 失败 ${fail} 项`,`✅ Done ${done}, ❌ Failed ${fail}`) : t(`✅ 批量反推完成 ${done} 项`,`✅ Batch reverse done: ${done} items`);
+    toast(msg, 4000);
   });
 
   // ══════════════════════════════════════════════════════════════════════
