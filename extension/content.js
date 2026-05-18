@@ -928,16 +928,15 @@
     }
     .pqi-sidebar-item:hover { background: #f8faff; color: #1d4ed8; }
     .pqi-sidebar-item.on { background: #eef4ff; color: #1d4ed8; border-left-color: #1d4ed8; font-weight: 600; }
-    .pqi-list { flex: 1; overflow-y: auto; padding: 8px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; align-content: start; }
+    .pqi-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-content: start; }
     .pqi-item {
-      padding: 0; border-radius: 8px; cursor: pointer;
+      width: calc(50% - 4px); border-radius: 8px; cursor: pointer;
       border: 1px solid #eee; transition: all .12s;
-      display: flex; flex-direction: column; overflow: hidden;
-      background: #fff;
+      overflow: hidden; background: #fff;
     }
-    .pqi-item:hover { background: #f8faff; border-color: #c7d8f4; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+    .pqi-item:hover { border-color: #c7d8f4; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
     .pqi-item-thumb-wrap {
-      width: 100%; padding-bottom: 75%; position: relative;
+      width: 100%; height: 140px; position: relative;
       overflow: hidden; background: #f0f4fc;
     }
     .pqi-item-thumb {
@@ -949,9 +948,9 @@
       width: 100%; height: 100%;
       background: linear-gradient(135deg, #eef4ff, #e2ebff);
       display: flex; align-items: center; justify-content: center;
-      font-size: 24px; color: #9fb8e9;
+      font-size: 28px; color: #9fb8e9;
     }
-    .pqi-item-info { padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
+    .pqi-item-info { padding: 6px 8px; }
     .pqi-item-title { font-size: 11px; font-weight: 600; color: #1a2340; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .pqi-item-prompt { display: none; }
     .pqi-item-tags { display: flex; gap: 3px; flex-wrap: wrap; }
@@ -1140,11 +1139,7 @@
       const thumbInner = imgPath
         ? `<img class="pqi-item-thumb" src="${esc(_pqiServerUrl + (imgPath.startsWith('/') ? '' : '/uploads/') + imgPath)}" onerror="this.parentNode.innerHTML='<div class=pqi-item-thumb-placeholder>🖼️</div>'">`
         : `<div class="pqi-item-thumb-placeholder">${_pqiSelectedCat === 'video_prompts' ? '🎬' : _pqiSelectedCat === 'skill_prompts' ? '🤖' : '🖼️'}</div>`;
-      div.innerHTML = `
-        <div class="pqi-item-thumb-wrap">${thumbInner}</div>
-        <div class="pqi-item-info">
-          <div class="pqi-item-title">${esc(titleText)}</div>
-        </div>`;
+      div.innerHTML = `<div class="pqi-item-thumb-wrap">${thumbInner}</div><div class="pqi-item-info"><div class="pqi-item-title">${esc(titleText)}</div></div>`;
       div.onclick = () => pqiInsertText(promptText);
       list.appendChild(div);
     });
