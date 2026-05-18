@@ -950,9 +950,9 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 28px; color: #9fb8e9;
     }
-    .pqi-item-info { padding: 6px 8px; }
-    .pqi-item-title { font-size: 11px; font-weight: 600; color: #1a2340; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .pqi-item-prompt { display: none; }
+    .pqi-item-info { padding: 7px 8px 8px; display: flex; flex-direction: column; gap: 3px; }
+    .pqi-item-title { font-size: 12px; font-weight: 700; color: #1a2340; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pqi-item-prompt { font-size: 11px; color: #6b7a99; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
     .pqi-item-tags { display: flex; gap: 3px; flex-wrap: wrap; }
     .pqi-item-tag { font-size: 9px; background: #f0f4fc; color: #5b6eae; padding: 1px 5px; border-radius: 4px; }
     .pqi-empty { padding: 24px; text-align: center; color: #9ca3af; font-size: 12px; grid-column: 1 / -1; }
@@ -1139,7 +1139,7 @@
       const thumbInner = imgPath
         ? `<img class="pqi-item-thumb" src="${esc(_pqiServerUrl + (imgPath.startsWith('/') ? '' : '/uploads/') + imgPath)}" onerror="this.parentNode.innerHTML='<div class=pqi-item-thumb-placeholder>🖼️</div>'">`
         : `<div class="pqi-item-thumb-placeholder">${_pqiSelectedCat === 'video_prompts' ? '🎬' : _pqiSelectedCat === 'skill_prompts' ? '🤖' : '🖼️'}</div>`;
-      div.innerHTML = `<div class="pqi-item-thumb-wrap">${thumbInner}</div><div class="pqi-item-info"><div class="pqi-item-title">${esc(titleText)}</div></div>`;
+      div.innerHTML = `<div class="pqi-item-thumb-wrap">${thumbInner}</div><div class="pqi-item-info"><div class="pqi-item-title">${esc(titleText)}</div>${promptText ? `<div class="pqi-item-prompt">${esc(promptText.substring(0, 120))}</div>` : ''}</div>`;
       div.onclick = () => pqiInsertText(promptText);
       list.appendChild(div);
     });
