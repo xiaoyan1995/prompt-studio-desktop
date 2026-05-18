@@ -97,8 +97,8 @@
 <body>
 <div class="header">
   <span id="modeIcon">💾</span>
-  <h1 id="headerTitle">保存到 Prompt Studio</h1>
-  <span id="mediaChip" class="chip chip-image">图片</span>
+  <h1 id="headerTitle" data-i18n="save_image_title">保存到 Prompt Studio</h1>
+  <span id="mediaChip" class="chip chip-image" data-i18n="chip_image">图片</span>
 </div>
 
 <!-- Main form -->
@@ -110,13 +110,13 @@
 
   <!-- Text editor (skill/text mode) -->
   <div class="field" id="skillTextWrap" style="display:none">
-    <label>提示词内容（可编辑）</label>
+    <label data-i18n="skill_content_label">提示词内容（可编辑）</label>
     <textarea id="skillTextarea" rows="8" style="font-family:'Consolas',monospace;font-size:12px;line-height:1.7;resize:vertical"></textarea>
   </div>
 
   <!-- Video source picker (shown when multiple candidates detected) -->
   <div class="field" id="vidPickerWrap" style="display:none">
-    <label>🎬 检测到多个视频，请选择正确的来源</label>
+    <label data-i18n="vid_source_label">� 检测到多个视频，请选择正确的来源</label>
     <div class="vid-picker" id="vidPicker"></div>
   </div>
 
@@ -124,55 +124,55 @@
   <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:10px;align-items:start">
     <!-- Aspect ratio (auto-detected) -->
     <div class="field" id="aspectWrap" style="display:none">
-      <label>尺寸 / 宽高比</label>
+      <label data-i18n="aspect_label">尺寸 / 宽高比</label>
       <div style="display:flex;gap:5px;align-items:center">
-        <input type="text" id="aspectInput" placeholder="检测中…" style="flex:1;min-width:0" readonly>
+        <input type="text" id="aspectInput" data-i18n-placeholder="aspect_placeholder" placeholder="检测中…" style="flex:1;min-width:0" readonly>
         <span id="aspectDims" style="font-size:10px;color:var(--subtle);white-space:nowrap"></span>
       </div>
     </div>
     <!-- Project selector -->
     <div class="field" id="projField">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-        <label style="margin:0">保存到项目</label>
-        <button class="btn-sm btn-add" id="addProjBtn">+ 新建</button>
+        <label style="margin:0" data-i18n="save_to_proj">保存到项目</label>
+        <button class="btn-sm btn-add" id="addProjBtn" data-i18n="add_proj">+ 新建</button>
       </div>
-      <select id="projectSel"><option value="">⏳ 加载项目列表…</option></select>
+      <select id="projectSel"><option value="" data-i18n="loading_projs">⏳ 加载项目列表…</option></select>
       <div class="new-proj-row" id="newProjRow">
-        <input type="text" id="newProjName" placeholder="项目名称…">
-        <button class="btn-sm btn-create" id="createProjBtn">创建</button>
-        <button class="btn-sm btn-add" id="cancelProjBtn">取消</button>
+        <input type="text" id="newProjName" data-i18n-placeholder="proj_name_placeholder" placeholder="项目名称…">
+        <button class="btn-sm btn-create" id="createProjBtn" data-i18n="create_btn">创建</button>
+        <button class="btn-sm btn-add" id="cancelProjBtn" data-i18n="cancel_btn">取消</button>
       </div>
     </div>
   </div>
 
   <!-- Category -->
   <div class="field">
-    <label>分类</label>
+    <label data-i18n="cat_label">分类</label>
     <div class="radio-row" id="categoryRow">
-      <div class="radio-btn active" data-cat="image_prompts">🖼️ 图片提示词</div>
-      <div class="radio-btn" data-cat="video_prompts">🎬 视频提示词</div>
-      <div class="radio-btn" data-cat="skill_prompts">🤖 Skills</div>
+      <div class="radio-btn active" data-cat="image_prompts" data-i18n="cat_image">🖼️ 图片提示词</div>
+      <div class="radio-btn" data-cat="video_prompts" data-i18n="cat_video">� 视频提示词</div>
+      <div class="radio-btn" data-cat="skill_prompts" data-i18n="cat_skill">🤖 Skills</div>
     </div>
   </div>
 
   <!-- Title (optional) -->
   <div class="field">
-    <label>标题（选填）</label>
+    <label data-i18n="title_label">标题（选填）</label>
     <div style="display:flex;gap:6px;align-items:center">
-      <input type="text" id="titleInput" placeholder="留空自动生成" style="flex:1">
-      <button id="genTitleBtn" title="AI 生成标题" style="flex-shrink:0;padding:0 8px;height:32px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--primary);font-size:12px;cursor:pointer;white-space:nowrap">✨ 生成</button>
+      <input type="text" id="titleInput" data-i18n-placeholder="title_placeholder" placeholder="留空自动生成" style="flex:1">
+      <button id="genTitleBtn" title="AI 生成标题" data-i18n="gen_title_btn" style="flex-shrink:0;padding:0 8px;height:32px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--primary);font-size:12px;cursor:pointer;white-space:nowrap">✨ 生成</button>
     </div>
   </div>
 
   <!-- Manual prompt input (shown when reverse is off) -->
   <div class="field" id="promptInputWrap">
-    <label>提示词（选填）</label>
-    <textarea id="promptInput" placeholder="不反推时可在此手动输入提示词…" style="min-height:80px;font-family:'Consolas',monospace;font-size:12px"></textarea>
+    <label data-i18n="prompt_label">提示词（选填）</label>
+    <textarea id="promptInput" data-i18n-placeholder="prompt_placeholder" placeholder="不反推时可在此手动输入提示词…" style="min-height:80px;font-family:'Consolas',monospace;font-size:12px"></textarea>
   </div>
 
   <!-- Reverse prompt toggle -->
   <div class="toggle-row" id="reverseToggleRow">
-    <label for="reverseToggle">✨ 同时用 AI 反推提示词</label>
+    <label for="reverseToggle" data-i18n="reverse_toggle">✨ 同时用 AI 反推提示词</label>
     <label class="toggle">
       <input type="checkbox" id="reverseToggle">
       <span class="toggle-slider"></span>
@@ -181,23 +181,23 @@
 
   <!-- Reverse mode selector (shown when reverse is on) -->
   <div id="reverseModeRow" style="display:none;gap:5px;flex-wrap:wrap;padding:2px 0 6px">
-    <span style="font-size:11px;font-weight:600;color:var(--subtle);align-self:center">模式：</span>
-    <button class="mode-chip on" data-mode="auto">全面</button>
-    <button class="mode-chip" data-mode="outfit">服装</button>
-    <button class="mode-chip" data-mode="char">人物</button>
-    <button class="mode-chip" data-mode="scene">场景</button>
-    <button class="mode-chip" data-mode="style">画风</button>
-    <button class="mode-chip" data-mode="cam">运镜</button>
+    <span style="font-size:11px;font-weight:600;color:var(--subtle);align-self:center" data-i18n="mode_label">模式：</span>
+    <button class="mode-chip on" data-mode="auto" data-i18n="mode_auto">全面</button>
+    <button class="mode-chip" data-mode="outfit" data-i18n="mode_outfit">服装</button>
+    <button class="mode-chip" data-mode="char" data-i18n="mode_char">人物</button>
+    <button class="mode-chip" data-mode="scene" data-i18n="mode_scene">场景</button>
+    <button class="mode-chip" data-mode="style" data-i18n="mode_style">画风</button>
+    <button class="mode-chip" data-mode="cam" data-i18n="mode_cam">运镜</button>
   </div>
 
   <!-- AI config (shown when reverse is on) -->
   <div class="ai-config" id="aiConfig">
-    <div style="font-size:11px;font-weight:700;color:var(--primary)">AI 配置（来自设置）</div>
+    <div style="font-size:11px;font-weight:700;color:var(--primary)" data-i18n="ai_config_title">AI 配置（来自设置）</div>
     <div class="ai-config-row">
-      <div class="field"><label>模型</label><input type="text" id="cfgModel" readonly></div>
-      <div class="field"><label>API 地址</label><input type="text" id="cfgBase" readonly></div>
+      <div class="field"><label data-i18n="model_label">模型</label><input type="text" id="cfgModel" readonly></div>
+      <div class="field"><label data-i18n="api_base_label">API 地址</label><input type="text" id="cfgBase" readonly></div>
     </div>
-    <div style="font-size:11px;color:var(--subtle)">API Key 已保存在插件设置中 · <span id="goSettings" style="color:var(--primary);cursor:pointer;text-decoration:underline">修改设置</span></div>
+    <div style="font-size:11px;color:var(--subtle)"><span data-i18n="api_key_hint">API Key 已保存在插件设置中 · </span><span id="goSettings" data-i18n="modify_settings" style="color:var(--primary);cursor:pointer;text-decoration:underline">修改设置</span></div>
   </div>
 </div>
 
@@ -205,29 +205,29 @@
 <div class="state" id="ffmpegState">
   <div class="state-icon">🔧</div>
   <div class="state-msg">
-    <strong>需要安装 ffmpeg 才能下载视频</strong><br>
-    <span style="font-size:12px">一次性下载，约 80 MB，保存在本地</span>
+    <strong data-i18n="ffmpeg_needed">需要安装 ffmpeg 才能下载视频</strong><br>
+    <span style="font-size:12px" data-i18n="ffmpeg_sub">一次性下载，约 80 MB，保存在本地</span>
   </div>
   <div style="width:100%;max-width:280px">
     <div style="background:var(--border);border-radius:99px;height:6px;overflow:hidden;margin:10px 0">
       <div id="ffmpegBar" style="height:100%;background:var(--primary);width:0%;transition:width .3s;border-radius:99px"></div>
     </div>
-    <div id="ffmpegMsg" style="font-size:12px;color:var(--subtle);text-align:center">点击按钮开始安装</div>
+    <div id="ffmpegMsg" data-i18n="ffmpeg_start" style="font-size:12px;color:var(--subtle);text-align:center">点击按鈕开始安装</div>
   </div>
-  <button class="btn btn-primary" id="installFfmpegBtn" style="margin-top:4px;width:200px">⬇️ 安装 ffmpeg</button>
-  <button class="btn btn-secondary" id="skipFfmpegBtn" style="width:200px">跳过（仅保存 URL）</button>
+  <button class="btn btn-primary" id="installFfmpegBtn" data-i18n="install_ffmpeg" style="margin-top:4px;width:200px">⬇️ 安装 ffmpeg</button>
+  <button class="btn btn-secondary" id="skipFfmpegBtn" data-i18n="skip_ffmpeg" style="width:200px">跳过（仅保存 URL）</button>
 </div>
 
 <!-- Video download state -->
 <div class="state" id="downloadState">
   <div class="spinner"></div>
-  <div class="state-msg"><strong>正在下载视频…</strong><br><span style="font-size:12px">ffmpeg 合并中，请勿关闭窗口</span></div>
+  <div class="state-msg"><strong data-i18n="downloading_video">正在下载视频…</strong><br><span style="font-size:12px" data-i18n="ffmpeg_merging">ffmpeg 合并中，请勿关闭窗口</span></div>
 </div>
 
 <!-- Loading state -->
 <div class="state" id="loadingState">
   <div class="spinner"></div>
-  <div class="state-msg" id="loadingMsg"><strong>处理中…</strong></div>
+  <div class="state-msg" id="loadingMsg"><strong data-i18n="processing">处理中…</strong></div>
   <div class="progress-steps" id="progressSteps"></div>
 </div>
 
@@ -245,10 +245,11 @@
 </div>
 
 <div class="footer" id="footer">
-  <button class="btn btn-secondary" id="cancelBtn">取消</button>
-  <button class="btn btn-primary" id="actionBtn">💾 保存</button>
+  <button class="btn btn-secondary" id="cancelBtn" data-i18n="cancel">取消</button>
+  <button class="btn btn-primary" id="actionBtn" data-i18n="save">💾 保存</button>
 </div>
 
+<script src="ext-i18n.js"></script>
 <script src="dialog.js"></script>
 </body>
 </html>

@@ -14,11 +14,13 @@ let generatedPrompt = '';
 let selectedCategory = 'image_prompts';
 let saveExpanded = false;
 
-const CATEGORIES = [
-  { id: 'image_prompts',  label: '🖼️ 图片提示词' },
-  { id: 'video_prompts',  label: '🎬 视频提示词' },
-  { id: 'skill_prompts',  label: '🤖 Skills'     }
-];
+function getCategories() {
+  return [
+    { id: 'image_prompts', label: dt('cat_image') },
+    { id: 'video_prompts', label: dt('cat_video') },
+    { id: 'skill_prompts', label: dt('cat_skill_short') }
+  ];
+}
 
 function readLaunchParams() {
   mediaUrl = launchParams.mediaUrl || '';
@@ -97,7 +99,7 @@ async function loadProjects() {
       `<option value="${p.id}">${p.name}</option>`
     ).join('');
   } catch {
-    document.getElementById('projectSel').innerHTML = '<option value="">⚠️ 无法连接服务器</option>';
+    document.getElementById('projectSel').innerHTML = `<option value="">${dt('conn_fail_result')}</option>`;
   }
 }
 
@@ -110,11 +112,11 @@ async function runReverse() {
     : settings.imageReverseInstruction;
 
   if (!apiKey) {
-    showError('未配置 API Key，请先在桌面端「设置」里填写。');
+    showError(dt('api_missing_result'));
     return;
   }
 
-  showLoading(`正在让 ${model} 分析${mediaType === 'video' ? '视频' : '图片'}…`);
+  showLoading(dt('analyzing_short', model, mediaType));
 
   try {
     const res = await fetch(`${serverUrl}/api/reverse-prompt`, {
@@ -131,7 +133,7 @@ async function runReverse() {
       })
     });
     const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'AI 反推失败');
+    if (!data.ok) throw new Error(data.error || dt('ai_fail_result'));
     generatedPrompt = data.prompt;
     showResult(generatedPrompt);
   } catch (e) {
@@ -139,12 +141,13 @@ async function runReverse() {
   }
 }
 
-// ── Init ─────────────────────────────────────────────────────────────────────
+// ── Init ────────────────────────────────────────────────────────────
 (async () => {
+  await window._extLangReady;
   await hydrateLaunchParams();
   // Media chip
   const chip = document.getElementById('mediaChip');
-  chip.textContent  = mediaType === 'video' ? '视频' : '图片';
+  chip.textContent  = mediaType === 'video' ? dt('chip_video') : dt('chip_image');
   chip.className    = `chip ${mediaType === 'video' ? 'chip-video' : 'chip-image'}`;
 
   // Load settings
@@ -155,7 +158,7 @@ async function runReverse() {
 
   // Build category buttons
   const row = document.getElementById('categoryRow');
-  CATEGORIES.forEach(c => {
+  getCategories().forEach(c => {
     const b = document.createElement('button');
     b.className    = 'radio-btn';
     b.dataset.cat  = c.id;
@@ -197,14 +200,14 @@ document.getElementById('saveToggleBtn').addEventListener('click', async () => {
 // ── Confirm save ──────────────────────────────────────────────────────────────
 document.getElementById('confirmSaveBtn').addEventListener('click', async () => {
   const projectId = document.getElementById('projectSel').value;
-  if (!projectId) { alert('请先选择一个项目'); return; }
+  if (!projectId) { alert(dt('no_proj_alert_result')); return; }
 
   const prompt = document.getElementById('promptBox').value.trim();
   const title  = document.getElementById('titleInput').value.trim();
   const btn    = document.getElementById('confirmSaveBtn');
 
   btn.disabled    = true;
-  btn.textContent = '保存中…';
+  btn.textContent = dt('saving_short');
 
   try {
     const r = await fetch(`${serverUrl}/api/save-media`, {
@@ -222,15 +225,15 @@ document.getElementById('confirmSaveBtn').addEventListener('click', async () => 
       })
     });
     const data = await r.json();
-    if (!data.ok) throw new Error(data.error || '保存失败');
+    if (!data.ok) throw new Error(data.error || dt('save_fail'));
 
-    btn.textContent = '✅ 已保存！';
+    btn.textContent = dt('saved_ok');
     btn.style.background = '#16a34a';
     setTimeout(() => window.close(), 1200);
   } catch (e) {
     btn.disabled    = false;
-    btn.textContent = '💾 确认保存';
-    alert('保存失败：' + e.message);
+    btn.textContent = dt('confirm_save');
+    alert(dt('save_fail_alert') + e.message);
   }
 });
 

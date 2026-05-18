@@ -261,14 +261,34 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // ── Context Menus ────────────────────────────────────────────────────────────
-chrome.runtime.onInstalled.addListener(() => {
+const MENU_TITLES = {
+  cn: {
+    'save-image':    '💾 保存图片到 Prompt Studio Desktop',
+    'reverse-image': '✨ 反推提示词 → Prompt Studio Desktop',
+    'save-video':    '💾 保存视频到 Prompt Studio Desktop',
+    'reverse-video': '✨ 反推提示词 → Prompt Studio Desktop',
+    'save-skill':    '🤖 保存为 Skills 提示词 → Prompt Studio Desktop',
+  },
+  en: {
+    'save-image':    '💾 Save image to Prompt Studio Desktop',
+    'reverse-image': '✨ Reverse Prompt → Prompt Studio Desktop',
+    'save-video':    '💾 Save video to Prompt Studio Desktop',
+    'reverse-video': '✨ Reverse Prompt → Prompt Studio Desktop',
+    'save-skill':    '🤖 Save as Skill Prompt → Prompt Studio Desktop',
+  }
+};
+function createContextMenus(lang) {
+  const titles = MENU_TITLES[lang] || MENU_TITLES.cn;
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({ id: 'save-image',    title: '💾 保存图片到 Prompt Studio Desktop',        contexts: ['image'] });
-    chrome.contextMenus.create({ id: 'reverse-image', title: '✨ 反推提示词 → Prompt Studio Desktop',       contexts: ['image'] });
-    chrome.contextMenus.create({ id: 'save-video',    title: '💾 保存视频到 Prompt Studio Desktop',        contexts: ['video'] });
-    chrome.contextMenus.create({ id: 'reverse-video', title: '✨ 反推提示词 → Prompt Studio Desktop',       contexts: ['video'] });
-    chrome.contextMenus.create({ id: 'save-skill',    title: '🤖 保存为 Skills 提示词 → Prompt Studio Desktop', contexts: ['selection'] });
+    chrome.contextMenus.create({ id: 'save-image',    title: titles['save-image'],    contexts: ['image'] });
+    chrome.contextMenus.create({ id: 'reverse-image', title: titles['reverse-image'], contexts: ['image'] });
+    chrome.contextMenus.create({ id: 'save-video',    title: titles['save-video'],    contexts: ['video'] });
+    chrome.contextMenus.create({ id: 'reverse-video', title: titles['reverse-video'], contexts: ['video'] });
+    chrome.contextMenus.create({ id: 'save-skill',    title: titles['save-skill'],    contexts: ['selection'] });
   });
+}
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.get({ extLang: 'cn' }, ({ extLang }) => createContextMenus(extLang));
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -340,6 +360,11 @@ function openResult(params) {
 
 // ── Message Handler ───────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'set-lang') {
+    createContextMenus(msg.lang);
+    return false;
+  }
+
   // From content.js: hover toolbar button clicked
   if (msg.type === 'open-dialog') {
     const pageUrl   = msg.pageUrl   || sender.tab?.url   || '';

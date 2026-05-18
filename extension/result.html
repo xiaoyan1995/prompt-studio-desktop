@@ -76,56 +76,57 @@
 
 <div class="header">
   <span>✨</span>
-  <h1>反推提示词</h1>
-  <span id="mediaChip" class="chip chip-image">图片</span>
+  <h1 data-i18n="result_title">反推提示词</h1>
+  <span id="mediaChip" class="chip chip-image" data-i18n="chip_image">图片</span>
 </div>
 
 <div class="body">
   <!-- Loading -->
   <div class="loading-area" id="loadingArea">
     <div class="spinner"></div>
-    <div class="loading-msg" id="loadingMsg">正在连接 AI，请稍候…</div>
+    <div class="loading-msg" id="loadingMsg" data-i18n="loading_ai">正在连接 AI，请稍候…</div>
   </div>
 
   <!-- Error -->
   <div class="error-area" id="errorArea">
     <div class="error-msg" id="errorMsg"></div>
-    <button class="btn btn-secondary" style="flex:0;width:fit-content;padding:6px 16px" id="retryBtn">重试</button>
+    <button class="btn btn-secondary" style="flex:0;width:fit-content;padding:6px 16px" id="retryBtn" data-i18n="retry">重试</button>
   </div>
 
   <!-- Result -->
   <div class="result-area" id="resultArea">
-    <div class="result-label">生成的提示词</div>
+    <div class="result-label" data-i18n="result_label">生成的提示词</div>
     <textarea class="prompt-box" id="promptBox" spellcheck="false"></textarea>
     <div class="copy-row">
-      <button class="btn btn-secondary" id="copyBtn">📋 复制</button>
-      <span class="copied-hint" id="copiedHint">✅ 已复制</span>
-      <button class="btn btn-secondary" id="saveToggleBtn">💾 保存到 Prompt Studio Desktop…</button>
+      <button class="btn btn-secondary" id="copyBtn" data-i18n="copy">📋 复制</button>
+      <span class="copied-hint" id="copiedHint" data-i18n="copied">✅ 已复制</span>
+      <button class="btn btn-secondary" id="saveToggleBtn" data-i18n="save_to_studio">💾 保存到 Prompt Studio Desktop…</button>
     </div>
 
     <!-- Inline save form -->
     <div class="save-expand" id="saveExpand">
       <div class="field">
-        <label>保存到项目</label>
-        <select id="projectSel"><option value="">⏳ 加载中…</option></select>
+        <label data-i18n="save_proj_label">保存到项目</label>
+        <select id="projectSel"><option value="" data-i18n="loading_proj_short">⏳ 加载中…</option></select>
       </div>
       <div class="field">
-        <label>分类</label>
+        <label data-i18n="cat_label">分类</label>
         <div class="radio-row" id="categoryRow"></div>
       </div>
       <div class="field">
-        <label>标题（选填）</label>
-        <input type="text" id="titleInput" placeholder="留空自动生成">
+        <label data-i18n="title_optional">标题（选填）</label>
+        <input type="text" id="titleInput" data-i18n-placeholder="title_placeholder_result" placeholder="留空自动生成">
       </div>
     </div>
   </div>
 </div>
 
 <div class="footer">
-  <button class="btn btn-secondary" id="closeBtn">关闭</button>
-  <button class="btn btn-primary" id="confirmSaveBtn" style="display:none">💾 确认保存</button>
+  <button class="btn btn-secondary" id="closeBtn" data-i18n="close_btn">关闭</button>
+  <button class="btn btn-primary" id="confirmSaveBtn" data-i18n="confirm_save" style="display:none">💾 确认保存</button>
 </div>
 
+<script src="ext-i18n.js"></script>
 <script src="result.js"></script>
 </body>
 </html>
