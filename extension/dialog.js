@@ -38,8 +38,9 @@ async function hydrateLaunchParams() {
 
 readLaunchParams();
 
-// ── Init ─────────────────────────────────────────────────────────────────────
+// ── Init ────────────────────────────────────────────────────────────
 async function init() {
+  await window._extLangReady;
   await hydrateLaunchParams();
   // Load settings from background
   const res = await bgMsg({ type: 'get-settings' });
@@ -52,7 +53,7 @@ async function init() {
 
   if (mediaType === 'text') {
     // ── Skill / text mode ──────────────────────────────────
-    document.getElementById('headerTitle').textContent = '保存 Skills 提示词';
+    document.getElementById('headerTitle').textContent = dt('save_skill_title');
     document.getElementById('modeIcon').textContent = '🤖';
     chip.textContent = 'Skills'; chip.className = 'chip chip-video';
     document.getElementById('previewBox').style.display    = 'none';
@@ -68,19 +69,19 @@ async function init() {
     });
   } else {
     // ── Image / video mode ─────────────────────────────────
-    chip.textContent = mediaType === 'video' ? '视频' : '图片';
+    chip.textContent = mediaType === 'video' ? dt('chip_video') : dt('chip_image');
     chip.className = `chip ${mediaType === 'video' ? 'chip-video' : 'chip-image'}`;
     document.getElementById('previewBox').style.display    = 'flex';
     document.getElementById('skillTextWrap').style.display = 'none';
     document.getElementById('promptInputWrap').style.display = 'flex';
     setCategory(selectedCategory);
     if (mode === 'reverse') {
-      document.getElementById('headerTitle').textContent = '反推提示词 → Prompt Studio';
+      document.getElementById('headerTitle').textContent = dt('reverse_title');
       document.getElementById('modeIcon').textContent = '✨';
       document.getElementById('reverseToggleRow').style.display = 'none';
       document.getElementById('promptInputWrap').style.display = 'none';
       document.getElementById('aiConfig').classList.add('visible');
-      document.getElementById('actionBtn').textContent = '✨ 开始反推并保存';
+      document.getElementById('actionBtn').textContent = dt('reverse_save');
     }
     const displayModel = mediaType === 'video' ? (settings.videoModel || 'gemini-2.5-pro') : (settings.imageModel || 'gpt-4o');
     const displayBase  = mediaType === 'video' ? (settings.videoApiBase || '') : (settings.imageApiBase || '');
@@ -217,14 +218,14 @@ async function loadProjects() {
     const r = await fetch(`${serverUrl}/api/projects`);
     const projects = await r.json();
     if (!projects.length) {
-      sel.innerHTML = '<option value="">（暂无项目，请先在 Prompt Studio 创建）</option>';
+      sel.innerHTML = `<option value="">${dt('no_projects')}</option>`;
       return;
     }
     sel.innerHTML = projects.map(p =>
       `<option value="${p.id}">${p.name}</option>`
     ).join('');
   } catch {
-    sel.innerHTML = '<option value="">❌ 无法连接服务器，请检查设置</option>';
+    sel.innerHTML = `<option value="">${dt('server_unreachable')}</option>`;
   }
 }
 
@@ -244,7 +245,7 @@ document.getElementById('categoryRow').addEventListener('click', e => {
 document.getElementById('genTitleBtn').addEventListener('click', async () => {
   const promptText = (document.getElementById('promptInput')?.value || '').trim();
   if (!promptText) {
-    document.getElementById('titleInput').placeholder = '请先填写提示词内容';
+    document.getElementById('titleInput').placeholder = dt('gen_title_no_prompt');
     return;
   }
   const btn = document.getElementById('genTitleBtn');
@@ -264,9 +265,9 @@ document.getElementById('genTitleBtn').addEventListener('click', async () => {
     if (data.ok) document.getElementById('titleInput').value = data.title;
     else throw new Error(data.error);
   } catch (e) {
-    document.getElementById('titleInput').placeholder = '生成失败：' + e.message;
+    document.getElementById('titleInput').placeholder = dt('gen_title_fail') + e.message;
   } finally {
-    btn.textContent = '✨ 生成'; btn.disabled = false;
+    btn.textContent = dt('gen_title_btn'); btn.disabled = false;
   }
 });
 
@@ -294,7 +295,7 @@ document.getElementById('reverseToggle').addEventListener('change', e => {
   document.getElementById('reverseModeRow').style.display = e.target.checked ? 'flex' : 'none';
   document.getElementById('promptInputWrap').style.display = e.target.checked ? 'none' : 'flex';
   document.getElementById('actionBtn').textContent = e.target.checked
-    ? '✨ 反推并保存' : '💾 保存';
+    ? dt('reverse_save_short') : dt('save');
 });
 
 // ── Inline project creation ───────────────────────────────────────────────────────
@@ -310,7 +311,7 @@ document.getElementById('createProjBtn').addEventListener('click', async () => {
   const name = document.getElementById('newProjName').value.trim();
   if (!name) return;
   const btn = document.getElementById('createProjBtn');
-  btn.disabled = true; btn.textContent = '创建中…';
+  btn.disabled = true; btn.textContent = dt('creating');
   try {
     const r = await fetch(`${serverUrl}/api/create-project`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -324,8 +325,8 @@ document.getElementById('createProjBtn').addEventListener('click', async () => {
     sel.appendChild(opt); sel.value = d.project.id;
     document.getElementById('newProjRow').style.display = 'none';
     document.getElementById('newProjName').value = '';
-  } catch(e) { alert('创建失败：' + e.message); }
-  btn.disabled = false; btn.textContent = '创建';
+  } catch(e) { alert(dt('create_fail') + e.message); }
+  btn.disabled = false; btn.textContent = dt('create_btn');
 });
 
 // ── Go to settings ────────────────────────────────────────────────────────────
@@ -339,8 +340,8 @@ document.getElementById('cancelBtn').addEventListener('click', () => window.clos
 // ── Main Action ───────────────────────────────────────────────────────────────
 document.getElementById('actionBtn').addEventListener('click', async () => {
   const projectId = document.getElementById('projectSel').value;
-  if (!projectId) { alert('请先选择一个项目'); return; }
-  if (!mediaUrl && mediaType !== 'text') { alert('没有媒体 URL'); return; }
+  if (!projectId) { alert(dt('no_proj_alert')); return; }
+  if (!mediaUrl && mediaType !== 'text') { alert(dt('no_media_alert')); return; }
 
   const doReverse = mode === 'reverse' || document.getElementById('reverseToggle').checked;
   const title     = document.getElementById('titleInput').value.trim();
@@ -353,8 +354,8 @@ document.getElementById('actionBtn').addEventListener('click', async () => {
     // ── Skill text mode: direct save ──────────────────────
     if (mediaType === 'text') {
       const skillText = document.getElementById('skillTextarea').value.trim();
-      if (!skillText) { setUiState('error', '提示词内容不能为空'); return; }
-      setSteps([{ text: '保存到 Prompt Studio', active: true }]);
+      if (!skillText) { setUiState('error', dt('skill_empty_alert')); return; }
+      setSteps([{ text: dt('step_save'), active: true }]);
       const res = await fetch(`${serverUrl}/api/save-prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -365,8 +366,8 @@ document.getElementById('actionBtn').addEventListener('click', async () => {
         })
       });
       const data = await res.json();
-      if (!data.ok) throw new Error(data.error || '保存失败');
-      setUiState('success', '已保存到 Prompt Studio！');
+      if (!data.ok) throw new Error(data.error || dt('save_fail'));
+      setUiState('success', dt('save_success', false));
       return;
     }
 
@@ -397,17 +398,17 @@ document.getElementById('actionBtn').addEventListener('click', async () => {
       const apiBase = mediaType === 'video' ? settings.videoApiBase : settings.imageApiBase;
       const model   = mediaType === 'video' ? (settings.videoModel || 'gemini-2.5-pro') : (settings.imageModel || 'gpt-4o');
       if (!apiKey) {
-        setUiState('error', 'API Key 未配置，请先在桌面端「设置」里填写');
+        setUiState('error', dt('api_key_missing'));
         return;
       }
 
       setSteps([
-        { text: '下载媒体文件', active: true },
-        { text: 'AI 分析中…' + (mediaType === 'video' ? '（视频处理较慢，请耐心等待）' : ''), active: false },
-        { text: '保存到 Prompt Studio', active: false }
+        { text: dt('step_download'), active: true },
+        { text: mediaType === 'video' ? dt('step_ai_video') : dt('step_ai'), active: false },
+        { text: dt('step_save'), active: false }
       ]);
 
-      setLoadingMsg(`正在让 <strong>${model || 'AI'}</strong> 分析${mediaType === 'video' ? '视频' : '图片'}…`);
+      setLoadingMsg(dt('analyzing', model, mediaType));
 
       const reverseRes = await fetch(`${serverUrl}/api/reverse-prompt`, {
         method: 'POST',
@@ -426,7 +427,7 @@ document.getElementById('actionBtn').addEventListener('click', async () => {
         })
       });
       const reverseData = await reverseRes.json();
-      if (!reverseData.ok) throw new Error(reverseData.error || 'AI 反推失败');
+      if (!reverseData.ok) throw new Error(reverseData.error || dt('reverse_fail'));
       prompt   = reverseData.prompt;
       analysis = reverseData.analysis || '';
       // Auto-fill title if AI returned one (from JSON art-brief structure)
@@ -436,16 +437,16 @@ document.getElementById('actionBtn').addEventListener('click', async () => {
       }
 
       setSteps([
-        { text: '下载媒体文件', done: true },
-        { text: 'AI 分析完成', done: true },
-        { text: '保存到 Prompt Studio', active: true }
+        { text: dt('step_download'), done: true },
+        { text: dt('step_ai_done'), done: true },
+        { text: dt('step_save'), active: true }
       ]);
     } else {
       prompt = manualPrompt;
-      setSteps([{ text: '保存到 Prompt Studio', active: true }]);
+      setSteps([{ text: dt('step_save'), active: true }]);
     }
 
-    setLoadingMsg('正在保存…');
+    setLoadingMsg(dt('saving'));
 
     const saveRes = await fetch(`${serverUrl}/api/save-media`, {
       method: 'POST',
@@ -463,16 +464,15 @@ document.getElementById('actionBtn').addEventListener('click', async () => {
       })
     });
     const saveData = await saveRes.json();
-    if (!saveData.ok) throw new Error(saveData.error || '保存失败');
+    if (!saveData.ok) throw new Error(saveData.error || dt('save_fail'));
 
-    setSteps([{ text: '✅ 已保存到 Prompt Studio', done: true }]);
-    setUiState('success',
-      `${doReverse ? '反推完成并已' : ''}保存到项目！`,
+    setSteps([{ text: dt('step_done'), done: true }]);
+    setUiState('success', dt('save_success', doReverse),
       prompt ? prompt : null
     );
 
   } catch (err) {
-    setUiState('error', err.message || '未知错误');
+    setUiState('error', err.message || dt('error_title'));
   }
 });
 
@@ -500,7 +500,7 @@ async function checkAndDownloadViaFfmpeg(projectId) {
       skipBtn.onclick = () => resolve('skip');
       installBtn.onclick = async () => {
         installBtn.disabled = true;
-        installBtn.textContent = '安装中…';
+        installBtn.textContent = dt('creating');
         await fetch(`${serverUrl}/api/install-ffmpeg`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
         // Poll until done
         const poll = setInterval(async () => {
@@ -509,7 +509,7 @@ async function checkAndDownloadViaFfmpeg(projectId) {
             const s = await r.json();
             const prog = s.install || {};
             document.getElementById('ffmpegBar').style.width = (prog.percent || 0) + '%';
-            const labels = { downloading: '下载中…', extracting: '解压中…', done: '安装完成！', error: '安装失败: ' + prog.error };
+            const labels = { downloading: dt('ffmpeg_dling'), extracting: dt('ffmpeg_extracting'), done: dt('ffmpeg_done'), error: dt('ffmpeg_err_prefix') + prog.error };
             document.getElementById('ffmpegMsg').textContent = labels[prog.status] || prog.status;
             if (prog.status === 'done') {
               clearInterval(poll);
@@ -534,7 +534,7 @@ async function doFfmpegDownload(projectId) {
     body: JSON.stringify({ url: mediaUrl, projectId, referer, cookie: requestCookie })
   });
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error || 'ffmpeg 下载失败');
+  if (!data.ok) throw new Error(data.error || dt('ffmpeg_dl_fail'));
   return data; // {path, filename, size}
 }
 
@@ -557,16 +557,16 @@ function setUiState(state, msg = '', extra = null) {
     const rb = document.getElementById('resultBox');
     if (extra) { rb.textContent = extra; rb.style.display = 'block'; }
     else { rb.style.display = 'none'; }
-    document.getElementById('actionBtn').textContent = '✕ 关闭';
+    document.getElementById('actionBtn').textContent = dt('close_x');
     document.getElementById('actionBtn').onclick = () => window.close();
     document.getElementById('cancelBtn').style.display = 'none';
   }
   if (state === 'error') {
-    document.getElementById('errorMsg').innerHTML = `<strong>出错了</strong><br>${msg}`;
-    document.getElementById('actionBtn').textContent = '← 返回';
+    document.getElementById('errorMsg').innerHTML = `<strong>${dt('error_title')}</strong><br>${msg}`;
+    document.getElementById('actionBtn').textContent = dt('back');
     document.getElementById('actionBtn').onclick = () => {
       setUiState('form');
-      document.getElementById('actionBtn').textContent = mode === 'reverse' ? '✨ 开始反推并保存' : '💾 保存';
+      document.getElementById('actionBtn').textContent = mode === 'reverse' ? dt('reverse_save') : dt('save');
       document.getElementById('actionBtn').onclick = null;
       document.getElementById('actionBtn').addEventListener('click', handleAction);
     };
