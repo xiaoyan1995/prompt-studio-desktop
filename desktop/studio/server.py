@@ -526,6 +526,13 @@ def _item_upload_refs(item):
             rel = _normalize_upload_ref(ref)
             if rel:
                 refs.add(rel)
+    gallery = item.get("gallery", [])
+    if isinstance(gallery, list):
+        for g in gallery:
+            src = g.get("src") if isinstance(g, dict) else g
+            rel = _normalize_upload_ref(src)
+            if rel:
+                refs.add(rel)
     return refs
 
 
@@ -534,7 +541,7 @@ def _data_upload_refs(data):
     for proj in data.get("projects", []):
         if not isinstance(proj, dict):
             continue
-        for key in ("image_prompts", "video_prompts"):
+        for key in ("image_prompts", "video_prompts", "skill_prompts"):
             for item in proj.get(key, []) or []:
                 refs.update(_item_upload_refs(item))
     return refs
@@ -980,6 +987,8 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_create_project(body)
         elif path == "/api/gen-title":
             self._handle_gen_title(body)
+        elif path == "/api/rewrite-prompt":
+            self._handle_rewrite_prompt(body)
         elif path == "/api/desktop/settings":
             self._json_resp({"ok": True, "settings": _save_settings(body)})
         elif path == "/api/export-bundle":
@@ -2044,6 +2053,51 @@ class Handler(SimpleHTTPRequestHandler):
                 data = json.loads(resp.read())
             title = (data["choices"][0]["message"]["content"] or "").strip().strip('"').strip("'")
             self._json_resp({"ok": True, "title": title})
+        except urllib.error.HTTPError as e:
+            raw = e.read().decode("utf-8", errors="replace")
+            try:   msg = (json.loads(raw).get("error") or {}).get("message") or raw[:200]
+            except: msg = raw[:200]
+            self._err(502, f"AI API {e.code}: {msg}")
+        except Exception as e:
+            self._err(502, str(e))
+
+    def _handle_rewrite_prompt(self, body):
+        original = (body.get("prompt") or "").strip()
+        instruction = (body.get("instruction") or "").strip()
+        if not original:
+            return self._err(400, "Missing prompt")
+        if not instruction:
+            return self._err(400, "Missing instruction")
+        settings = _load_settings()
+        api_key = settings.get("llmApiKey") or settings.get("imageApiKey") or ""
+        api_base = (settings.get("llmApiBase") or settings.get("imageApiBase") or "https://api.openai.com/v1").rstrip("/")
+        model = settings.get("llmModel") or settings.get("imageModel") or "gpt-4o-mini"
+        if not api_key:
+            return self._err(400, "Missing API Key in desktop settings")
+        payload = json.dumps({
+            "model": model,
+            "max_tokens": 2000,
+            "temperature": 0.7,
+            "messages": [
+                {"role": "system", "content":
+                    "你是一个 AI 绘图提示词改写助手。用户会给你一段原始提示词和一个修改指令。"
+                    "请根据指令对原始提示词进行修改，保留原始结构和风格，只改变指令要求的部分。"
+                    "只输出修改后的提示词，不要加任何解释、引号或前缀。"
+                    "如果原始提示词是英文就输出英文，中文就输出中文。"},
+                {"role": "user", "content": f"原始提示词：\n{original}\n\n修改指令：{instruction}"}
+            ]
+        }).encode()
+        req = urllib.request.Request(
+            f"{api_base}/chat/completions",
+            data=payload,
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+            method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read())
+            result = (data["choices"][0]["message"]["content"] or "").strip()
+            self._json_resp({"ok": True, "prompt": result})
         except urllib.error.HTTPError as e:
             raw = e.read().decode("utf-8", errors="replace")
             try:   msg = (json.loads(raw).get("error") or {}).get("message") or raw[:200]

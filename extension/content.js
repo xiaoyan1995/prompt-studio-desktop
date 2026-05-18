@@ -916,6 +916,10 @@
     .pqi-close:hover { background: rgba(255,255,255,.3); }
     .pqi-search { border: none; outline: none; padding: 8px 14px; font-size: 13px; font-family: inherit; border-bottom: 1px solid #f0f0f0; width: 100%; color: #1a2340; }
     .pqi-search::placeholder { color: #9ca3af; }
+    .pqi-rewrite-row { display: flex; align-items: center; border-bottom: 1px solid #f0f0f0; padding: 0 10px; gap: 6px; }
+    .pqi-rewrite-input { border: none; outline: none; padding: 7px 4px; font-size: 12px; font-family: inherit; flex: 1; color: #1a2340; min-width: 0; }
+    .pqi-rewrite-input::placeholder { color: #b0b8cc; }
+    .pqi-rewrite-label { font-size: 11px; color: #6366f1; font-weight: 600; white-space: nowrap; }
     .pqi-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
     .pqi-sidebar {
       width: 110px; border-right: 1px solid #f0f0f0; overflow-y: auto;
@@ -1082,6 +1086,10 @@
         <button class="pqi-close" id="pqiClose">×</button>
       </div>
       <input class="pqi-search" id="pqiSearch" placeholder="搜索提示词…" value="${_pqiSearch.replace(/"/g, '&quot;')}">
+      <div class="pqi-rewrite-row">
+        <span class="pqi-rewrite-label">✨ 改写</span>
+        <input class="pqi-rewrite-input" id="pqiRewriteInput" placeholder="输入改写指令（如“把主体换成猫”），然后点卡片…">
+      </div>
       <div class="pqi-body">
         <div class="pqi-sidebar" id="pqiSidebar"></div>
         <div class="pqi-list" id="pqiList"></div>
@@ -1175,9 +1183,39 @@
         ? `<img class="pqi-item-thumb" src="${esc(_pqiServerUrl + (imgPath.startsWith('/') ? '' : '/uploads/') + imgPath)}" onerror="this.parentNode.innerHTML='<div class=pqi-item-thumb-placeholder>🖼️</div>'">`
         : `<div class="pqi-item-thumb-placeholder">${_pqiSelectedCat === 'video_prompts' ? '🎬' : _pqiSelectedCat === 'skill_prompts' ? '🤖' : '🖼️'}</div>`;
       div.innerHTML = `<div class="pqi-item-thumb-wrap">${thumbInner}</div><div class="pqi-item-info"><div class="pqi-item-title">${esc(titleText)}</div>${promptText ? `<div class="pqi-item-prompt">${esc(promptText.substring(0, 120))}</div>` : ''}</div>`;
-      div.onclick = () => pqiInsertText(promptText);
+      div.onclick = () => pqiHandleCardClick(promptText);
       list.appendChild(div);
     });
+  }
+
+  async function pqiHandleCardClick(promptText) {
+    const rewriteInput = pqiPanel.querySelector('#pqiRewriteInput');
+    const instruction = rewriteInput ? rewriteInput.value.trim() : '';
+    if (!instruction) {
+      // No rewrite instruction → insert original
+      pqiInsertText(promptText);
+      return;
+    }
+    // AI rewrite
+    const origBtnText = rewriteInput.value;
+    rewriteInput.value = '⏳ AI 改写中…';
+    rewriteInput.disabled = true;
+    try {
+      const res = await fetch(`${_pqiServerUrl}/api/rewrite-prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: promptText, instruction })
+      });
+      const d = await res.json();
+      if (!d.ok) throw new Error(d.error || 'rewrite failed');
+      pqiInsertText(d.prompt);
+      pqiToast('✅ AI 改写并插入');
+    } catch (e) {
+      pqiToast('❌ 改写失败：' + e.message);
+      rewriteInput.value = origBtnText;
+    } finally {
+      if (rewriteInput) { rewriteInput.disabled = false; }
+    }
   }
 
   function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
