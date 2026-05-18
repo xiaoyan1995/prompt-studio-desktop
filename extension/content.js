@@ -984,6 +984,7 @@
   document.body.appendChild(pqiPanel);
 
   let _pqiFocusedEl = null;
+  let _pqiSavedRange = null; // Save selection range for contenteditable
   let _pqiProjects = null;
   let _pqiSelectedProjIdx = 0;
   let _pqiSelectedCat = 'image_prompts';
@@ -1046,13 +1047,26 @@
     } else if (el.isContentEditable || el.contentEditable === 'true' || el.closest('[contenteditable="true"]')) {
       const target = el.closest('[contenteditable="true"]') || el;
       target.focus();
+      // Restore saved selection so cursor is in the right place
+      if (_pqiSavedRange) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        try { sel.addRange(_pqiSavedRange); } catch(e) {}
+      }
       // Try execCommand first (works in most browsers for contenteditable)
-      const ok = document.execCommand('insertText', false, text);
+      let ok = false;
+      try { ok = document.execCommand('insertText', false, text); } catch(e) {}
       if (!ok) {
-        // Fallback: clipboard-based
-        const dt = new DataTransfer();
-        dt.setData('text/plain', text);
-        target.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+        // Fallback: insert text node at selection or end
+        const sel = window.getSelection();
+        if (sel.rangeCount) {
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(document.createTextNode(text));
+          range.collapse(false);
+        } else {
+          target.textContent += text;
+        }
       }
       target.dispatchEvent(new Event('input', { bubbles: true }));
     }
@@ -1273,6 +1287,11 @@
     if (pqiPanel.contains(e.target) || e.target === pqiIcon) return;
     if (isInsertTarget(e.target)) {
       _pqiFocusedEl = e.target;
+      // Save selection for contenteditable so we can restore it later
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        _pqiSavedRange = sel.getRangeAt(0).cloneRange();
+      }
       pqiShowIcon(e.target);
     } else {
       // Focused a non-input element → hide icon
