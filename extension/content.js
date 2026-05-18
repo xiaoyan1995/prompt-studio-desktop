@@ -976,14 +976,21 @@
   let _pqiSelectedCat = 'image_prompts';
   let _pqiSearch = '';
 
+  function pqiGetVisibleRect(el) {
+    // For contenteditable, use the [contenteditable] container itself
+    const ce = el.closest && el.closest('[contenteditable="true"]');
+    const target = ce || el;
+    return target.getBoundingClientRect();
+  }
+
   function pqiShowIcon(el) {
-    const r = el.getBoundingClientRect();
+    const r = pqiGetVisibleRect(el);
     const iconW = 22, iconH = 22;
-    // Place icon INSIDE the input box, near its left edge
+    // Bottom-left of the input, inset by 6px
     let left = r.left + 6;
-    let top = r.top + Math.max(0, (r.height - iconH) / 2);
-    // For very small inputs, put icon just outside left
-    if (r.width < 60) { left = r.left - iconW - 4; }
+    let top = r.bottom - iconH - 6;
+    // If input is very short (single line), center vertically
+    if (r.height < 44) { top = r.top + Math.max(0, (r.height - iconH) / 2); }
     left = Math.max(4, Math.min(window.innerWidth - iconW - 4, left));
     top = Math.max(4, Math.min(window.innerHeight - iconH - 4, top));
     pqiIcon.style.left = left + 'px';
