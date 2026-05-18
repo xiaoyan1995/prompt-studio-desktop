@@ -6829,12 +6829,18 @@
       const reader = new FileReader();
       reader.onload = (e) => {
         openPromptModal(null, 'image');
-        pmImgDataUrl = e.target.result; pmImgFile = file;
-        const prev = document.getElementById('pmImgPreview');
-        prev.src = pmImgDataUrl; prev.style.display = 'block';
+        const dataUrl = e.target.result;
+        // Add to gallery so it becomes the main card image
+        pmGalleryPending.push({ file, dataUrl });
+        pmDisplaySrc = dataUrl;
+        // Also set as ref_image so AI reverse-prompt can analyze it
+        pmImgDataUrl = dataUrl;
+        pmImgFile = file;
+        syncRefImageUI();
+        renderGalleryStrip();
         const imgEl = document.getElementById('promptModalImg');
         const phEl  = document.getElementById('promptModalImgPh');
-        imgEl.src = pmImgDataUrl; imgEl.style.display = 'block'; phEl.style.display = 'none';
+        imgEl.src = dataUrl; imgEl.style.display = 'block'; phEl.style.display = 'none';
         document.getElementById('pmReanalyzeWrap').style.display = '';
         toast('📋 已从剪贴板粘贴图片');
       };
@@ -6916,20 +6922,24 @@
       const videos = files.filter(f => f.type.startsWith('video/'));
       const texts  = files.filter(f => f.type === 'text/plain' || f.name.endsWith('.txt') || f.name.endsWith('.md'));
 
-      // Single image → open modal pre-filled
+      // Single image → open modal pre-filled (as main gallery image + ref for AI)
       if (files.length === 1 && images.length === 1) {
         const file = images[0];
         const reader = new FileReader();
         reader.onload = (ev) => {
           openPromptModal(null, 'image');
-          // Re-inject after modal resets (openPromptModal clears state for new items)
-          pmImgDataUrl = ev.target.result;
+          const dataUrl = ev.target.result;
+          // Add to gallery so it becomes the main card image
+          pmGalleryPending.push({ file, dataUrl });
+          pmDisplaySrc = dataUrl;
+          // Also set as ref_image so AI reverse-prompt can analyze it
+          pmImgDataUrl = dataUrl;
           pmImgFile = file;
-          const prev = document.getElementById('pmImgPreview');
-          prev.src = pmImgDataUrl; prev.style.display = 'block';
+          syncRefImageUI();
+          renderGalleryStrip();
           const imgEl = document.getElementById('promptModalImg');
           const phEl  = document.getElementById('promptModalImgPh');
-          imgEl.src = pmImgDataUrl; imgEl.style.display = 'block'; phEl.style.display = 'none';
+          imgEl.src = dataUrl; imgEl.style.display = 'block'; phEl.style.display = 'none';
           document.getElementById('pmReanalyzeWrap').style.display = '';
         };
         reader.readAsDataURL(file);
