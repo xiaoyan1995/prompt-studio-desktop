@@ -928,6 +928,13 @@
     }
     .pqi-sidebar-item:hover { background: #f8faff; color: #1d4ed8; }
     .pqi-sidebar-item.on { background: #eef4ff; color: #1d4ed8; border-left-color: #1d4ed8; font-weight: 600; }
+    .pqi-folder-item {
+      padding: 4px 12px 4px 24px; font-size: 10px; color: #8895ad; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: all .1s;
+    }
+    .pqi-folder-item:hover { color: #1d4ed8; background: #f8faff; }
+    .pqi-folder-item.on { color: #1d4ed8; font-weight: 600; }
     .pqi-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-content: start; }
     .pqi-item {
       width: calc(50% - 4px); border-radius: 8px; cursor: pointer;
@@ -974,6 +981,7 @@
   let _pqiProjects = null;
   let _pqiSelectedProjIdx = 0;
   let _pqiSelectedCat = 'image_prompts';
+  let _pqiFolderFilter = null; // null = root (all non-folder items without folder_id)
   let _pqiSearch = '';
 
   function pqiGetVisibleRect(el) {
@@ -1105,12 +1113,25 @@
     sep.style.cssText = 'height:1px;background:#f0f0f0;margin:4px 0';
     sidebar.appendChild(sep);
     cats.forEach(c => {
-      const count = (proj[c.id] || []).length;
+      const allItems = proj[c.id] || [];
+      const folders = allItems.filter(it => it.is_folder);
+      const nonFolderCount = allItems.filter(it => !it.is_folder).length;
       const div = document.createElement('div');
-      div.className = 'pqi-sidebar-item' + (_pqiSelectedCat === c.id ? ' on' : '');
-      div.textContent = c.label + ` (${count})`;
-      div.onclick = () => { _pqiSelectedCat = c.id; pqiRenderPanel(); };
+      div.className = 'pqi-sidebar-item' + (_pqiSelectedCat === c.id && _pqiFolderFilter === null ? ' on' : '');
+      div.textContent = c.label + ` (${nonFolderCount})`;
+      div.onclick = () => { _pqiSelectedCat = c.id; _pqiFolderFilter = null; pqiRenderPanel(); };
       sidebar.appendChild(div);
+      // Show folders as sub-items under this category
+      if (_pqiSelectedCat === c.id && folders.length) {
+        folders.forEach(f => {
+          const fCount = allItems.filter(it => !it.is_folder && it.folder_id === f.id).length;
+          const fd = document.createElement('div');
+          fd.className = 'pqi-folder-item' + (_pqiFolderFilter === f.id ? ' on' : '');
+          fd.textContent = '📂 ' + (f.title || f.name || '未命名') + ` (${fCount})`;
+          fd.onclick = () => { _pqiSelectedCat = c.id; _pqiFolderFilter = f.id; pqiRenderPanel(); };
+          sidebar.appendChild(fd);
+        });
+      }
     });
 
     pqiRenderList();
@@ -1118,7 +1139,15 @@
 
   function pqiRenderList() {
     const proj = _pqiProjects[_pqiSelectedProjIdx] || _pqiProjects[0];
-    let items = (proj[_pqiSelectedCat] || []).slice();
+    let items = (proj[_pqiSelectedCat] || []).filter(it => !it.is_folder);
+    // Filter by folder (skip during search to show all results)
+    if (!_pqiSearch) {
+      if (_pqiFolderFilter) {
+        items = items.filter(it => it.folder_id === _pqiFolderFilter);
+      } else {
+        items = items.filter(it => !it.folder_id);
+      }
+    }
     if (_pqiSearch) {
       const q = _pqiSearch.toLowerCase();
       items = items.filter(it => {
