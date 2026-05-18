@@ -914,8 +914,10 @@
     .pqi-head-title { font-size: 13px; font-weight: 700; flex: 1; }
     .pqi-close { background: rgba(255,255,255,.15); border: none; color: #fff; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; }
     .pqi-close:hover { background: rgba(255,255,255,.3); }
-    .pqi-search { border: none; outline: none; padding: 8px 14px; font-size: 13px; font-family: inherit; border-bottom: 1px solid #f0f0f0; width: 100%; color: #1a2340; }
-    .pqi-search::placeholder { color: #9ca3af; }
+    .pqi-search-row { display: flex; align-items: center; border-bottom: 1px solid #f0f0f0; padding: 0 10px; gap: 6px; }
+    .pqi-search-label { font-size: 11px; color: #6b7a99; font-weight: 600; white-space: nowrap; }
+    .pqi-search { border: none; outline: none; padding: 7px 4px; font-size: 12px; font-family: inherit; flex: 1; color: #1a2340; min-width: 0; }
+    .pqi-search::placeholder { color: #b0b8cc; }
     .pqi-rewrite-row { display: flex; align-items: center; border-bottom: 1px solid #f0f0f0; padding: 0 10px; gap: 6px; }
     .pqi-rewrite-input { border: none; outline: none; padding: 7px 4px; font-size: 12px; font-family: inherit; flex: 1; color: #1a2340; min-width: 0; }
     .pqi-rewrite-input::placeholder { color: #b0b8cc; }
@@ -1085,7 +1087,10 @@
         <span class="pqi-head-title">提示词库</span>
         <button class="pqi-close" id="pqiClose">×</button>
       </div>
-      <input class="pqi-search" id="pqiSearch" placeholder="搜索提示词…" value="${_pqiSearch.replace(/"/g, '&quot;')}">
+      <div class="pqi-search-row">
+        <span class="pqi-search-label">🔍 搜索</span>
+        <input class="pqi-search" id="pqiSearch" placeholder="输入关键词过滤…" value="${_pqiSearch.replace(/"/g, '&quot;')}">
+      </div>
       <div class="pqi-rewrite-row">
         <span class="pqi-rewrite-label">✨ 改写</span>
         <input class="pqi-rewrite-input" id="pqiRewriteInput" placeholder="输入改写指令（如“把主体换成猫”），然后点卡片…">
