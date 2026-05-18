@@ -430,10 +430,25 @@ document.getElementById('actionBtn').addEventListener('click', async () => {
       if (!reverseData.ok) throw new Error(reverseData.error || dt('reverse_fail'));
       prompt   = reverseData.prompt;
       analysis = reverseData.analysis || '';
-      // Auto-fill title if AI returned one (from JSON art-brief structure)
+      // Auto-fill title: use AI-returned title, or auto-generate one from the prompt
+      const titleEl = document.getElementById('titleInput');
       if (reverseData.title) {
-        const titleEl = document.getElementById('titleInput');
         if (titleEl && !titleEl.value.trim()) titleEl.value = reverseData.title;
+      } else if (prompt && titleEl && !titleEl.value.trim()) {
+        try {
+          const genRes = await fetch(`${serverUrl}/api/gen-title`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: prompt.slice(0, 800),
+              apiKey:  mediaType === 'video' ? settings.videoApiKey : settings.imageApiKey,
+              apiBase: mediaType === 'video' ? settings.videoApiBase : settings.imageApiBase,
+              model:   mediaType === 'video' ? (settings.videoModel || 'gpt-4o-mini') : (settings.imageModel || 'gpt-4o-mini')
+            })
+          });
+          const genData = await genRes.json();
+          if (genData.ok && genData.title) titleEl.value = genData.title;
+        } catch {}
       }
 
       setSteps([
