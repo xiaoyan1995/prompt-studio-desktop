@@ -4,7 +4,7 @@
 
 **A local desktop app for managing AI image & video prompts — with a companion browser extension.**
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
 [![Build](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)](#build)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -78,9 +78,13 @@
 - 🖼️ **Image gallery** — multiple generated images per prompt; click thumbnail to set as main
 - 🔎 **Fullscreen lightbox** — click any image to view at full resolution
 - 🔊 **Audio library** — link local audio folders; browse, preview, star, translate names with LLM, drag files to DAW or file manager
+- 🌍 **Bilingual UI** — switch between Chinese and English in Settings; all UI text updates instantly, preference saved locally
 - 🤝 **Agent / CLI integration** — full HTTP API for external agents to read & write prompts, push AI-generated images and videos, and query the audio library
 
 ## 📋 Changelog
+
+### v1.1.1
+- **Bilingual UI (CN / EN)**: language toggle added to Settings; all UI text — modals, labels, buttons, hints, placeholders — switches instantly between Chinese and English; preference persisted locally
 
 ### v1.1.0
 - **Audio library**: link any local folder as an audio library per project; browse subfolders, preview WAV/MP3/FLAC/… with mini player (seek + volume), star favourites, translate filenames to Chinese with any LLM
