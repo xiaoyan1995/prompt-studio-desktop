@@ -881,21 +881,22 @@
   pqiStyle.textContent = `
     #pqi-icon {
       position: fixed; z-index: 2147483646; display: none;
-      width: 26px; height: 26px; border-radius: 7px;
-      background: linear-gradient(135deg, #1d4ed8, #6d28d9);
+      width: 22px; height: 22px; border-radius: 5px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: #fff; border: none; cursor: pointer;
-      font-size: 14px; line-height: 1;
+      font-size: 12px; line-height: 1;
       display: none; align-items: center; justify-content: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+      box-shadow: 0 1px 4px rgba(0,0,0,.2);
       transition: opacity .12s, transform .12s;
       pointer-events: auto;
       font-family: system-ui, sans-serif;
+      opacity: .85;
     }
-    #pqi-icon:hover { transform: scale(1.1); }
+    #pqi-icon:hover { opacity: 1; transform: scale(1.08); }
     #pqi-icon.visible { display: flex; }
     #pqi-panel {
       position: fixed; z-index: 2147483647; display: none;
-      width: 380px; max-height: 480px;
+      width: 460px; max-height: 520px;
       background: #fff; border-radius: 12px;
       box-shadow: 0 8px 32px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08);
       font-family: Inter, system-ui, sans-serif; font-size: 13px; color: #1a2340;
@@ -927,29 +928,29 @@
     }
     .pqi-sidebar-item:hover { background: #f8faff; color: #1d4ed8; }
     .pqi-sidebar-item.on { background: #eef4ff; color: #1d4ed8; border-left-color: #1d4ed8; font-weight: 600; }
-    .pqi-list { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+    .pqi-list { flex: 1; overflow-y: auto; padding: 6px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; align-content: start; }
     .pqi-item {
-      padding: 6px 8px; border-radius: 7px; cursor: pointer;
+      padding: 0; border-radius: 8px; cursor: pointer;
       border: 1px solid #f0f0f0; transition: all .1s;
-      display: flex; flex-direction: row; gap: 8px; align-items: center;
+      display: flex; flex-direction: column; overflow: hidden;
     }
     .pqi-item:hover { background: #eef4ff; border-color: #c7d8f4; }
     .pqi-item-thumb {
-      width: 48px; height: 48px; border-radius: 6px; object-fit: cover;
-      flex-shrink: 0; background: #f0f4fc; border: 1px solid #e8ecf2;
+      width: 100%; height: 80px; object-fit: cover;
+      background: #f0f4fc; border-bottom: 1px solid #e8ecf2; display: block;
     }
     .pqi-item-thumb-placeholder {
-      width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0;
+      width: 100%; height: 80px;
       background: linear-gradient(135deg, #eef4ff, #e2ebff);
       display: flex; align-items: center; justify-content: center;
-      font-size: 18px; color: #9fb8e9;
+      font-size: 22px; color: #9fb8e9; border-bottom: 1px solid #e8ecf2;
     }
-    .pqi-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .pqi-item-title { font-size: 12px; font-weight: 600; color: #1a2340; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .pqi-item-prompt { font-size: 11px; color: #6b7a99; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
+    .pqi-item-info { padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
+    .pqi-item-title { font-size: 11px; font-weight: 600; color: #1a2340; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pqi-item-prompt { font-size: 10px; color: #6b7a99; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
     .pqi-item-tags { display: flex; gap: 3px; flex-wrap: wrap; }
     .pqi-item-tag { font-size: 9px; background: #f0f4fc; color: #5b6eae; padding: 1px 5px; border-radius: 4px; }
-    .pqi-empty { padding: 24px; text-align: center; color: #9ca3af; font-size: 12px; }
+    .pqi-empty { padding: 24px; text-align: center; color: #9ca3af; font-size: 12px; grid-column: 1 / -1; }
     .pqi-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,.85); color: #fff; padding: 8px 18px; border-radius: 8px; font-size: 12px; font-weight: 600; z-index: 2147483647; pointer-events: none; animation: pqi-pop .15s; }
   `;
   document.head.appendChild(pqiStyle);
@@ -972,10 +973,12 @@
 
   function pqiShowIcon(el) {
     const r = el.getBoundingClientRect();
-    const iconW = 26, iconH = 26, gap = 4;
-    let left = r.left - iconW - gap;
+    const iconW = 22, iconH = 22;
+    // Place icon INSIDE the input box, near its left edge
+    let left = r.left + 6;
     let top = r.top + Math.max(0, (r.height - iconH) / 2);
-    if (left < 4) { left = r.left + gap; }
+    // For very small inputs, put icon just outside left
+    if (r.width < 60) { left = r.left - iconW - 4; }
     left = Math.max(4, Math.min(window.innerWidth - iconW - 4, left));
     top = Math.max(4, Math.min(window.innerHeight - iconH - 4, top));
     pqiIcon.style.left = left + 'px';
@@ -1147,11 +1150,12 @@
 
   async function pqiOpenPanel() {
     const r = pqiIcon.getBoundingClientRect();
-    let left = r.left - 380 + 26;
+    const PW = 460, PH = 520;
+    let left = r.left;
     let top = r.bottom + 6;
+    if (left + PW > window.innerWidth - 8) left = window.innerWidth - PW - 8;
     if (left < 8) left = 8;
-    if (left + 380 > window.innerWidth - 8) left = window.innerWidth - 388;
-    if (top + 480 > window.innerHeight - 8) top = r.top - 486;
+    if (top + PH > window.innerHeight - 8) top = r.top - PH - 6;
     if (top < 8) top = 8;
     pqiPanel.style.left = left + 'px';
     pqiPanel.style.top = top + 'px';
