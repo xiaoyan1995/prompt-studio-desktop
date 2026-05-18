@@ -937,13 +937,15 @@
     }
     .pqi-item:hover { background: #f8faff; border-color: #c7d8f4; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
     .pqi-item-thumb-wrap {
-      width: 100%; aspect-ratio: 4/3; overflow: hidden; position: relative;
-      background: #f0f4fc;
+      width: 100%; padding-bottom: 75%; position: relative;
+      overflow: hidden; background: #f0f4fc;
     }
     .pqi-item-thumb {
+      position: absolute; top: 0; left: 0;
       width: 100%; height: 100%; object-fit: cover; display: block;
     }
     .pqi-item-thumb-placeholder {
+      position: absolute; top: 0; left: 0;
       width: 100%; height: 100%;
       background: linear-gradient(135deg, #eef4ff, #e2ebff);
       display: flex; align-items: center; justify-content: center;
