@@ -4,7 +4,7 @@
 
 **本地桌面端 AI 图片 & 视频提示词管理工具，配套浏览器插件。**
 
-[![版本](https://img.shields.io/badge/版本-1.1.1-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![版本](https://img.shields.io/badge/版本-1.1.3-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
 [![构建](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml)
 [![平台](https://img.shields.io/badge/平台-Windows%20%7C%20macOS-lightgrey.svg)](#打包说明)
 [![Electron](https://img.shields.io/badge/Electron-37-47848F.svg)](https://www.electronjs.org/)
@@ -73,6 +73,7 @@
 - 🔁 **重复检测** — 发现跨项目的相同或相似提示词
 - 🌐 **浏览器插件** — 任意页面浮动工具栏，一键发送素材到桌面端
 - 📚 **文档库** — 上传并预览 PDF、Word、Excel、PPT、TXT、Markdown 等多种格式
+- ⚡ **提示词快速插入** — 在任意网站输入框旁显示快捷图标，一键插入提示词，支持 AI 改写后插入
 - 🚫 **域名黑名单** — 按站点屏蔽插件工具栏
 - 🖼️ **图片画廊** — 每条提示词支持多张生成图，点击缩略图设为主图
 - 🔎 **大图查看** — 点击图片全屏浏览
@@ -83,6 +84,21 @@
 ---
 
 ## 🗒️ 版本记录
+
+### v1.1.3
+- **浏览器插件 - 提示词快速插入优化**：
+  - 图标定位在输入框左外侧，不遮挡文字，滚动/resize 自动跟随
+  - 图标聚焦后常驻不消失，方便连续插入多条提示词
+  - 面板改为 2 列网格卡片布局，带缩略图 + 标题 + 提示词摘要
+  - 文件夹显示为侧边栏目录树，不再混在卡片网格中
+  - 新增 ✨ AI 改写功能：输入改写指令后点击卡片，AI 自动改写提示词再插入
+  - 修复 contenteditable 输入框第二次插入失败的问题
+- **新增 API**：`/api/rewrite-prompt` — AI 提示词改写接口
+
+### v1.1.2
+- **浏览器插件 - 提示词快速插入**：支持在任意网站的输入框旁显示快捷图标，点击打开提示词库面板，一键插入提示词到当前输入框
+- **插入白名单管理**：在插件弹窗中可按域名开关快速插入功能
+- **面板功能**：搜索过滤、项目切换、分类筛选（图片/视频/Skills）
 
 ### v1.1.1
 - **中英文界面本地化**：设置中心新增语言切换按钮（中文 / English），所有 UI 文字——包括弹窗、标签、按钮、提示、占位符——均可一键切换，语言偏好本地持久化

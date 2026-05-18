@@ -4,7 +4,7 @@
 
 **A local desktop app for managing AI image & video prompts — with a companion browser extension.**
 
-[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![Version](https://img.shields.io/badge/version-1.1.3-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
 [![Build](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)](#build)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -74,6 +74,7 @@
 - 🔁 **Duplicate detection** — find identical or similar prompts across projects
 - 🌐 **Browser extension** — floating toolbar on any page; send media to desktop instantly
 - 📚 **Document library** — upload & preview PDF, Word, Excel, PPT, TXT, Markdown and more
+- ⚡ **Prompt quick-insert** — shortcut icon next to any input field; one-click insert from your prompt library, with optional AI rewrite
 - 🚫 **Domain blacklist** — per-site block list to hide the extension toolbar
 - 🖼️ **Image gallery** — multiple generated images per prompt; click thumbnail to set as main
 - 🔎 **Fullscreen lightbox** — click any image to view at full resolution
@@ -82,6 +83,21 @@
 - 🤝 **Agent / CLI integration** — full HTTP API for external agents to read & write prompts, push AI-generated images and videos, and query the audio library
 
 ## 📋 Changelog
+
+### v1.1.3
+- **Browser extension — prompt quick-insert improvements**:
+  - Icon positioned outside the input box (left edge), no text occlusion, auto-repositions on scroll/resize
+  - Icon stays visible after focus — convenient for inserting multiple prompts in a row
+  - Panel now uses a 2-column card grid with thumbnails + title + prompt excerpt
+  - Folders shown as a directory tree in the sidebar instead of mixed into the card grid
+  - New ✨ AI Rewrite: type a rewrite instruction then click a card — AI rewrites the prompt before inserting
+  - Fixed contenteditable insertion failing on second click (selection range save/restore)
+- **New API**: `/api/rewrite-prompt` — AI-powered prompt rewriting endpoint
+
+### v1.1.2
+- **Browser extension — prompt quick-insert**: shows a shortcut icon next to any input field on whitelisted sites; click to open prompt library panel and insert prompts with one click
+- **Insert whitelist management**: toggle quick-insert per domain from the extension popup
+- **Panel features**: search filter, project switching, category tabs (Image / Video / Skills)
 
 ### v1.1.1
 - **Bilingual UI (CN / EN)**: language toggle added to Settings; all UI text — modals, labels, buttons, hints, placeholders — switches instantly between Chinese and English; preference persisted locally
@@ -174,8 +190,8 @@ Builds are **automated via GitHub Actions** — every push to `main` produces Wi
 
 ```bash
 # Trigger a release
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.1.3
+git push origin v1.1.3
 ```
 
 <details>
