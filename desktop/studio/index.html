@@ -89,7 +89,7 @@
 
   .sidebar-section{padding:12px 8px 0;font-size:11px;font-weight:700;color:var(--subtle);letter-spacing:.06em;text-transform:uppercase;margin:4px 8px 2px}
   .nav-item{
-    display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;
+    display:grid;grid-template-columns:22px minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;
     cursor:pointer;font-size:13px;font-weight:500;color:var(--subtle);
     transition:background .15s,color .15s;user-select:none;margin:1px 8px;
   }
@@ -756,7 +756,7 @@
     padding:14px 14px 6px;margin:0;font-size:10px;color:#68778a;letter-spacing:.14em;
   }
   .nav-item{
-    grid-template-columns:34px minmax(0,1fr) minmax(34px,auto);
+    grid-template-columns:34px minmax(0,1fr) minmax(34px,auto) auto;
     gap:10px;margin:3px 12px;padding:10px 11px;border-radius:12px;
     color:#9aa8ba;font-size:13px;font-weight:700;line-height:1.25;
   }
@@ -770,6 +770,20 @@
     padding:2px 8px;font-size:11px;justify-self:end;
   }
   .nav-item .nav-badge:empty{display:none}
+  .nav-folder-tree{overflow:hidden;max-height:0;transition:max-height .25s ease;padding-left:28px}
+  .nav-folder-tree.expanded{max-height:600px;overflow-y:auto}
+  .nav-folder-item{
+    display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;
+    cursor:pointer;font-size:12px;font-weight:500;color:var(--subtle);
+    transition:background .12s,color .12s;user-select:none;margin:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .nav-folder-item:hover{background:#f0f4fc;color:var(--text)}
+  .nav-folder-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .nav-folder-item .folder-icon{font-size:12px;flex-shrink:0}
+  .nav-folder-item .folder-count{margin-left:auto;font-size:10px;color:var(--subtle);opacity:.7}
+  .nav-item .nav-toggle{margin-left:auto;font-size:10px;transition:transform .2s;cursor:pointer;opacity:.6}
+  .nav-item .nav-toggle:hover{opacity:1}
+  .nav-item .nav-toggle.open{transform:rotate(90deg)}
   .nav-item:hover{background:rgba(255,255,255,.06);color:#f4f7fb}
   .nav-item.active{
     background:linear-gradient(135deg,rgba(214,161,93,.22),rgba(214,161,93,.08));
@@ -1219,6 +1233,9 @@
   body.dark .nav-item:hover{background:#1d2835;color:#fff}
   body.dark .nav-item.active{background:rgba(214,161,93,.12);color:#d6a15d;box-shadow:inset 0 0 0 1px rgba(214,161,93,.22)}
   body.dark .nav-item.active .nav-icon{background:rgba(214,161,93,.18);color:#d6a15d}
+  body.dark .nav-folder-item{color:#8a99ab}
+  body.dark .nav-folder-item:hover{background:#1d2835;color:#dde6f0}
+  body.dark .nav-folder-item.active{background:rgba(214,161,93,.12);color:#d6a15d}
   body.dark .workspace-toolbar{background:rgba(16,22,30,.95);border-bottom-color:rgba(255,255,255,.08)}
   body.dark .toolbar-select{background:transparent;border:none;color:#d8e1ec}
   body.dark .toolbar-select option{background:#1a2535;color:#d8e1ec}
@@ -3484,6 +3501,8 @@
   }
 
   // ── Sidebar ───────────────────────────────────────────────────────────
+  const _sidebarExpanded = { image_prompts: true, video_prompts: true }; // track expand state
+
   function renderSidebar() {
     const nav = document.getElementById('sidebarNav');
     const info = document.getElementById('sidebarProjectInfo');
@@ -3504,15 +3523,46 @@
       projSub.textContent = '';
       const epb = document.getElementById('editProjNameBtn');
       if (epb) epb.onclick = () => openProjModal(state.projectId);
+
+      // Build folder trees for image/video
+      const imgFolders = (proj?.image_prompts||[]).filter(p => p.is_folder);
+      const vidFolders = (proj?.video_prompts||[]).filter(p => p.is_folder);
+      const imgHasFolders = imgFolders.length > 0;
+      const vidHasFolders = vidFolders.length > 0;
+      const imgExpanded = _sidebarExpanded.image_prompts && imgHasFolders;
+      const vidExpanded = _sidebarExpanded.video_prompts && vidHasFolders;
+
+      function folderTreeHtml(folders, viewKey) {
+        const expanded = _sidebarExpanded[viewKey] && folders.length > 0;
+        const items = folders.map(f => {
+          const count = (proj?.[viewKey]||[]).filter(p => p.folder_id === f.id).length;
+          const isActive = state.view === viewKey && state.folderFilter === f.id;
+          return `<div class="nav-folder-item${isActive?' active':''}" data-folder-id="${h(f.id)}" data-folder-view="${viewKey}">
+            <span class="folder-icon">📁</span><span>${h(f.title||t('未命名','Untitled'))}</span>
+            <span class="folder-count">${count}</span>
+          </div>`;
+        }).join('');
+        return `<div class="nav-folder-tree${expanded?' expanded':''}" data-tree-view="${viewKey}">${items}</div>`;
+      }
+
+      const imgToggle = imgHasFolders ? `<span class="nav-toggle${imgExpanded?' open':''}" data-toggle-view="image_prompts">▶</span>` : '';
+      const vidToggle = vidHasFolders ? `<span class="nav-toggle${vidExpanded?' open':''}" data-toggle-view="video_prompts">▶</span>` : '';
+
+      const imgCount = (proj?.image_prompts||[]).filter(p => !p.is_folder).length;
+      const vidCount = (proj?.video_prompts||[]).filter(p => !p.is_folder).length;
       nav.innerHTML = `
-        <div class="nav-item ${state.view==='image_prompts'?'active':''}" data-view="image_prompts">
+        <div class="nav-item ${state.view==='image_prompts'&&!state.folderFilter?'active':''}" data-view="image_prompts">
           <span class="nav-icon">🖼️</span><span class="nav-label">${t('图片提示词','Image Prompts')}</span>
-          <span class="nav-badge">${(proj?.image_prompts||[]).length}</span>
+          <span class="nav-badge">${imgCount}</span>
+          ${imgToggle}
         </div>
-        <div class="nav-item ${state.view==='video_prompts'?'active':''}" data-view="video_prompts">
+        ${imgHasFolders ? folderTreeHtml(imgFolders, 'image_prompts') : ''}
+        <div class="nav-item ${state.view==='video_prompts'&&!state.folderFilter?'active':''}" data-view="video_prompts">
           <span class="nav-icon">🎬</span><span class="nav-label">${t('视频提示词','Video Prompts')}</span>
-          <span class="nav-badge">${(proj?.video_prompts||[]).length}</span>
+          <span class="nav-badge">${vidCount}</span>
+          ${vidToggle}
         </div>
+        ${vidHasFolders ? folderTreeHtml(vidFolders, 'video_prompts') : ''}
         <div class="nav-item ${(state.view==='skill_prompts'||state.view==='skill_folder')?'active':''}" data-view="skill_prompts">
           <span class="nav-icon">🤖</span><span class="nav-label">${t('Skills 提示词','Skills / Agents')}</span>
           <span class="nav-badge">${(proj?.skill_prompts||[]).length}</span>
@@ -3528,8 +3578,33 @@
       `;
     }
 
+    // Nav item clicks (navigate to view, clear folder filter)
     nav.querySelectorAll('.nav-item[data-view]').forEach(el => {
-      el.addEventListener('click', () => navigate(el.dataset.view, state.projectId));
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('.nav-toggle')) return; // don't navigate when toggling
+        state.folderFilter = null;
+        navigate(el.dataset.view, state.projectId);
+      });
+    });
+    // Toggle expand/collapse folder trees
+    nav.querySelectorAll('.nav-toggle').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const viewKey = btn.dataset.toggleView;
+        _sidebarExpanded[viewKey] = !_sidebarExpanded[viewKey];
+        btn.classList.toggle('open');
+        const tree = nav.querySelector(`.nav-folder-tree[data-tree-view="${viewKey}"]`);
+        if (tree) tree.classList.toggle('expanded');
+      });
+    });
+    // Folder item clicks (filter by folder)
+    nav.querySelectorAll('.nav-folder-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const viewKey = el.dataset.folderView;
+        state.folderFilter = el.dataset.folderId;
+        if (state.view !== viewKey) navigate(viewKey, state.projectId);
+        else { renderSidebar(); renderPage(); }
+      });
     });
     const backBtn = document.getElementById('backToProjects');
     if (backBtn) backBtn.onclick = () => navigate('projects');
@@ -3614,7 +3689,7 @@
         document.getElementById('pageTitle').textContent = assetFolder.title || t('文件夹','Folder');
         document.getElementById('pageSubtitle').textContent = `${proj?.name || ''} · ${pageTitle} › ${assetFolder.title || t('文件夹','Folder')}`;
         document.getElementById('primaryBtn').textContent = t('← 返回','← Back');
-        document.getElementById('primaryBtn').onclick = () => { state.folderFilter = null; renderPage(); syncToolbarControls(); };
+        document.getElementById('primaryBtn').onclick = () => { state.folderFilter = null; renderSidebar(); renderPage(); syncToolbarControls(); };
         const _cb = document.getElementById('catBar');
         _cb.style.display = 'flex';
         const _folderTypeLabel = isImg ? t('图片','Image') : (state.view === 'pdf_files' ? t('文档','Doc') : t('视频','Video'));
@@ -3905,13 +3980,13 @@
     const activeType = viewTypeMap[state.view] || 'all';
     let prompts = buildProjectAssets(proj);
     if (activeType !== 'all') prompts = prompts.filter(p => p.__type === activeType);
-    // Folder drill-down for image/video views
+    // Folder filtering for image/video views (folders are in sidebar, not grid)
     const isAssetView = activeType === 'image' || activeType === 'video';
     if (isAssetView) {
+      // Never show folder cards in grid
+      prompts = prompts.filter(p => !p.is_folder);
       if (state.folderFilter) {
-        prompts = prompts.filter(p => !p.is_folder && p.folder_id === state.folderFilter);
-      } else {
-        prompts = prompts.filter(p => p.is_folder || !p.folder_id);
+        prompts = prompts.filter(p => p.folder_id === state.folderFilter);
       }
     }
     if (!state.folderFilter) {
