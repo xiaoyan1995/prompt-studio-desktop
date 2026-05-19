@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Prompt Studio</title>
 <link rel="icon" href="/prompt_studio_icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="/fonts/noto-sans-sc/chinese-simplified-400.css" rel="stylesheet">
+<link href="/fonts/noto-sans-sc/chinese-simplified-500.css" rel="stylesheet">
+<link href="/fonts/noto-sans-sc/chinese-simplified-600.css" rel="stylesheet">
+<link href="/fonts/noto-sans-sc/chinese-simplified-700.css" rel="stylesheet">
+<link href="/fonts/noto-sans-sc/latin-400.css" rel="stylesheet">
+<link href="/fonts/noto-sans-sc/latin-500.css" rel="stylesheet">
+<link href="/fonts/noto-sans-sc/latin-600.css" rel="stylesheet">
+<link href="/fonts/noto-sans-sc/latin-700.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="/mammoth.min.js"></script>
@@ -25,17 +32,21 @@
     --subtle:#6b7a99;
     --danger:#c0392b;
     --danger-soft:#fff0f0;
-    --radius:10px;
+    --radius:12px;
     --shadow:0 1px 2px rgba(26,35,64,.06),0 10px 30px rgba(26,35,64,.05);
     --shadow-lg:0 14px 42px rgba(26,35,64,.14);
     --card-min-w:240px;
     --card-zoom:1;
     --ui-zoom:1;
   }
-  body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text);height:calc(100vh / var(--ui-zoom,1));display:flex;flex-direction:column;overflow:hidden}
-  html{zoom:var(--ui-zoom,1)}
+  body{font-family:Inter,sans-serif;background:transparent !important;color:var(--text);height:calc(100vh / var(--ui-zoom,1));display:flex;flex-direction:column;overflow:hidden}
+  html{zoom:var(--ui-zoom,1);background:transparent !important}
+  #app-frame{
+    flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;
+    background:var(--bg);border-radius:0;
+  }
   .window-titlebar{
-    height:34px;flex:0 0 34px;background:var(--surface);border-bottom:1px solid var(--border);
+    height:34px;flex:0 0 34px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;
     display:flex;align-items:center;justify-content:space-between;padding:0 0 0 10px;
     -webkit-app-region:drag;user-select:none;
   }
@@ -62,11 +73,38 @@
   }
   .sidebar-nav-area{flex:1;overflow-y:auto;padding:0 0 8px}
   .sidebar-bottom{
-    flex-shrink:0;border-top:1px solid var(--border);padding:10px 12px;
-    display:flex;flex-direction:column;gap:8px;
+    flex-shrink:0;border-top:1px solid var(--border);padding:14px 14px 16px;
+    display:flex;flex-direction:column;gap:12px;
   }
-  .sidebar-bottom-row{display:flex;align-items:center;gap:5px}
-  .sidebar-bottom-label{font-size:10px;font-weight:700;color:var(--subtle);text-transform:uppercase;letter-spacing:.05em;width:40px;flex-shrink:0}
+  .sbl-section{display:flex;flex-direction:column;gap:6px}
+  .sbl-head-row{display:flex;align-items:center;gap:4px}
+  .sbl-head-label{font-size:11.5px;font-weight:700;color:var(--text);letter-spacing:-.01em}
+  .sbl-info{font-size:11px;color:var(--subtle);cursor:default;line-height:1}
+  .sbl-slider-row{display:flex;align-items:center;gap:7px}
+  .sbl-sz-icon{font-size:10px;color:var(--subtle);flex-shrink:0;user-select:none;opacity:.7}
+  .sbl-sz-icon.lg{font-size:14px}
+  .sbl-compact-row{display:flex;align-items:center;gap:6px}
+  .sbl-icon-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);color:var(--subtle);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0;-webkit-app-region:no-drag}
+  .sbl-icon-btn:hover{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
+  /* iOS-style toggle switch */
+  .sbl-switch{position:relative;display:inline-flex;width:36px;height:20px;cursor:pointer;flex-shrink:0}
+  .sbl-switch input{opacity:0;width:0;height:0;position:absolute}
+  .sbl-switch-track{
+    position:absolute;inset:0;border-radius:99px;background:#cbd5e1;
+    transition:background .2s;
+  }
+  .sbl-switch-track::before{
+    content:'';position:absolute;left:3px;top:3px;width:14px;height:14px;
+    border-radius:50%;background:#fff;transition:transform .22s;
+    box-shadow:0 1px 3px rgba(0,0,0,.2);
+  }
+  .sbl-switch input:checked ~ .sbl-switch-track{background:var(--primary)}
+  .sbl-switch input:checked ~ .sbl-switch-track::before{transform:translateX(16px)}
+  body.dark .sbl-switch input:checked ~ .sbl-switch-track{background:#d6a15d}
+  body.dark .sbl-switch-track{background:#2a394a}
+  /* legacy compat */
+  .sidebar-bottom-row{display:none}
+  .sidebar-bottom-label{display:none}
   .card-size-slider{
     flex:1;-webkit-appearance:none;appearance:none;height:4px;border-radius:99px;
     background:var(--border);outline:none;cursor:pointer;
@@ -89,28 +127,34 @@
 
   .sidebar-section{padding:12px 8px 0;font-size:11px;font-weight:700;color:var(--subtle);letter-spacing:.06em;text-transform:uppercase;margin:4px 8px 2px}
   .nav-item{
-    display:grid;grid-template-columns:22px minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;
+    display:grid;grid-template-columns:30px minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;
     cursor:pointer;font-size:13px;font-weight:500;color:var(--subtle);
     transition:background .15s,color .15s;user-select:none;margin:1px 8px;
   }
-  .nav-item:hover{background:#f0f4fc;color:var(--text)}
-  .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
-  .nav-item .nav-icon{font-size:15px;width:22px;text-align:center;flex-shrink:0}
+  .nav-item:hover{background:#f0f4ff;color:var(--text)}
+  .nav-item.active{background:var(--primary);color:#fff;font-weight:600}
+  .nav-item .nav-icon{
+    width:30px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    background:none;font-size:18px;flex-shrink:0;
+  }
+  .nav-item.active .nav-icon{background:rgba(255,255,255,.20)}
   .nav-item .nav-badge{margin-left:0;background:#e4e8ef;color:var(--subtle);border-radius:20px;padding:1px 7px;font-size:11px;font-weight:600;min-width:24px;text-align:center}
-  .nav-item.active .nav-badge{background:#dce9ff;color:var(--primary)}
+  .nav-item.active .nav-badge{background:rgba(255,255,255,.22);color:#fff}
 
   .sidebar-project-info{
-    padding:10px 16px 8px;border-bottom:1px solid var(--border);
+    padding:8px 18px 4px;
     display:none;
   }
   .sidebar-project-info.show{display:block}
   .sidebar-back{
     display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;
-    color:var(--subtle);margin-bottom:8px;padding:4px 0;
+    color:var(--subtle);margin-bottom:2px;padding:4px 0;
   }
   .sidebar-back:hover{color:var(--primary)}
-  .sidebar-proj-name{font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sidebar-proj-name{display:block;font-size:12px;font-weight:700;color:var(--text);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sidebar-proj-sub{font-size:11px;color:var(--subtle);margin-top:1px}
+  .sidebar-proj-edit{cursor:pointer;color:var(--primary);font-weight:600}
+  .sidebar-proj-edit:hover{text-decoration:underline}
 
   .sidebar-footer{margin-top:auto;padding:8px;border-top:1px solid var(--border)}
 
@@ -126,7 +170,7 @@
   .topbar{display:none}
   .search-box{
     display:flex;align-items:center;gap:5px;border:1px solid var(--border);
-    border-radius:9px;padding:5px 10px;background:#f9fafb;font-size:12px;
+    border-radius:9px;padding:0 10px;height:30px;background:#f9fafb;font-size:12px;
     color:var(--subtle);width:140px;
   }
   .search-box input{border:none;outline:none;background:transparent;font-size:13px;font-family:Inter,sans-serif;color:var(--text);width:100%}
@@ -142,7 +186,7 @@
   .btn-secondary:hover{background:#f0f4fc}
   .btn-danger{background:var(--danger-soft);color:var(--danger);border:1px solid #f0b8b8}
   .btn-danger:hover{background:#ffe0e0}
-  .btn-sm{padding:5px 11px;font-size:12px;border-radius:7px}
+  .btn-sm{padding:5px 11px;font-size:12px;border-radius:7px;min-height:0;line-height:1.4}
 
   .content{
     flex:1;padding:0;overflow:hidden;
@@ -171,9 +215,13 @@
     font-size:11.5px;
     font-family:Inter,sans-serif;
     outline:none;
-    width:auto;
+    max-width:140px;
     cursor:pointer;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
+  #filterModel{max-width:120px}
   .toolbar-select:focus{outline:none;color:var(--primary)}
   .toolbar-inline-note{font-size:11px;color:var(--subtle);padding:0 4px}
   .view-switch{
@@ -200,10 +248,11 @@
     grid-column:1;grid-row:2;
     min-height:0;overflow:auto;
     display:flex;flex-direction:column;
+    background:linear-gradient(175deg,#edf5ff 0%,#c5daf5 55%,#a8c6ee 100%);
   }
   .workspace-main{
-    flex:1;
-    background:var(--surface);
+    flex:1;min-height:100%;
+    background:transparent;
     border:none;
     border-radius:0;
     padding:12px;
@@ -216,18 +265,18 @@
     border:none;
     border-left:1px solid var(--border);
     border-radius:0;
-    padding:10px;
+    padding:0;
     box-shadow:none;
     display:flex;
     flex-direction:column;
-    gap:7px;
+    gap:0;
   }
   #inspectorBody{
     flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;
   }
   .inspector-head{
     display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px;
-    padding-bottom:7px;border-bottom:1px solid var(--border);
+    padding:10px 12px 8px;border-bottom:1px solid var(--border);flex-shrink:0;
   }
   .inspector-head h3{
     font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -254,26 +303,32 @@
     line-height:1.55;
     white-space:pre-wrap;
     word-break:break-word;
-    max-height:80px;
+    max-height:150px;
     overflow:auto;
   }
   .inspector-meta{
     display:grid;
     grid-template-columns:60px minmax(0,1fr);
     gap:3px 6px;
-    font-size:10.5px;
+    font-size:12.5px;
     line-height:1.4;
   }
   .inspector-meta dt{color:#5a6a7e}
   .inspector-meta dd{color:#2a3548;margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis}
   .inspector-thumb{
-    width:100%;
-    border-radius:6px;
-    border:1px solid var(--border);
-    background:#f0f4f8;
-    max-height:120px;
+    width:100%;display:block;flex-shrink:0;
+    border-radius:0;border:none;
+    background:#ffffff;
+    max-height:320px;height:auto;
     object-fit:contain;
   }
+  .insp-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px;flex:1;min-height:0;overflow-y:auto}
+  .insp-image-card{
+    margin:10px 12px 0;border:1px solid var(--border);border-radius:14px;background:var(--surface);
+    box-shadow:0 8px 20px rgba(31,41,55,.05);padding:10px;display:flex;flex-direction:column;gap:10px;overflow:hidden;
+  }
+  .insp-image-card .inspector-thumb{border-radius:10px;border:1px solid var(--border);background:#ffffff;height:200px;width:100%;object-fit:contain;display:block;cursor:zoom-in;transition:opacity .15s}
+  .insp-image-card .inspector-thumb:hover{opacity:.88}
   .inspector-actions{
     display:flex;flex-wrap:wrap;
     gap:5px;
@@ -362,10 +417,10 @@
   .inspector-stars{display:inline-flex;gap:2px}
   .inspector-stars .star{cursor:pointer;color:#8a9bb0;font-size:13px;transition:color .12s}
   .inspector-stars .star.on{color:#e8a820}
-  .inspector-links{display:flex;align-items:center;gap:12px;padding:8px 0;flex-wrap:wrap}
-  .inspector-links a{font-size:11px;color:#2f6fbd;cursor:pointer;font-weight:500}
-  .inspector-links a:hover{text-decoration:underline}
-  .inspector-links a.danger{color:#c24545}
+  .inspector-links{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:6px 0 2px}
+  .inspector-links a{display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text);cursor:pointer;font-weight:500;padding:6px 8px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);transition:background .15s;text-decoration:none}
+  .inspector-links a:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .inspector-links a.danger{color:var(--danger);background:var(--danger-soft);border-color:transparent}
   .card-thumb-placeholder{
     width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#eef4ff,#e2ebff);
     display:flex;align-items:center;justify-content:center;font-size:32px;color:#9fb8e9;
@@ -393,6 +448,16 @@
   .label-pdf{background:#fff8e1;color:#f57f17}
   .card-thumb-pdf{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#fff8e1,#ffecb3);display:flex;align-items:center;justify-content:center;font-size:36px;color:#f57f17;flex-direction:column;gap:4px}
   .card-thumb-pdf .pdf-fn{font-size:11px;color:#e65100;max-width:85%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* ── Doc card v2 (reference design) ─────────────── */
+  .dcv2{min-height:unset}
+  .dcv2-inner{padding:14px;display:flex;flex-direction:column;gap:8px}
+  .dcv2-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+  .dcv2-iconstack{display:flex;align-items:flex-end;gap:8px;flex-shrink:0}
+  .dcv2-icon{width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .dcv2-badge{font-size:10px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:5px;color:#fff;text-transform:uppercase;white-space:nowrap}
+  .dcv2-title{font-size:13px;font-weight:700;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.45;height:calc(13px * 1.45 * 2)}
+  .dcv2-meta{font-size:11px;color:var(--subtle)}
+  .dcv2-foot{display:flex;align-items:center;margin-top:2px}
   .pdf-upload-bar{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--surface);border:1.5px dashed var(--border);border-radius:12px;margin-bottom:18px;cursor:pointer;transition:border-color .15s,background .15s}
   .pdf-upload-bar:hover{border-color:var(--primary);background:var(--primary-soft)}
   .pdf-upload-bar input{display:none}
@@ -400,10 +465,10 @@
   .pdf-upload-text{font-size:13px;color:var(--subtle)}
   .pdf-upload-text strong{color:var(--text);font-weight:700}
   /* ── Category bar ── */
-  .cat-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 0 4px;}
-  .cat-btn{padding:5px 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:12.5px;font-weight:500;color:#555;cursor:pointer;white-space:nowrap;transition:.15s}
-  .cat-btn:hover{border-color:#4a9eff;color:#4a9eff;background:#f0f7ff}
-  .cat-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+  .cat-bar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:0 0 0 2px;border-bottom:1px solid var(--border);margin-bottom:14px;flex-shrink:0}
+  .cat-btn{padding:8px 2px;border-radius:0;border:none;border-bottom:2.5px solid transparent;background:transparent;font-size:13px;font-weight:500;color:var(--subtle);cursor:pointer;white-space:nowrap;transition:.15s;margin-bottom:-1px}
+  .cat-btn:hover{color:var(--text);background:transparent}
+  .cat-btn.active{background:transparent;border-bottom-color:var(--primary);color:var(--primary);font-weight:700}
   .cat-btn .cat-count{font-size:10px;opacity:.7;margin-left:3px}
   /* ── Quick tag buttons in modal ── */
   .quick-cat-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
@@ -425,12 +490,65 @@
   }
   .card-stat{display:flex;align-items:center;gap:4px}
   .card-del{
-    position:absolute;top:7px;right:7px;width:24px;height:24px;border-radius:50%;
-    background:rgba(20,20,30,.5);color:#fff;border:none;font-size:13px;cursor:pointer;
+    position:absolute;top:7px;right:7px;width:26px;height:22px;border-radius:6px;
+    background:rgba(20,20,30,.5);color:#fff;border:none;font-size:15px;cursor:pointer;
     display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;
+    font-weight:700;letter-spacing:1px;backdrop-filter:blur(4px);
   }
   .card:hover .card-del{opacity:1}
   .card-del:hover{background:rgba(180,30,30,.85)}
+  .card-star-btn{
+    position:absolute;bottom:8px;right:8px;width:26px;height:26px;border-radius:50%;
+    background:rgba(20,20,30,.45);color:rgba(255,255,255,.7);border:none;font-size:14px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;opacity:0;transition:all .15s;
+    backdrop-filter:blur(4px);z-index:3;
+  }
+  .card:hover .card-star-btn{opacity:1}
+  .card-star-btn.starred{opacity:1;color:#fbbf24;background:rgba(20,14,0,.45)}
+  .card-star-btn:hover{background:rgba(251,191,36,.25);color:#fbbf24}
+  /* Inspector title + tags rows */
+  .insp-info-card{display:contents}
+  .insp-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;padding:2px 0 0}
+  .insp-title-text{font-size:15px;font-weight:700;color:var(--text);line-height:1.45;flex:1;min-width:0;word-break:break-all}
+  .insp-pencil{flex-shrink:0;width:24px;height:24px;border:none;background:none;color:var(--subtle);font-size:13px;cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;-webkit-app-region:no-drag}
+  .insp-pencil:hover{background:var(--primary-soft);color:var(--primary)}
+  .insp-tags-row{padding:0 0 2px;font-size:11px}
+  .insp-add-tag{flex-shrink:0;width:20px;height:20px;border:1px dashed var(--border);background:none;color:var(--subtle);font-size:13px;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;-webkit-app-region:no-drag}
+  .insp-add-tag:hover{border-color:var(--primary);color:var(--primary)}
+  .insp-section-card{
+    border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:10px 11px;
+    display:flex;flex-direction:column;gap:8px;box-shadow:0 6px 18px rgba(31,41,55,.06);
+  }
+  .insp-meta-card{
+    border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:10px 11px;
+    display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 14px rgba(31,41,55,.04);
+  }
+  /* Collapsible inspector sections */
+  .insp-coll-hd{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 0 4px;cursor:pointer;user-select:none;
+  }
+  .insp-coll-hd:hover .inspector-field-label{color:var(--primary)}
+  .insp-coll-arrow{font-size:9px;color:var(--subtle);transition:transform .18s;flex-shrink:0}
+  .insp-coll.open .insp-coll-arrow{transform:rotate(90deg)}
+  .insp-coll-body{display:none;padding-bottom:0}
+  .insp-coll.open .insp-coll-body{display:block}
+  .insp-coll-body .inspector-main{
+    background:transparent;border:none;border-radius:0;padding:4px 2px;
+    max-height:280px;overflow-y:auto;overflow-x:hidden;
+  }
+  /* Inspector link buttons */
+  .inspector-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:2px 0 0}
+  .inspector-links a{
+    min-width:0;display:inline-flex;align-items:center;justify-content:center;
+    gap:4px;padding:5px 6px;font-size:11px;font-weight:600;border-radius:7px;
+    border:1px solid var(--border);background:var(--surface-2);color:var(--text);
+    cursor:pointer;text-decoration:none;transition:background .14s,border-color .14s;
+    white-space:nowrap;
+  }
+  .inspector-links a:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .inspector-links a.danger{color:var(--danger);border-color:rgba(192,57,43,.2);background:var(--danger-soft)}
+  .inspector-links a.danger:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
   .quality-pill{
     position:absolute;left:8px;top:8px;z-index:2;
     background:rgba(18,28,46,.78);color:#ffe9ad;border:1px solid rgba(255,255,255,.24);
@@ -443,9 +561,27 @@
 
   /* ── Project card ─────────────────────────────────── */
   .proj-card-cover{
-    width:100%;height:120px;background:linear-gradient(135deg,var(--c1,#e8eef8),var(--c2,#d3dff5));
-    display:flex;align-items:center;justify-content:center;font-size:40px;
+    width:100%;aspect-ratio:16/10;background:linear-gradient(135deg,var(--c1,#dbe9ff),var(--c2,#c5d8f8));
+    display:flex;align-items:center;justify-content:center;font-size:52px;
+    border-radius:var(--radius) var(--radius) 0 0;
   }
+  .proj-cover-img{
+    width:100%;aspect-ratio:16/10;object-fit:cover;display:block;
+    background:#eef2f8;border-radius:var(--radius) var(--radius) 0 0;
+  }
+  .proj-card-title{
+    font-size:17px;font-weight:700;color:var(--text);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .proj-stats-row{
+    display:flex;align-items:center;gap:10px;
+    padding:8px 12px 10px;border-top:1px solid var(--border);
+  }
+  .proj-stat{
+    display:flex;align-items:center;gap:3px;
+    font-size:11px;color:var(--subtle);
+  }
+  .proj-date{margin-left:auto;font-size:10.5px;color:var(--subtle)}
   .proj-mosaic{
     width:100%;height:150px;display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:#e8edf8;overflow:hidden;
   }
@@ -724,7 +860,7 @@
     --shadow-lg:0 26px 64px rgba(0,0,0,.36);
   }
   body{
-    font-family:"Microsoft YaHei UI","PingFang SC",Inter,sans-serif;
+    font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei UI",sans-serif;
     background:
       radial-gradient(circle at 12% 0%,rgba(214,161,93,.16),transparent 28%),
       radial-gradient(circle at 90% 8%,rgba(72,111,138,.18),transparent 30%),
@@ -738,8 +874,10 @@
     background:#0c1016;border-bottom:1px solid rgba(255,255,255,.07);color:var(--text);
   }
   .window-brand{color:var(--text)}
-  .window-action{color:#8190a3}
-  .window-action:hover{background:#1d2835;color:#fff}
+  body.dark .window-action{color:#8190a3}
+  body.dark .window-action:hover{background:#1d2835;color:#fff}
+  body.dark .window-action.pinned{background:rgba(37,99,235,.25);color:#7eb3ff}
+  body.dark .window-action.pinned:hover{background:rgba(37,99,235,.38);color:#a8ccff}
   .app-shell{background:transparent}
   .sidebar{
     background:linear-gradient(180deg,rgba(18,25,34,.98),rgba(13,18,25,.98));
@@ -839,7 +977,7 @@
   }
   .workspace-main{padding:12px}
   .inspector{border-left:1px solid rgba(255,255,255,.07)}
-  .inspector{padding:10px;gap:7px}
+  .inspector{padding:0;gap:0}
   .inspector-head{border-bottom-color:#2a394a;padding-bottom:7px}
   .inspector-head h3{font-size:13px;color:#e8f0fa}
   .inspector-section{
@@ -851,9 +989,9 @@
     color:#dce5ef;font-size:12.5px;line-height:1.72;
     max-height:260px;overflow:auto;padding-right:2px;
   }
-  .inspector-meta{grid-template-columns:56px minmax(0,1fr);gap:2px 6px;font-size:10.5px;color:#dce5ef}
+  .inspector-meta{grid-template-columns:60px minmax(0,1fr);gap:2px 6px;font-size:12.5px;color:#dce5ef}
   .inspector-meta dd{white-space:normal;word-break:break-word;color:#e8eef6}
-  .inspector-thumb{border-color:#2c3b4d;background:#0d1520;border-radius:6px;max-height:120px;object-fit:contain}
+  .inspector-thumb{background:#0d1520;border-radius:0;border:none;max-height:320px;height:auto;object-fit:contain;display:block}
   .inspector-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
   .inspector-actions .btn{min-width:0;white-space:normal;line-height:1.3}
   .inspector-ops{background:transparent;border:none;border-top:1px solid rgba(255,255,255,.07);border-radius:0;padding:7px 0 0}
@@ -924,6 +1062,11 @@
     grid-template-columns:1.25fr 1fr 1fr;
   }
   .proj-mosaic-item.empty{background:linear-gradient(135deg,#263546,#192330);color:#b8c5d4}
+  body.dark .proj-card-cover{background:linear-gradient(135deg,#1d2c40,#152030)}
+  body.dark .proj-cover-img{background:#0d1520}
+  body.dark .proj-stats-row{border-top-color:#2a394a}
+  body.dark .proj-stat{color:#7a8da0}
+  body.dark .proj-date{color:#5a6a7e}
   .proj-tags{gap:6px;margin-top:2px}
   .proj-tag{
     background:#222f3d;border-color:#34465a;color:#bcc9d8;border-radius:999px;
@@ -955,7 +1098,7 @@
   .md-preview{color:#dce5ef}
   .md-preview h1,.md-preview h2,.md-preview h3{color:#fff}
   .batch-bar{background:#0f151d;border:1px solid rgba(214,161,93,.22)}
-  .content{grid-template-columns:1fr 220px !important}
+  .content{grid-template-columns:1fr 280px !important}
   .inspector{order:0 !important;max-height:none !important}
   @media(max-width:700px){
     .modal-body{flex-direction:column}
@@ -1005,38 +1148,35 @@
 
   /* ── Color correction: keep the layout upgrade, restore a calm light theme ── */
   :root{
-    --bg:#f3f6fb;
-    --surface:#ffffff;
-    --surface-2:#f7f9fd;
-    --surface2:#f7f9fd;
-    --surface-3:#edf2f8;
-    --border:#dbe3ee;
-    --primary:#2f6fbd;
-    --primary-soft:#eaf2ff;
-    --text:#172033;
-    --subtle:#69788d;
-    --danger:#c24545;
-    --danger-soft:#fff0f0;
-    --shadow:0 14px 34px rgba(30,45,70,.08);
-    --shadow-lg:0 22px 54px rgba(30,45,70,.14);
+    --bg:#eaecf2;
+    --surface:#f4f6fb;
+    --surface-2:#eef1f8;
+    --surface2:#eef1f8;
+    --surface-3:#e8ecf4;
+    --border:#d8dfe9;
+    --primary:#2563eb;
+    --primary-soft:#eff6ff;
+    --text:#0f172a;
+    --subtle:#64748b;
+    --danger:#dc2626;
+    --danger-soft:#fef2f2;
+    --shadow:0 1px 3px rgba(15,23,42,.06),0 4px 16px rgba(15,23,42,.07);
+    --shadow-lg:0 8px 30px rgba(15,23,42,.14);
   }
   body{
-    background:
-      radial-gradient(circle at 10% 0%,rgba(47,111,189,.08),transparent 30%),
-      radial-gradient(circle at 90% 4%,rgba(223,167,86,.10),transparent 28%),
-      linear-gradient(135deg,#f7f9fd,#eef3f9 48%,#f8fafc);
+    background:#eaecf2;
     color:var(--text);
   }
   *{scrollbar-color:#b9c6d6 #eef3f9}
   *::-webkit-scrollbar-track{background:#eef3f9}
   *::-webkit-scrollbar-thumb{background:#b9c6d6;border-color:#eef3f9}
-  .window-titlebar{background:#ffffff;border-bottom:1px solid var(--border);color:var(--text)}
+  .window-titlebar{background:#f4f6fb;border-bottom:1px solid var(--border);color:var(--text)}
   .window-brand{color:var(--text)}
   .window-action{color:#7b8797}
   .window-action:hover{background:#eef3f9;color:var(--text)}
   .app-shell{background:transparent}
   .sidebar{
-    background:linear-gradient(180deg,#ffffff,#f7f9fd);
+    background:#f0f3f9;
     border-right:1px solid var(--border);
   }
   .sidebar-logo{border-bottom:1px solid var(--border)}
@@ -1044,84 +1184,92 @@
   .logo-text{color:var(--text)}
   .logo-sub{color:var(--subtle)}
   .sidebar-section{color:#8794a6}
-  .nav-item{color:#68778a}
+  .nav-item{color:#64748b}
   .nav-item .nav-icon{
-    background:#eef3f9;color:#2f4054;border:1px solid #e1e8f2;
+    background:none;border:none;
   }
   .nav-item .nav-badge{
-    background:#eef3f9;color:#68778a;border-color:#e1e8f2;
+    background:#f1f5f9;color:#64748b;border-color:#e2e8f0;
   }
-  .nav-item:hover{background:#edf4ff;color:var(--text)}
+  .nav-item:hover{background:#f0f4ff;color:var(--text)}
   .nav-item.active{
-    background:linear-gradient(135deg,#eaf2ff,#f6f9ff);
-    color:var(--primary);
-    box-shadow:inset 0 0 0 1px #cfe0f7;
+    background:#eef5ff;
+    color:#215fb8;
+    box-shadow:inset 0 0 0 1px #d9e8ff;
   }
-  .nav-item.active .nav-icon{background:#dbeaff;color:var(--primary)}
-  .nav-item.active .nav-badge{background:#dbeaff;color:var(--primary);border-color:#cfe0f7}
+  .nav-item.active .nav-icon{background:#dcebff;color:#2563eb;border-color:#cfe0fb}
+  .nav-item.active .nav-badge{background:#dcebff;color:#2563eb;border-color:#cfe0fb}
   .sidebar-project-info{
-    background:#f7f9fd;border-color:#dfe7f1;
+    background:transparent;border:none;
   }
   .sidebar-back{color:#69788d}
   .sidebar-back:hover{color:var(--primary)}
   .sidebar-proj-name{color:var(--text)}
   .sidebar-proj-sub{color:var(--subtle)}
+  .insp-image-card{background:#eef3fb;border-color:#c8d6e8;box-shadow:0 8px 20px rgba(31,41,55,.05)}
+  .insp-image-card .inspector-thumb{background:#eef3fb;border-color:#c8d6e8}
+  .insp-section-card,.insp-meta-card{background:#f7faff;border-color:#c8d6e8}
   .main{background:transparent}
   .topbar{
-    background:rgba(255,255,255,.84);
+    background:rgba(244,247,252,.93);
     border-bottom:1px solid var(--border);
   }
   .topbar-title h1{color:var(--text)}
   .topbar-title p{color:var(--subtle)}
   .search-box{
-    background:#ffffff;border-color:#dbe3ee;color:var(--subtle);
+    background:#f2f6fc;border-color:#cdd8e8;color:var(--subtle);
   }
   .search-box input{color:var(--text)}
   .btn-primary{
-    background:linear-gradient(135deg,#2f6fbd,#245fa5);
+    background:#2563eb;
     color:#fff;
-    box-shadow:0 10px 22px rgba(47,111,189,.16);
+    box-shadow:0 4px 14px rgba(37,99,235,.22);
   }
-  .btn-primary:hover{background:linear-gradient(135deg,#397ccc,#2868b4)}
-  .btn-secondary{background:#ffffff;color:var(--text);border-color:#dbe3ee}
+  .btn-primary:hover{background:#1d4ed8}
+  .btn-secondary{background:#f2f6fc;color:var(--text);border-color:#cdd8e8}
   .btn-secondary:hover{background:#edf4ff;color:var(--primary)}
   .btn-danger{background:#fff0f0;color:#c24545;border-color:#f2b9b9}
-  .workspace-toolbar,.workspace-main,.inspector{
-    background:rgba(255,255,255,.92);
-    border-color:#dbe3ee;
-    box-shadow:var(--shadow);
+  .workspace-toolbar,.inspector{
+    background:#f4f7fc;
+    border-color:#dae2ee;
+    box-shadow:none;
+  }
+  .workspace-main{
+    background:linear-gradient(160deg,#f4f8ff 0%,#eaf2fc 45%,#dce9f8 100%);
+    border-color:#dae2ee;
+    box-shadow:none;
   }
   .toolbar-select{
     background:transparent;border:none;color:var(--text);
   }
-  .view-switch{background:#ffffff;border-color:#dbe3ee}
+  .view-switch{background:#edf2fb;border-color:#cdd8e8}
   .view-btn{color:#69788d;border-right-color:#dbe3ee}
-  .view-btn.active{background:#eaf2ff;color:var(--primary)}
-  .inspector-head{border-bottom-color:#dbe3ee}
+  .view-btn.active{background:#eff6ff;color:var(--primary)}
+  .inspector-head{border-bottom-color:#e2e8f0}
   .inspector-head h3{color:var(--text)}
   .inspector-section{
-    background:#f7f9fd;border-color:#dfe7f1;
+    background:transparent;border-color:#e2e8f0;
   }
   .inspector-label{color:#738196}
   .inspector-main{color:#273447}
   .inspector-meta dd{color:#172033}
-  .inspector-thumb{border-color:#dfe7f1;background:#eef3f9}
-  .inspector-ops{background:#ffffff;border-color:#dfe7f1}
+  .inspector-thumb{background:#f1f5f9;border:none;border-radius:0;max-height:320px;height:auto;object-fit:contain}
+  .inspector-ops{background:#f4f7fc;border-color:#dae2ee}
   .card{
-    background:linear-gradient(180deg,#ffffff,#f8fbff);
-    border-color:#dbe3ee;
-    box-shadow:var(--shadow);
+    background:#f9fbff;
+    border-color:#dae2ee;
+    box-shadow:0 1px 3px rgba(15,23,42,.06),0 4px 16px rgba(15,23,42,.07);
   }
-  .card::before{background:linear-gradient(135deg,rgba(47,111,189,.06),transparent 38%)}
+  .card::before{content:none}
   .card.selected{
-    border-color:#86b2ed;
-    box-shadow:0 0 0 1px rgba(47,111,189,.16),0 18px 48px rgba(47,111,189,.13);
+    border-color:#2563eb;
+    box-shadow:0 0 0 2px rgba(37,99,235,.18);
   }
-  .card:hover{border-color:#b8c9df;box-shadow:var(--shadow-lg)}
-  .card-thumb{background:#eef3f9}
+  .card:hover{border-color:#bfcfe8;box-shadow:0 8px 24px rgba(15,23,42,.12)}
+  .card-thumb{background:#f1f5f9}
   .card-thumb-placeholder{
-    background:linear-gradient(135deg,#edf4ff,#f8fbff);
-    color:#89a7cf;
+    background:linear-gradient(135deg,#eff6ff,#f8fafc);
+    color:#93b8d8;
   }
   .skill-card-cover{
     border-bottom-color:#dfe7f1;
@@ -1130,18 +1278,19 @@
       linear-gradient(135deg,#eef5ff,#ffffff);
   }
   .skill-card-icon{
-    background:#ffffff;border-color:#dbe3ee;color:#2f6fbd;
+    background:#edf2fb;border-color:#cdd8e8;color:#2563eb;
   }
-  .skill-card-kicker{color:#2f6fbd}
+  .skill-card-kicker{color:#2563eb}
   .skill-card-model{color:#69788d}
-  .label-image{background:#eaf7ee;color:#2d7a3a}
-  .label-video{background:#fff4e5;color:#a86516}
-  .label-project{background:#eaf2ff;color:#2f6fbd}
-  .label-skill{background:#eef2ff;color:#4b61b8}
+  .label-image{background:rgba(34,197,94,.12);color:#15803d}
+  .label-video{background:rgba(249,115,22,.12);color:#c2410c}
+  .label-project{background:#eff6ff;color:#2563eb}
+  .label-skill{background:#eef2ff;color:#4338ca}
   .card-title{color:#172033}
   .card-meta{color:#69788d}
   .card-footer{border-top-color:#dfe7f1;color:#738196}
-  .card-del{background:rgba(23,32,51,.50);border-color:rgba(255,255,255,.45);color:#fff}
+  .card-del{background:rgba(15,23,42,.52);border-color:rgba(255,255,255,.4);color:#fff;opacity:0}
+  .quality-pill{z-index:5}
   .quality-pill{background:rgba(23,32,51,.68);border-color:rgba(255,255,255,.45)}
   .proj-mosaic{background:#eef3f9}
   .proj-mosaic-item.empty{
@@ -1152,7 +1301,7 @@
     background:#edf3fb;border-color:#dbe5f2;color:#52647a;
   }
   .project-kpi{
-    background:#ffffff;border-color:#dbe3ee;
+    background:#f2f6fc;border-color:#cdd8e8;
   }
   .project-kpi strong{color:#172033}
   .project-kpi span{color:#69788d}
@@ -1160,17 +1309,17 @@
     background:#edf3fb;border-color:#dbe5f2;color:#52647a;
   }
   .field input,.field textarea,.field select{
-    background:#ffffff;border-color:#dbe3ee;color:#172033;
+    background:#f2f6fc;border-color:#cdd8e8;color:#172033;
   }
   .field label{color:#69788d}
-  .modal,.modal-head,.modal-right,.sp-footer{background:#ffffff;border-color:#dbe3ee}
+  .modal,.modal-head,.modal-right,.sp-footer{background:#f4f7fc;border-color:#cdd8e8}
   .modal-head{border-bottom-color:#dbe3ee}
   .modal-head h2{color:#172033}
   .modal-left{border-right-color:#dbe3ee}
-  .md-editor-header,.md-preview,.md-btn,#spPrompt{background:#ffffff;color:#172033;border-color:#dbe3ee}
+  .md-editor-header,.md-preview,.md-btn,#spPrompt{background:#f4f7fc;color:#172033;border-color:#cdd8e8}
   .md-preview{color:#273447}
   .md-preview h1,.md-preview h2,.md-preview h3{color:#172033}
-  .batch-bar{background:#172033;border:1px solid rgba(47,111,189,.18)}
+  .batch-bar{background:#f4f7fc;border-top:1px solid var(--border);box-shadow:0 -2px 12px rgba(26,35,64,.06);color:var(--text);right:280px}
 
   /* Project page: compact card grid (left panel) + right inspector (full height) */
   .content.view-projects .toolbar-filters{display:none}
@@ -1180,7 +1329,7 @@
   .content.view-audio .inspector{display:none !important}
   .content.view-audio{grid-template-columns:1fr !important}
   .content.view-projects .workspace-main{
-    background:transparent;border:none;box-shadow:none;padding:12px;
+    border:none;box-shadow:none;padding:12px;
   }
   .content.view-projects .grid{
     grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
@@ -1213,7 +1362,7 @@
     background:#525659;position:relative;
   }
   /* Doc rich-text preview inside modal */
-  .doc-richtext-preview{flex:1;overflow:auto;background:#fff;padding:24px 32px;font-size:14px;line-height:1.7;color:#1e293b;border-radius:8px}
+  .doc-richtext-preview{flex:1;overflow:auto;background:#f4f7fc;padding:24px 32px;font-size:14px;line-height:1.7;color:#1e293b;border-radius:8px}
   .doc-richtext-preview table{border-collapse:collapse;width:100%;font-size:13px}
   .doc-richtext-preview th,.doc-richtext-preview td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left}
   .doc-richtext-preview th{background:#f1f5f9;font-weight:600}
@@ -1227,9 +1376,9 @@
     background:linear-gradient(135deg,#0d1117,#141b24 45%,#10151c);color:var(--text);
   }
   body.dark .window-titlebar{background:#0c1016;border-bottom-color:rgba(255,255,255,.07)}
-  body.dark .sidebar{background:linear-gradient(180deg,rgba(18,25,34,.98),rgba(13,18,25,.98));border-right-color:rgba(255,255,255,.08)}
+  body.dark .sidebar{background:linear-gradient(180deg,rgba(18,25,34,.98),rgba(13,18,25,.98));border-right-color:rgba(255,255,255,.03)}
   body.dark .nav-item{color:#9aa8ba}
-  body.dark .nav-item .nav-icon{background:#1d2835;color:#c0ccda;border-color:#2a394a}
+  body.dark .nav-item .nav-icon{background:none;border:none}
   body.dark .nav-item:hover{background:#1d2835;color:#fff}
   body.dark .nav-item.active{background:rgba(214,161,93,.12);color:#d6a15d;box-shadow:inset 0 0 0 1px rgba(214,161,93,.22)}
   body.dark .nav-item.active .nav-icon{background:rgba(214,161,93,.18);color:#d6a15d}
@@ -1243,7 +1392,8 @@
   body.dark .settings-card-orange{background:rgba(120,53,15,0.18)!important;border-color:rgba(253,186,116,0.2)!important}
   body.dark .search-box{background:#111923;border-color:#2b3a4a;color:#d8e1ec}
   body.dark .search-box input{color:#eef3f8}
-  body.dark .workspace-main{background:rgba(14,20,30,1)}
+  body.dark .workspace-shell{background:rgba(14,20,30,1)}
+  body.dark .workspace-main{background:transparent}
   body.dark .inspector{background:rgba(14,20,30,1);border-left-color:rgba(255,255,255,.07)}
   body.dark .inspector-head{border-bottom-color:#2a394a}
   body.dark .inspector-head h3{color:#e8f0fa}
@@ -1257,8 +1407,9 @@
   body.dark .inspector-field-val{color:#e8f0fa}
   body.dark .inspector-field-label{color:#8392a5}
   body.dark .inspector-info-title{color:#e8f0fa;border-bottom-color:rgba(255,255,255,.07)}
-  body.dark .inspector-links a{color:#7db8f0}
-  body.dark .inspector-links a.danger{color:#ff9a9a}
+  body.dark .inspector-links a{color:#c8d5e8;background:#1b2531;border-color:#2f4051}
+  body.dark .inspector-links a:hover{background:rgba(56,97,251,.18);border-color:#4a70d4;color:#7db8f0}
+  body.dark .inspector-links a.danger{color:#ff9a9a;background:rgba(255,80,80,.1);border-color:transparent}
   body.dark .inspector-stars .star{color:#8392a5}
   body.dark .inspector-stars .star.on{color:#d6a15d}
   body.dark .inspector-ops{border-top-color:rgba(255,255,255,.07);background:transparent}
@@ -1277,7 +1428,8 @@
   body.dark .card-meta{color:#95a4b6}
   body.dark .card-footer{border-top-color:#2d3d4f;color:#7a8da0}
   body.dark .card-label{background:#1d3044;border-color:#2a4560;color:#7db8f0}
-  body.dark .card-del{color:#5a6a7e}
+  body.dark .card-del{color:#5a6a7e;opacity:0}
+  body.dark .card:hover .card-del{opacity:1}
   body.dark .card-del:hover{color:#ff9a9a;background:rgba(255,107,107,.12)}
   body.dark .empty-icon{color:#3a4d60}
   body.dark .empty h3{color:#8392a5}
@@ -1288,18 +1440,74 @@
   body.dark .btn-primary{background:linear-gradient(135deg,#d6a15d,#b77a32);color:#0d1117;border-color:transparent}
   body.dark .field input,body.dark .field textarea,body.dark .field select{background:#111923;border-color:#2b3a4a;color:#e6edf5}
   body.dark .field label{color:#8d9caf}
-  body.dark .sidebar-project-info{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.07)}
+  body.dark .nav-item .nav-badge{background:rgba(255,255,255,.07);color:#aab8c9;border-color:rgba(255,255,255,.08)}
+  body.dark .nav-item.active .nav-badge{background:rgba(214,161,93,.16);color:#ffe0ad;border-color:rgba(214,161,93,.24)}
+  body.dark .nav-item .nav-icon{background:none;border:none}
+  body.dark .sidebar-project-info{background:transparent;border:none}
   body.dark .sidebar-back{color:#7a8da0}
   body.dark .sidebar-back:hover{color:#d6a15d}
   body.dark .sidebar-proj-name{color:#dce5ef}
   body.dark .sidebar-proj-sub{color:#5a6a7e}
-  body.dark .modal,body.dark .modal-head{background:var(--surface);border-color:#2a394a}
+  body.dark *{scrollbar-color:#4a5b6f #121a24;scrollbar-width:thin}
+  body.dark *::-webkit-scrollbar{width:6px;height:6px}
+  body.dark *::-webkit-scrollbar-track{background:#121a24}
+  body.dark *::-webkit-scrollbar-thumb{background:#4a5b6f;border-radius:3px}
+  body.dark *::-webkit-scrollbar-thumb:hover{background:#6a7f9a}
+  body.dark .card-thumb{background:#111923}
+  body.dark .inspector-thumb{background:#0d1520}
+  body.dark .insp-image-card{background:#0d1520;border-color:#2a394a;box-shadow:none}
+  body.dark .insp-image-card .inspector-thumb{background:#0d1520;border-color:#2a394a;height:200px;width:100%;object-fit:contain;display:block}
+  body.dark .insp-section-card,body.dark .insp-meta-card{background:#121924;border-color:#2a394a;box-shadow:none}
+  body.dark .insp-coll-body .inspector-main{
+    background:transparent;
+    border:none;
+    max-height:280px;
+  }
+  body.dark .doc-panel,body.dark #skillPanel{background:#111923;border-color:#2a394a}
+  body.dark .sp-head,body.dark .doc-meta{background:#111923;border-color:#2a394a}
+  body.dark .sp-head h2,body.dark .sp-head span{color:#e8f0fa}
+  body.dark #spPrompt{background:#0d1520;color:#e6edf5;border-color:#2b3a4a}
+  body.dark .sp-editor{background:#111923}
+  body.dark .doc-richtext-preview{background:#0d1520;color:#dce5ef}
+  body.dark .doc-richtext-preview th{background:#1a2535;color:#dce5ef}
+  body.dark .doc-richtext-preview td{border-color:#2a394a;color:#c8d6e5}
+  body.dark .doc-richtext-preview th{border-color:#2a394a}
+  body.dark #pdfPageNav{background:#111923;border-top-color:#2a394a;color:#8392a5}
+  body.dark .pdf-zoom-bar{background:rgba(13,21,32,.85);color:#aab8c9;border:1px solid #2a394a}
+  body.dark .pdf-zoom-bar button{color:#d6a15d}
+  body.dark .modal,body.dark .modal-head,body.dark .modal-right,body.dark .sp-footer{background:#111923;border-color:#2a394a}
+  body.dark .modal-head{border-bottom-color:#2a394a}
+  body.dark .modal-head h2{color:#e8f0fa}
+  body.dark .modal-left{border-right-color:#2a394a}
+  body.dark .modal-close{background:#1a2535;border-color:#2a394a;color:#8392a5}
+  body.dark .modal-close:hover{background:#1e2e41;color:#dce5ef}
+  body.dark .md-editor-header,body.dark .md-preview,body.dark .md-btn,body.dark #spPrompt{background:#0d1520;color:#e6edf5;border-color:#2b3a4a}
+  body.dark .field input,body.dark .field textarea,body.dark .field select{background:#0d1520;border-color:#2b3a4a;color:#e6edf5}
+  body.dark .settings-nav-btn{color:#8392a5}
+  body.dark .settings-nav-btn:hover,body.dark .settings-nav-btn.active{background:#1a2535;color:#d6a15d}
   body.dark .theme-toggle{color:#d6a15d}
   .theme-toggle{
     background:none;border:none;cursor:pointer;font-size:16px;padding:4px 6px;
     color:#69788d;border-radius:6px;transition:background .15s;
   }
   .theme-toggle:hover{background:var(--surface-2)}
+
+  /* ── Card image overlay badges ────────────────── */
+  .card-img-wrap{position:relative;overflow:hidden;display:block}
+  .card-label-ov{
+    position:absolute!important;top:8px;left:8px;z-index:3;margin:0!important;
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    background:rgba(255,255,255,.86)!important;border:1px solid rgba(255,255,255,.5)!important;
+    font-size:9.5px!important;padding:3px 8px!important;
+  }
+  .card-aspect-ov{
+    position:absolute;bottom:8px;right:8px;z-index:3;
+    background:rgba(0,0,0,.52);color:#fff;border-radius:5px;
+    padding:2px 8px;font-size:10px;font-weight:700;
+    backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  }
+  body.dark .card-label-ov{background:rgba(10,16,24,.74)!important;color:#c8d5e8!important;border-color:rgba(255,255,255,.08)!important}
+  body.dark .card-aspect-ov{background:rgba(0,0,0,.65);color:#e8f0fa}
 
   /* ── Rubber-band selection rect ─────────────────── */
   .selection-rect{
@@ -1325,17 +1533,20 @@
   .color-pick.active{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
 
   /* ── Batch bar (fixed bottom) ────────────────────── */
-  .batch-bar{position:fixed;bottom:0;left:var(--sidebar-w);right:0;height:48px;background:#172033;color:#eaf1ff;
-    display:none;align-items:center;padding:0 16px;gap:10px;z-index:200;border-top:1px solid rgba(47,111,189,.18)}
-  .batch-bar.show{display:flex}
-  .batch-count{font-size:12px;font-weight:700;margin-right:8px}
-  .batch-spacer{flex:1}
-  .batch-btn{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#eaf1ff;
+  .batch-bar{position:fixed;bottom:0;left:var(--sidebar-w);right:280px;height:48px;
+    background:var(--surface);color:var(--text);border-top:1px solid var(--border);
+    box-shadow:0 -2px 12px rgba(26,35,64,.06);
+    display:flex;align-items:center;padding:0 16px;gap:8px;z-index:200;border-radius:0}
+  .batch-count{font-size:12px;font-weight:700;margin-right:4px;color:var(--text)}
+  .batch-spacer{display:none}
+  .batch-btn{border:1px solid var(--border);background:var(--surface-2);color:var(--text);
     border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer}
-  .batch-btn:hover{background:rgba(255,255,255,.13)}
-  .batch-btn.danger{border-color:rgba(239,68,68,.4);color:#fca5a5}
-  .batch-btn.danger:hover{background:rgba(239,68,68,.15)}
-  body.dark .batch-bar{background:#0f151d;border-color:rgba(214,161,93,.22)}
+  .batch-btn:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .batch-btn.danger{border-color:rgba(192,57,43,.3);color:var(--danger);background:var(--danger-soft)}
+  .batch-btn.danger:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
+  body.dark .batch-bar{background:#0f1520;border-top-color:rgba(255,255,255,.08);box-shadow:0 -2px 12px rgba(0,0,0,.3);color:#dce5ef;right:280px}
+  body.dark .batch-btn{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#dce5ef}
+  body.dark .batch-count{color:#dce5ef}
 
   /* ── Context menu ────────────────────────────────── */
   .ctx-menu{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:8px;
@@ -1445,9 +1656,19 @@
   .amp-prog-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:2px;width:0%;transition:width .1s linear}
   .amp-vol{display:flex;align-items:center;gap:5px;flex-shrink:0}
   .amp-vol input{width:60px;accent-color:#3b82f6}
+  /* ── Uniform card height ─────────────────────────── */
+  .card-thumb,.card-thumb-placeholder,.video-preview-shell,
+  .proj-card-cover,.proj-cover-img,.skill-folder-cover{
+    height:150px;aspect-ratio:unset;width:100%;min-height:unset;flex-shrink:0;
+  }
+  .card-thumb{object-fit:contain}
+  .proj-cover-img{object-fit:cover}
+  .card-body{height:76px;overflow:hidden;flex-shrink:0}
+  .card-meta{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 </style>
 </head>
 <body>
+<div id="app-frame">
 
 <div class="window-titlebar">
   <div class="window-brand">
@@ -1455,7 +1676,7 @@
     <span>Prompt Studio</span>
   </div>
   <div class="window-actions">
-    <button class="window-action" id="pinWindowBtn" title="窗口置顶（置顶后始终显示在其他应用上方）">📌</button>
+    <button class="window-action" id="pinWindowBtn" title="窗口置顶（置顶后始终显示在其他应用上方）"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/></svg></button>
     <button class="window-action" data-window-action="minimize" title="最小化">—</button>
     <button class="window-action" data-window-action="maximize" title="最大化">□</button>
     <button class="window-action close" data-window-action="close" title="关闭">×</button>
@@ -1489,17 +1710,24 @@
 
   <!-- Bottom controls -->
   <div class="sidebar-bottom">
-    <div class="sidebar-bottom-row">
-      <span class="sidebar-bottom-label" id="sblCardLabel">卡片</span>
+    <div class="sbl-slider-row">
+      <span class="sbl-sz-icon">⊟</span>
       <input type="range" class="card-size-slider" id="cardSizeSlider"
         min="0.5" max="1.8" step="0.02" value="1"
         oninput="applyCardScale(parseFloat(this.value))">
+      <span class="sbl-sz-icon lg">⊞</span>
     </div>
-    <div class="sidebar-bottom-row">
-      <span class="sidebar-bottom-label" id="sblZoomLabel">缩放</span>
-      <button class="scale-btn" id="uiZoomOut" onclick="applyUiZoom(currentZoomIdx-1)" title="界面缩小">A−</button>
-      <button class="scale-btn" id="uiZoomIn" onclick="applyUiZoom(currentZoomIdx+1)" title="界面放大">A+</button>
-      <button class="theme-toggle" id="themeToggleBtn" title="切换深色/浅色主题" style="margin-left:auto">🌓</button>
+    <div class="sbl-compact-row">
+      <button class="scale-btn" id="uiZoomOut" onclick="applyUiZoom(currentZoomIdx-1)" title="缩小界面">A−</button>
+      <button class="scale-btn" id="uiZoomIn" onclick="applyUiZoom(currentZoomIdx+1)" title="放大界面">A+</button>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:5px">
+        <span id="themeIconSun" style="font-size:13px;opacity:.7;transition:opacity .2s">☀️</span>
+        <label class="sbl-switch" title="切换深色/浅色主题">
+          <input type="checkbox" id="themeToggleBtn">
+          <span class="sbl-switch-track"></span>
+        </label>
+        <span id="themeIconMoon" style="font-size:13px;opacity:.4;transition:opacity .2s">🌙</span>
+      </span>
     </div>
   </div>
 
@@ -1614,6 +1842,37 @@
   <button id="tagCtxDelete" style="display:block;width:100%;text-align:left;padding:8px 14px;background:none;border:none;cursor:pointer;font-size:13px;color:#ef4444">🗑 删除标签</button>
 </div>
 
+<!-- Project card context menu -->
+<div id="projCardCtxMenu" style="display:none;position:fixed;z-index:10001;background:var(--bg);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,0.22);padding:4px 0;min-width:152px">
+  <button id="projCtxOpen"   style="display:block;width:100%;text-align:left;padding:8px 16px;background:none;border:none;cursor:pointer;font-size:13px;color:var(--text)">📂 打开</button>
+  <button id="projCtxEdit"   style="display:block;width:100%;text-align:left;padding:8px 16px;background:none;border:none;cursor:pointer;font-size:13px;color:var(--text)">✏️ 编辑项目</button>
+  <button id="projCtxCover"  style="display:block;width:100%;text-align:left;padding:8px 16px;background:none;border:none;cursor:pointer;font-size:13px;color:var(--text)">🖼️ 更改封面</button>
+  <div style="height:1px;background:var(--border);margin:4px 8px"></div>
+  <button id="projCtxDelete" style="display:block;width:100%;text-align:left;padding:8px 16px;background:none;border:none;cursor:pointer;font-size:13px;color:#ef4444">🗑️ 删除</button>
+</div>
+
+<!-- Cover picker modal -->
+<div class="modal-backdrop" id="projCoverModal">
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <h2>🖼️ 更改封面图</h2>
+      <button class="modal-close" id="projCoverModalClose">×</button>
+    </div>
+    <div class="modal-body" style="flex-direction:column;gap:12px;padding:16px 16px 4px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-secondary" id="projCoverUploadBtn">📤 上传图片</button>
+        <button class="btn btn-secondary" id="projCoverDefaultBtn">🔄 恢复默认</button>
+      </div>
+      <input type="file" id="projCoverFileInput" accept="image/*" style="display:none">
+      <div style="font-size:12px;color:var(--subtle)">或从项目图片中选择：</div>
+      <div id="projCoverImgGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;max-height:280px;overflow-y:auto;padding-bottom:12px"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" id="projCoverCancelBtn">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- Batch bar (fixed bottom) -->
 <div class="batch-bar" id="batchBar">
   <span class="batch-count" id="batchCount">已选择 0 项</span>
@@ -1621,7 +1880,6 @@
   <button class="batch-btn" id="batchMoveBtn">📦 移到项目</button>
   <button class="batch-btn" id="batchStarBtn">⭐ 星标</button>
   <button class="batch-btn" id="batchReverseBtn">🔍 批量反推</button>
-  <div class="batch-spacer"></div>
   <button class="batch-btn danger" id="batchDeleteBtn">🗑️ 删除</button>
   <button class="batch-btn" id="batchCancelBtn">取消</button>
 </div>
@@ -2957,8 +3215,16 @@
   function updateBatchBar() {
     const bar = document.getElementById('batchBar');
     if (!bar) return;
+    const shell = document.querySelector('.workspace-shell');
+    const hiddenViews = ['skill_prompts','pdf_files','audio_library','projects'];
+    if (hiddenViews.includes(state.view)) {
+      bar.style.display = 'none';
+      if (shell) shell.style.paddingBottom = '0';
+      return;
+    }
+    bar.style.display = 'flex';
+    if (shell) shell.style.paddingBottom = '48px';
     const count = uiState.selectedIds.size;
-    bar.classList.toggle('show', count > 0);
     const countEl = document.getElementById('batchCount');
     if (countEl) countEl.textContent = t(`已选择 ${count} 项`,`${count} selected`);
   }
@@ -3048,6 +3314,7 @@
       titleEl.textContent = t('详情面板','Detail Panel');
       chipEl.textContent = t('未选择','None');
       chipEl.className = 'chip';
+      chipEl.style.display = '';
       body.className = 'inspector-placeholder';
       body.textContent = t('这里会显示你当前选中的项目或提示词详情，包括基本信息、提示词内容、反推分析摘要和常用操作。','Select a project or prompt to see its details, including info, prompt content, analysis, and quick actions.');
       return;
@@ -3059,9 +3326,10 @@
       skill: { label: 'Skills / Agent', className: 'chip label-skill' },
     };
     const typeInfo = typeMap[item.__type] || typeMap.project;
-    titleEl.textContent = item.title || item.name || t('未命名','Untitled');
+    titleEl.textContent = item.__type === 'project' ? (item.title || item.name || t('未命名','Untitled')) : typeInfo.label;
     chipEl.textContent = typeInfo.label;
     chipEl.className = typeInfo.className;
+    chipEl.style.display = item.__type === 'project' ? '' : 'none';
 
     const projectTags = item.__type === 'project'
       ? Array.from(new Set([
@@ -3077,39 +3345,44 @@
           ? item.tags.map(x => `<span class="chip">${h(x)}</span>`).join('')
           : noTagsHtml);
     const promptBlock = item.prompt
-      ? `<div class="inspector-field"><div class="inspector-field-label">${t('提示词','Prompt')}</div><div class="inspector-main">${h(item.prompt)}</div></div>`
+      ? `<div class="insp-section-card insp-coll open"><div class="insp-coll-hd" onclick="this.closest('.insp-coll').classList.toggle('open')"><span class="inspector-field-label">${t('提示词','Prompt')}</span><span class="insp-coll-arrow">▶</span></div><div class="insp-coll-body"><div class="inspector-main">${h(item.prompt)}</div></div></div>`
       : '';
     const analysisBlock = item.analysis
-      ? `<div class="inspector-field"><div class="inspector-field-label">${t('反推分析','Analysis')}</div><div class="inspector-main">${h(item.analysis)}</div></div>`
+      ? `<div class="insp-section-card insp-coll"><div class="insp-coll-hd" onclick="this.closest('.insp-coll').classList.toggle('open')"><span class="inspector-field-label">${t('视觉报告','Visual Report')}</span><span class="insp-coll-arrow">▶</span></div><div class="insp-coll-body"><div class="inspector-main">${h(item.analysis)}</div></div></div>`
       : '';
-    const thumb = item.image
-      ? `<img class="inspector-thumb" src="${h(item.image)}" alt="">`
-      : (item.video ? `<video class="inspector-thumb" src="${h(item.video)}" controls preload="metadata"></video>` : '');
-    const buildPromptMetaRows = () => {
-      const dims = item.width && item.height ? `${item.width} × ${item.height}` : (item.aspect || '-');
-      const dur = item.duration ? formatSec(item.duration) : (item.__type === 'video' ? (item.duration_text || '-') : '-');
-      const fps = item.fps ? `${item.fps} fps` : '-';
-      return `<dl class="inspector-meta">
-        <dt>${t('模型','Model')}</dt><dd>${h(item.model || '-')}</dd>
-        <dt>${t('尺寸','Size')}</dt><dd>${h(dims || '-')}</dd>
-        <dt>${t('时长','Duration')}</dt><dd>${h(dur || '-')}</dd>
-        <dt>${t('帧率','FPS')}</dt><dd>${h(fps)}</dd>
-        <dt>${t('大小','File Size')}</dt><dd>${h(item.file_size_text || '-')}</dd>
-        <dt>${t('创建时间','Created')}</dt><dd>${h(item.created_at || '-')}</dd>
-        <dt>${t('更新时间','Updated')}</dt><dd>${h(item.updated_at || '-')}</dd>
-      </dl>`;
-    };
-    const metaRows = item.__type === 'project'
-      ? `<dl class="inspector-meta">
-           <dt>${t('图片','Images')}</dt><dd>${(item.image_prompts||[]).length}</dd>
-           <dt>${t('视频','Videos')}</dt><dd>${(item.video_prompts||[]).length}</dd>
-           <dt>Skills</dt><dd>${(item.skill_prompts||[]).length}</dd>
-           <dt>${t('创建时间','Created')}</dt><dd>${h(item.created_at || '-')}</dd>
-         </dl>`
-      : buildPromptMetaRows();
     const paletteBlock = item.__type === 'image'
       ? `<div style="display:flex;align-items:center;gap:4px"><div class="palette-row" id="paletteRow" style="flex:1"><span style="font-size:10px;color:var(--subtle)">${t('提取中…','Extracting…')}</span></div><button id="paletteCopyImgBtn" title="${t('复制色卡图','Copy palette image')}" style="display:none;flex-shrink:0;background:none;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px 5px;font-size:11px;color:var(--subtle)">🎨</button></div>`
       : '';
+    const inspectorImgSrc = item.__type === 'image' ? (((item.gallery||[])[0]) || item.image || '') : '';
+    const thumb = inspectorImgSrc
+      ? `<img class="inspector-thumb" src="${h(inspectorImgSrc)}" alt="">`
+      : (item.video ? `<video class="inspector-thumb" src="${h(item.video)}" controls preload="metadata"></video>` : '');
+    const mediaCard = thumb
+      ? `<div class="insp-image-card">${thumb}${paletteBlock}</div>`
+      : '';
+    const buildPromptMetaRows = () => {
+      const dims = item.width && item.height ? `${item.width} × ${item.height}` : (item.aspect || '');
+      const isVid = item.__type === 'video';
+      const dur = isVid ? (item.duration ? formatSec(item.duration) : (item.duration_text || '')) : '';
+      const fps = isVid && item.fps ? `${item.fps} fps` : '';
+      const rows = [
+        item.model ? `<dt>${t('模型','Model')}</dt><dd>${h(item.model)}</dd>` : '',
+        dims ? `<dt>${t('尺寸','Size')}</dt><dd>${h(dims)}</dd>` : '',
+        dur ? `<dt>${t('时长','Duration')}</dt><dd>${h(dur)}</dd>` : '',
+        fps ? `<dt>${t('帧率','FPS')}</dt><dd>${h(fps)}</dd>` : '',
+        item.file_size_text ? `<dt>${t('大小','File Size')}</dt><dd>${h(item.file_size_text)}</dd>` : '',
+        item.created_at ? `<dt>${t('创建时间','Created')}</dt><dd>${h(item.created_at.replace('T',' ').slice(0,16))}</dd>` : '',
+      ].filter(Boolean).join('');
+      return rows ? `<dl class="inspector-meta">${rows}</dl>` : '';
+    };
+    const metaRows = item.__type === 'project'
+      ? `<dl class="inspector-meta">
+           <dt>${t('图片','Images')}</dt><dd>${(item.image_prompts||[]).filter(p=>!p.is_folder).length}</dd>
+           <dt>${t('视频','Videos')}</dt><dd>${(item.video_prompts||[]).filter(p=>!p.is_folder).length}</dd>
+           <dt>Skills</dt><dd>${(item.skill_prompts||[]).filter(p=>!p.is_folder).length}</dd>
+           <dt>${t('创建时间','Created')}</dt><dd>${h(item.created_at || '-')}</dd>
+         </dl>`
+      : buildPromptMetaRows();
     const openText = item.__type === 'project' ? t('进入项目','Open Project') : t('编辑','Edit');
     const secondText = item.__type === 'project' ? t('查看资产','View Assets') : t('复制提示词','Copy Prompt');
     const projectRecent = item.__type === 'project'
@@ -3144,37 +3417,51 @@
     if (item.__type === 'project') {
       body.innerHTML = `
         ${thumb}
-        <div class="inspector-field"><div style="display:flex;gap:4px;flex-wrap:wrap">${tags}</div></div>
-        ${metaRows}
-        ${projectRecent}
-        ${actionBlock}
+        <div class="insp-body">
+          <div class="inspector-field"><div style="display:flex;gap:4px;flex-wrap:wrap">${tags}</div></div>
+          ${metaRows}
+          ${projectRecent}
+          ${actionBlock}
+        </div>
       `;
     } else {
       body.innerHTML = `
-        ${thumb}
-        ${paletteBlock}
-        <div class="inspector-field"><div class="inspector-field-val" style="font-weight:600">${h(item.title || t('未命名','Untitled'))}</div></div>
-        <div class="inspector-field"><div style="display:flex;gap:4px;flex-wrap:wrap">${tags}</div></div>
-        ${promptBlock}
-        ${analysisBlock}
-        <div class="inspector-info-title">${t('素材信息','Media Info')}</div>
-        <dl class="inspector-meta" style="align-items:center;margin:0">
-          <dt>${t('评分','Rating')}</dt><dd><span class="inspector-stars" id="inspectorStars">${starsHtml}</span></dd>
-        </dl>
-        ${metaRows}
-        <div class="inspector-links">
-          <a id="inspectorOpenBtn">${t('编辑','Edit')}</a>
-          <a id="inspectorCopyBtn">${t('复制提示词','Copy Prompt')}</a>
-          <a id="inspectorReanalyzeBtn">${t('反推','Reverse')}</a>
-          <a class="danger" id="inspectorDeleteBtn">${t('删除','Delete')}</a>
+        ${mediaCard}
+        <div class="insp-body">
+          <div class="insp-title-row">
+            <span class="insp-title-text">${h(item.title || t('未命名','Untitled'))}</span>
+            <button class="insp-pencil" id="inspectorOpenBtn" title="${t('编辑','Edit')}">✏</button>
+          </div>
+          <div class="insp-tags-row"><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">${tags}<button class="insp-add-tag" id="inspTagAddBtn">+</button></div></div>
+          ${promptBlock}
+          ${analysisBlock}
+          <div class="insp-meta-card">
+            <dl class="inspector-meta" style="margin:0">
+              <dt>${t('评分','Rating')}</dt><dd><span class="inspector-stars" id="inspectorStars">${starsHtml}</span></dd>
+            </dl>
+            ${metaRows}
+          </div>
+          <div class="inspector-links">
+            <a id="inspectorEditBtn">${t('编辑','Edit')}</a>
+            <a id="inspectorCopyBtn">${t('复制提示词','Copy Prompt')}</a>
+            <a id="inspectorReanalyzeBtn">${t('反推','Reverse')}</a>
+          </div>
+          ${opsBlock}
         </div>
-        ${opsBlock}
       `;
     }
     const openBtn = document.getElementById('inspectorOpenBtn');
     if (openBtn) {
       openBtn.onclick = () => {
         if (item.__type === 'project') navigate('image_prompts', item.id);
+        if (item.__type === 'image') openPromptModal(item.id, 'image');
+        if (item.__type === 'video') openPromptModal(item.id, 'video');
+        if (item.__type === 'skill') openSkillPanel(item.id);
+      };
+    }
+    const editBtn = document.getElementById('inspectorEditBtn');
+    if (editBtn) {
+      editBtn.onclick = () => {
         if (item.__type === 'image') openPromptModal(item.id, 'image');
         if (item.__type === 'video') openPromptModal(item.id, 'video');
         if (item.__type === 'skill') openSkillPanel(item.id);
@@ -3231,6 +3518,13 @@
           const details = document.getElementById('pmReanalyzeDetails');
           if (details) details.setAttribute('open', 'open');
         }, 80);
+      };
+    }
+    const tagAddBtn = document.getElementById('inspTagAddBtn');
+    if (tagAddBtn) {
+      tagAddBtn.onclick = () => {
+        const modal = document.getElementById('tagInputModal');
+        if (modal) { modal.style.display = 'flex'; document.getElementById('tagInputField')?.focus(); }
       };
     }
     const delBtn = document.getElementById('inspectorDeleteBtn');
@@ -3373,7 +3667,7 @@
     modelSel.style.display = isAudio ? 'none' : '';
     tagSel.style.display = isAudio ? 'none' : '';
     sortSel.style.display = isAudio ? 'none' : '';
-    timeSel.style.display = isAudio ? 'none' : '';
+    timeSel.style.display = 'none';
     typeSel.style.display = 'none';
     const smartSelEl = document.getElementById('smartFolderFilter');
     if (smartSelEl) smartSelEl.style.display = 'none';
@@ -3519,8 +3813,8 @@
     } else {
       const proj = getProject(state.projectId);
       info.classList.add('show');
-      projName.innerHTML = proj ? `<span style="cursor:pointer;color:var(--primary);font-size:11px;font-weight:600" id="editProjNameBtn">✏️ ${t('编辑项目名称','Edit Name')}</span>` : '';
-      projSub.textContent = '';
+      projName.textContent = proj?.title || proj?.name || t('未命名项目','Untitled Project');
+      projSub.innerHTML = proj ? `<span class="sidebar-proj-edit" id="editProjNameBtn">${t('编辑项目名称','Edit Name')}</span>` : '';
       const epb = document.getElementById('editProjNameBtn');
       if (epb) epb.onclick = () => openProjModal(state.projectId);
 
@@ -3551,6 +3845,7 @@
       const imgCount = (proj?.image_prompts||[]).filter(p => !p.is_folder).length;
       const vidCount = (proj?.video_prompts||[]).filter(p => !p.is_folder).length;
       nav.innerHTML = `
+        <div class="sidebar-section">${t('收藏','COLLECTIONS')}</div>
         <div class="nav-item ${state.view==='image_prompts'&&!state.folderFilter?'active':''}" data-view="image_prompts">
           <span class="nav-icon">🖼️</span><span class="nav-label">${t('图片提示词','Image Prompts')}</span>
           <span class="nav-badge">${imgCount}</span>
@@ -3783,24 +4078,37 @@
     empty.style.display = 'none';
     grid.innerHTML = projs.map(proj => {
       const g = GRADIENTS[proj.colorIdx || 0];
-      const imgCount = (proj.image_prompts||[]).length;
-      const vidCount = (proj.video_prompts||[]).length;
-      const skillCount = (proj.skill_prompts||[]).length;
+      const imgCount = (proj.image_prompts||[]).filter(p => !p.is_folder).length;
+      const vidCount = (proj.video_prompts||[]).filter(p => !p.is_folder).length;
+      const skillCount = (proj.skill_prompts||[]).filter(p => !p.is_folder).length;
       const pdfCount = (proj.pdf_files||[]).length;
+      const dateStr = proj.updated_at ? proj.updated_at.slice(0,10) : (proj.created_at ? proj.created_at.slice(0,10) : '');
+      const coverImg = (() => {
+        if (proj.cover_image) return proj.cover_image;
+        for (const p of (proj.image_prompts||[])) {
+          const s = (p.gallery||[])[0] || p.image;
+          if (s) return s;
+        }
+        return null;
+      })();
       return `
-        <div class="card" data-proj-id="${h(proj.id)}">
-          <div class="proj-card-cover" style="--c1:${g[0]};--c2:${g[1]}">${GRADIENT_EMOJIS[proj.colorIdx||0]}</div>
+        <div class="card" data-proj-id="${h(proj.id)}" oncontextmenu="showProjCardCtx(event,'${proj.id}')">
+          <div class="card-img-wrap">
+            ${coverImg
+              ? `<img class="proj-cover-img" src="${h(coverImg)}" alt="" loading="lazy">`
+              : `<div class="proj-card-cover" style="--c1:${g[0]};--c2:${g[1]}">${GRADIENT_EMOJIS[proj.colorIdx||0]}</div>`}
+            <div class="card-label card-label-ov label-project">${t('项目','Project')}</div>
+          </div>
           <div class="card-body">
-            <div class="card-label label-project">${t('项目','Project')}</div>
-            <div class="card-title">${h(proj.name)}</div>
+            <div class="proj-card-title">${h(proj.name)}</div>
             <div class="card-meta">${h(proj.description || t('无描述','No description'))}</div>
           </div>
-          <div class="card-footer">
-            <span class="card-stat">🖼️ ${imgCount}</span>
-            <span class="card-stat" style="margin-left:8px">🎬 ${vidCount}</span>
-            <span class="card-stat" style="margin-left:8px">🤖 ${skillCount}</span>
-            ${pdfCount ? `<span class="card-stat" style="margin-left:8px">📄 ${pdfCount}</span>` : ''}
-            <span style="margin-left:auto;font-size:11px">${proj.updated_at ? proj.updated_at.slice(0,10) : (proj.created_at ? proj.created_at.slice(0,10) : '')}</span>
+          <div class="proj-stats-row">
+            <span class="proj-stat">🖼️ ${imgCount}</span>
+            <span class="proj-stat">🎬 ${vidCount}</span>
+            <span class="proj-stat">🤖 ${skillCount}</span>
+            ${pdfCount ? `<span class="proj-stat">📄 ${pdfCount}</span>` : ''}
+            <span class="proj-date">${dateStr}</span>
           </div>
           <button class="card-del" data-del-proj="${h(proj.id)}">✕</button>
         </div>`;
@@ -4075,7 +4383,7 @@
         ? t('文件夹','Folder') + ' · ' + assetFolderItems.length + (isImg ? t(' 个图片',' Images') : t(' 个视频',' Videos'))
         : isImg ? t('图片','Image') : ((isSkill && p.is_folder) ? t('文件夹','Folder') + ' · ' + (p.files||[]).length + t(' 个文件',' Files') : (isSkill ? 'Skills' : t('视频','Video')));
       const galleryCount = isImg && !isAssetFolder && (p.gallery||[]).length > 0 ? p.gallery.length + 1 : 0;
-      const galleryBadge = galleryCount > 1 ? `<div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,.55);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;font-weight:700;backdrop-filter:blur(4px);pointer-events:none">×${galleryCount}</div>` : '';
+      const galleryBadge = galleryCount > 1 ? `<div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.55);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;font-weight:700;backdrop-filter:blur(4px);pointer-events:none;z-index:2">×${galleryCount}</div>` : '';
       const assetFolderThumb = isAssetFolder ? (() => {
         const previews = assetFolderItems.slice(0, 4);
         if (!previews.length) return `<div class="skill-folder-cover"><div class="skill-folder-icon">📁</div></div>`;
@@ -4114,27 +4422,43 @@
         p.fps ? `${p.fps}fps` : '',
         p.file_size_text || '',
       ].filter(Boolean).join(' · ');
+      const hasThumb = !!thumbHtml;
       return `
         <div class="card" data-prompt-id="${h(p.id)}" data-prompt-type="${h(p.__type)}" data-prompt-category="${h(p.__category)}">
           ${starPill}
           ${statusPill}
-          ${thumbHtml}
+          ${hasThumb ? `<div class="card-img-wrap">
+            ${thumbHtml}
+            <div class="card-label card-label-ov ${cardLabelClass}">${cardLabelText}</div>
+            ${!isSkill && !isAssetFolder && p.aspect ? `<span class="card-aspect-ov">${h(p.aspect)}</span>` : ''}
+            <button class="card-star-btn${p.quality?.star?' starred':''}" data-star-id="${h(p.id)}" data-star-type="${h(p.__type)}">★</button>
+            <button class="card-del" data-del-prompt="${h(p.id)}">⋯</button>
+          </div>` : `<button class="card-del" data-del-prompt="${h(p.id)}">⋯</button>`}
           <div class="card-body">
-            <div class="card-label ${cardLabelClass}">${cardLabelText}</div>
+            ${!hasThumb ? `<div class="card-label ${cardLabelClass}">${cardLabelText}</div>` : ''}
             <div class="card-title">${h(p.title||t('无标题','Untitled'))}</div>
             <div class="card-meta" style="${isSkill?'white-space:pre-wrap;-webkit-line-clamp:4;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden':''}">${h(snip)}</div>
           </div>
-          <div class="card-footer">
-            ${modelChip}
-            ${!isSkill && p.aspect ? `<span class="chip" style="font-size:10px">${h(p.aspect)}</span>` : ''}
-          </div>
-          <button class="card-del" data-del-prompt="${h(p.id)}">✕</button>
+          <div class="card-footer" style="${modelChip ? '' : 'visibility:hidden'}">${modelChip || ''}</div>
         </div>`;
     }).join('');
 
     grid.querySelectorAll('.card[data-prompt-id]').forEach(card => {
       card.addEventListener('click', (e) => {
         if (e.target.closest('.card-del')) return;
+        if (e.target.closest('.card-star-btn')) {
+          e.stopPropagation();
+          const btn = e.target.closest('.card-star-btn');
+          const sid = btn.dataset.starId, stype = btn.dataset.starType;
+          const sitem = prompts.find(p => p.id === sid && p.__type === stype);
+          if (!sitem) return;
+          const cat = stype === 'image' ? 'image_prompts' : 'video_prompts';
+          sitem.quality = sitem.quality || {};
+          sitem.quality.star = !sitem.quality.star;
+          btn.classList.toggle('starred', !!sitem.quality.star);
+          postJson('/api/asset/quality', { projectId: state.projectId, category: cat, promptId: sid, star: !!sitem.quality.star }).then(() => saveData(data));
+          return;
+        }
         const type = card.dataset.promptType;
         const item = prompts.find(p => p.id === card.dataset.promptId && p.__type === type);
         if (!item) return;
@@ -4800,20 +5124,31 @@
             <button class="card-del" data-del-pdf-folder="${h(p.id)}">✕</button>
           </div>`;
         }
+        const ext = (p.filename||p.title||'').split('.').pop().toLowerCase();
+        const extLabel = (ext||'doc').toUpperCase();
         const sizeStr = p.size ? formatFileSize(p.size) : '';
-        const icon = docIcon(p.filename||p.title||'');
-        const colorDot = p.color ? `<span class="color-dot" style="background:${(DOC_COLORS.find(c=>c.id===p.color)||{}).color||'transparent'}"></span>` : '';
-        return `<div class="card${selected?' selected':''}" data-pdf-id="${h(p.id)}">
-          ${colorDot}
-          <div class="card-thumb-pdf">${icon}<div class="pdf-fn">${h(p.filename||'')}</div></div>
-          <div class="card-body">
-            <div class="card-label label-pdf">文档</div>
-            <div class="card-title">${h(p.title||'未命名文档')}</div>
-            <div class="card-meta">${h((sizeStr?sizeStr+' · ':'')+((p.notes||'').replace(/\s+/g,' ').trim().slice(0,60)))}</div>
-          </div>
-          <div class="card-footer">
-            ${sizeStr?`<span class="card-stat">📦 ${sizeStr}</span>`:''}
-            <span style="margin-left:auto;font-size:11px">${p.created_at?p.created_at.slice(0,10):''}</span>
+        const dateStr = p.created_at ? p.created_at.slice(0,10) : '';
+        const metaStr = [sizeStr, dateStr].filter(Boolean).join(' · ');
+        const colorDotHtml = p.color ? `<span class="color-dot" style="background:${(DOC_COLORS.find(c=>c.id===p.color)||{}).color||'transparent'}"></span>` : '';
+        const _dc = ({
+          pdf:['#dc2626','A'],docx:['#2563eb','W'],doc:['#2563eb','W'],
+          xlsx:['#16a34a','X'],xls:['#16a34a','X'],csv:['#059669','C'],ods:['#059669','C'],
+          pptx:['#ea580c','P'],ppt:['#ea580c','P'],odp:['#ea580c','P'],
+          txt:['#64748b','T'],md:['#475569','M'],markdown:['#475569','M'],
+          rtf:['#3b82f6','R'],odt:['#2563eb','W'],html:['#e11d48','H']
+        })[ext]||['#6366f1','?'];
+        const _iconHtml = `<img src="file-icons/${h(ext)}.png" width="44" height="44" style="object-fit:contain;border-radius:2px">`;
+        return `<div class="card dcv2${selected?' selected':''}" data-pdf-id="${h(p.id)}">
+          <div class="dcv2-inner">
+            <div class="dcv2-header">
+              <div class="dcv2-iconstack">
+                <div class="dcv2-icon">${_iconHtml}</div>
+                <span class="dcv2-badge" style="background:${_dc[0]};margin-bottom:4px">${extLabel}</span>
+              </div>
+            </div>
+            <div class="dcv2-title">${h(p.title||'未命名文档')}</div>
+            <div class="dcv2-meta">${h(metaStr)}</div>
+            ${colorDotHtml ? `<div class="dcv2-foot">${colorDotHtml}</div>` : ''}
           </div>
           <button class="card-del" data-del-pdf="${h(p.id)}">✕</button>
         </div>`;
@@ -5228,10 +5563,24 @@
 
   // Theme toggle
   const themeBtn = document.getElementById('themeToggleBtn');
-  if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
-  themeBtn.onclick = () => {
-    document.body.classList.toggle('dark');
-    localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+  const _sunIcon = document.getElementById('themeIconSun');
+  const _moonIcon = document.getElementById('themeIconMoon');
+  function _syncThemeIcons(isDark) {
+    if (_sunIcon) _sunIcon.style.opacity = isDark ? '0.3' : '0.8';
+    if (_moonIcon) _moonIcon.style.opacity = isDark ? '0.9' : '0.3';
+  }
+  if (localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark');
+    if (themeBtn) themeBtn.checked = true;
+    _syncThemeIcons(true);
+  } else {
+    _syncThemeIcons(false);
+  }
+  if (themeBtn) themeBtn.onchange = () => {
+    const isDark = themeBtn.checked;
+    document.body.classList.toggle('dark', isDark);
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    _syncThemeIcons(isDark);
   };
 
   document.getElementById('langBtnCN').onclick = () => {
@@ -5510,6 +5859,90 @@
     if (activeCategory === tag) activeCategory = newTag.trim();
     renderPage();
     toast(`✅ 已将标签「${tag}」重命名为「${newTag.trim()}」，影响 ${count} 项`);
+  });
+
+  // ── Project card context menu ──────────────────────────────────────────
+  let _projCtxId = null;
+  const _projCtxMenu = document.getElementById('projCardCtxMenu');
+  window.showProjCardCtx = function(e, projId) {
+    e.preventDefault(); e.stopPropagation();
+    _projCtxId = projId;
+    _projCtxMenu.style.display = 'block';
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const x = e.clientX, y = e.clientY;
+    _projCtxMenu.style.left = (x + 158 > vw ? vw - 162 : x) + 'px';
+    _projCtxMenu.style.top  = (y + 190 > vh ? vh - 194 : y) + 'px';
+  };
+  function hideProjCardCtx() { _projCtxMenu.style.display = 'none'; }
+  document.addEventListener('click', hideProjCardCtx);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideProjCardCtx(); });
+
+  document.getElementById('projCtxOpen').onclick = () => {
+    hideProjCardCtx();
+    if (_projCtxId) navigate('image_prompts', _projCtxId);
+  };
+  document.getElementById('projCtxEdit').onclick = () => {
+    hideProjCardCtx();
+    if (_projCtxId) openProjModal(_projCtxId);
+  };
+  document.getElementById('projCtxDelete').onclick = async () => {
+    hideProjCardCtx();
+    if (!_projCtxId) return;
+    const proj = getProject(_projCtxId);
+    if (!confirm(t(`确认删除项目「${proj?.name}」？项目记录将被删除，素材文件不受影响。`, `Delete project "${proj?.name}"? Records will be removed but media files kept.`))) return;
+    try {
+      await postJson('/api/delete-project', { projectId: _projCtxId, deleteMedia: false });
+      await reloadData();
+      toast(t('✅ 项目已删除', '✅ Project deleted'));
+    } catch(err) { toast('❌ ' + err.message, 4000); }
+  };
+
+  // ── Cover picker ───────────────────────────────────────────────────────
+  let _coverProjId = null;
+  function openCoverPicker(projId) {
+    _coverProjId = projId;
+    const proj = getProject(projId);
+    if (!proj) return;
+    const imgs = (proj.image_prompts||[]).flatMap(p => [...(p.gallery||[]), p.image].filter(Boolean));
+    const grid = document.getElementById('projCoverImgGrid');
+    grid.innerHTML = imgs.length
+      ? imgs.map(src => `<img src="${h(src)}" style="width:100%;height:80px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:border-color .15s" class="proj-cov-pick" title="点击选用">`).join('')
+      : `<div style="color:var(--subtle);font-size:12px;padding:4px">${t('该项目暂无图片','No images in this project')}</div>`;
+    document.getElementById('projCoverModal').classList.add('open');
+  }
+  async function saveCoverAndClose(url) {
+    const proj = getProject(_coverProjId);
+    if (!proj) return;
+    proj.cover_image = url || null;
+    const ok = await saveData(data);
+    if (!ok) return;
+    document.getElementById('projCoverModal').classList.remove('open');
+    renderPage();
+    toast(url ? t('✅ 封面已更新','✅ Cover updated') : t('✅ 已恢复默认封面','✅ Cover reset'));
+  }
+
+  document.getElementById('projCtxCover').onclick = () => { hideProjCardCtx(); if (_projCtxId) openCoverPicker(_projCtxId); };
+  document.getElementById('projCoverModalClose').onclick =
+  document.getElementById('projCoverCancelBtn').onclick = () => document.getElementById('projCoverModal').classList.remove('open');
+  document.getElementById('projCoverModal').addEventListener('click', e => { if (e.target === document.getElementById('projCoverModal')) document.getElementById('projCoverModal').classList.remove('open'); });
+  document.getElementById('projCoverDefaultBtn').onclick = () => saveCoverAndClose(null);
+  document.getElementById('projCoverUploadBtn').onclick = () => document.getElementById('projCoverFileInput').click();
+  document.getElementById('projCoverFileInput').addEventListener('change', async e => {
+    const file = e.target.files[0]; if (!file) return;
+    e.target.value = '';
+    const proj = getProject(_coverProjId);
+    if (!proj) return;
+    toast(t('⏳ 上传中…','⏳ Uploading…'));
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      const url = await uploadImage(ev.target.result, file.name, proj.name);
+      saveCoverAndClose(url);
+    };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('projCoverImgGrid').addEventListener('click', e => {
+    const img = e.target.closest('.proj-cov-pick');
+    if (img) saveCoverAndClose(img.src);
   });
 
   document.getElementById('tagCtxDelete').addEventListener('click', async () => {
@@ -5830,10 +6263,11 @@
     const SKILL_MODELS = ['Claude Opus 4.7','Claude Sonnet 4.6','Claude Haiku 4.5','GPT-5.5','GPT-5.4','GPT-5.3','GPT-4o','o3','o4-mini','Gemini 3.1 Pro','Gemini 3 Flash','Gemini 2.5 Pro','Gemini 2.5 Flash','DeepSeek V4 Pro','DeepSeek V4 Flash','DeepSeek Reasoner','Qwen3-2507','Qwen3'];
     const modelList = type === 'image' ? IMAGE_MODELS : (type === 'skill' ? SKILL_MODELS : VIDEO_MODELS);
     const modelSel = document.getElementById('pmModel');
-    modelSel.innerHTML = modelList.map(m => `<option>${m}</option>`).join('') + `<option value="\u81ea\u5b9a\u4e49">\u81ea\u5b9a\u4e49\u2026</option>`;
-    const modelVal = item?.model || modelList[0];
-    const isBuiltin = modelList.includes(modelVal);
-    if (isBuiltin) {
+    modelSel.innerHTML = `<option value="">— ${t('未指定','Not specified')} —</option>` + modelList.map(m => `<option>${m}</option>`).join('') + `<option value="\u81ea\u5b9a\u4e49">\u81ea\u5b9a\u4e49\u2026</option>`;
+    const modelVal = item?.model || '';
+    if (!modelVal) {
+      modelSel.value = '';
+    } else if (modelList.includes(modelVal)) {
       modelSel.value = modelVal;
     } else {
       modelSel.value = '\u81ea\u5b9a\u4e49';
@@ -6034,6 +6468,10 @@
   });
   _lb.addEventListener('click', () => closeLightbox());
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+  document.addEventListener('click', e => {
+    const th = e.target.closest('.insp-image-card .inspector-thumb');
+    if (th && th.tagName === 'IMG' && th.src) openLightbox(th.src);
+  });
 
   // Image file change – show preview immediately, upload on save
   let pmImgFile = null;
@@ -8020,6 +8458,7 @@
     <div class="drop-title">松开以导入文件</div>
     <div class="drop-sub">图片 · 视频 · 文本</div>
   </div>
+</div>
 </div>
 </body>
 </html>

@@ -4,7 +4,7 @@
 
 **A local desktop app for managing AI image & video prompts — with a companion browser extension.**
 
-[![Version](https://img.shields.io/badge/version-1.1.3-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![Version](https://img.shields.io/badge/version-1.1.4-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
 [![Build](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)](#build)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -83,6 +83,16 @@
 - 🤝 **Agent / CLI integration** — full HTTP API for external agents to read & write prompts, push AI-generated images and videos, and query the audio library
 
 ## 📋 Changelog
+
+### v1.1.4
+- **Project card right-click menu** — right-click any project card to Open, Edit, Change Cover, or Delete without entering the project
+- **Custom project cover** — upload any image, select from existing project images, or reset to auto (first image in project)
+- **Inspector image zoom** — click the thumbnail in the inspector panel to open it in the full-screen lightbox
+- **Window pin icon** — replaced emoji 📌 with an SVG outline icon; fixed the button appearing white when active in dark mode
+- **Unified card heights** — all prompt cards are now the same height regardless of whether a model chip is present (invisible placeholder footer)
+- **Model dropdown fix** — dropdown now shows "Not specified" instead of defaulting to GPT Image 2 when no model is stored; prevents misleading chip display
+- **Accurate project counts** — card stats and inspector now exclude folder entries, matching the sidebar count
+- **UI polish** — soft blue-white gradient background on project management page; dark mode sidebar border and active nav item refined
 
 ### v1.1.3
 - **Browser extension — prompt quick-insert improvements**:
@@ -190,8 +200,8 @@ Builds are **automated via GitHub Actions** — every push to `main` produces Wi
 
 ```bash
 # Trigger a release
-git tag v1.1.3
-git push origin v1.1.3
+git tag v1.1.4
+git push origin v1.1.4
 ```
 
 <details>

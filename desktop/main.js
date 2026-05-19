@@ -450,14 +450,14 @@ async function createWindow() {
   }
 
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 840,
-    minWidth: 980,
-    minHeight: 680,
+    width: 1360,
+    height: 900,
+    minWidth: 1040,
+    minHeight: 720,
     title: 'Prompt Studio Desktop',
     frame: false,
     autoHideMenuBar: true,
-    backgroundColor: '#f5f6f8',
+    backgroundColor: '#10151c',
     icon: process.platform === 'win32'
       ? resourcePath('prompt_studio_icon.ico')
       : resourcePath('prompt_studio_icon.png'),

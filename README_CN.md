@@ -4,7 +4,7 @@
 
 **本地桌面端 AI 图片 & 视频提示词管理工具，配套浏览器插件。**
 
-[![版本](https://img.shields.io/badge/版本-1.1.3-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![版本](https://img.shields.io/badge/版本-1.1.4-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
 [![构建](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml)
 [![平台](https://img.shields.io/badge/平台-Windows%20%7C%20macOS-lightgrey.svg)](#打包说明)
 [![Electron](https://img.shields.io/badge/Electron-37-47848F.svg)](https://www.electronjs.org/)
@@ -84,6 +84,16 @@
 ---
 
 ## 🗒️ 版本记录
+
+### v1.1.4
+- **项目卡片右键菜单** — 右键任意项目卡片即可打开、编辑、更改封面或删除，无需进入项目
+- **自定义项目封面** — 可上传任意图片、从项目内图片中选择，或重置为自动（取项目第一张图）
+- **Inspector 图片放大** — 点击右侧面板缩略图可全屏 lightbox 查看
+- **置顶按钮图标优化** — 将 emoji 📌 替换为 SVG 线框图标；修复深色模式下激活时按钮变白的问题
+- **卡片高度统一** — 无论是否有模型标签，所有提示词卡片高度一致（无内容时 footer 隐藏占位）
+- **模型下拉框修复** — 未存储模型时下拉框显示「未指定」而非默认 GPT Image 2，避免误导性显示
+- **项目数量计数修正** — 卡片统计与 inspector 均排除文件夹条目，与侧边栏数字保持一致
+- **界面优化** — 项目管理页背景改为柔和蓝白渐变；深色模式侧边栏边框与选中项样式精调
 
 ### v1.1.3
 - **浏览器插件 - 提示词快速插入优化**：
@@ -193,8 +203,8 @@ dev-start.bat
 
 ```bash
 # 发布新版本
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.1.4
+git push origin v1.1.4
 ```
 
 <details>

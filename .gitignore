@@ -18,3 +18,5 @@ desktop/server-dist/*
 !desktop/server-dist/.gitkeep
 desktop/server-build/prompt-studio-server/
 ci-artifacts/
+
+desktop/build/
