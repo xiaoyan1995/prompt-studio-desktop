@@ -92,13 +92,13 @@
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\pywin32_system32\\pythoncom310.dll',
    'BINARY'),
-  ('numpy.libs\\msvcp140-263139962577ecda4cd9469ca360a746.dll',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\numpy.libs\\msvcp140-263139962577ecda4cd9469ca360a746.dll',
-   'BINARY'),
   ('numpy.libs\\libscipy_openblas64_-13e2df515630b4a41f92893938845698.dll',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\numpy.libs\\libscipy_openblas64_-13e2df515630b4a41f92893938845698.dll',
+   'BINARY'),
+  ('numpy.libs\\msvcp140-263139962577ecda4cd9469ca360a746.dll',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\numpy.libs\\msvcp140-263139962577ecda4cd9469ca360a746.dll',
    'BINARY'),
   ('_multiprocessing.pyd',
    'B:\\Program Files\\Python\\Python310\\_multiprocessing.pyd',
@@ -256,32 +256,44 @@
   ('_socket.pyd',
    'B:\\Program Files\\Python\\Python310\\_socket.pyd',
    'EXTENSION'),
-  ('api-ms-win-crt-conio-l1-1-0.dll',
+  ('api-ms-win-crt-time-l1-1-0.dll',
    'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-conio-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-string-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-string-l1-1-0.dll',
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-time-l1-1-0.dll',
    'BINARY'),
   ('api-ms-win-crt-convert-l1-1-0.dll',
    'C:\\Program '
    'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-convert-l1-1-0.dll',
    'BINARY'),
-  ('api-ms-win-crt-time-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-time-l1-1-0.dll',
-   'BINARY'),
   ('api-ms-win-crt-process-l1-1-0.dll',
    'C:\\Program '
    'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-process-l1-1-0.dll',
    'BINARY'),
-  ('VCRUNTIME140.dll',
-   'B:\\Program Files\\Python\\Python310\\VCRUNTIME140.dll',
-   'BINARY'),
   ('api-ms-win-crt-runtime-l1-1-0.dll',
    'C:\\Program '
    'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-runtime-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-crt-string-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-string-l1-1-0.dll',
+   'BINARY'),
+  ('VCRUNTIME140.dll',
+   'B:\\Program Files\\Python\\Python310\\VCRUNTIME140.dll',
+   'BINARY'),
+  ('api-ms-win-crt-filesystem-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-filesystem-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-crt-heap-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-heap-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-crt-environment-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-environment-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-crt-stdio-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-stdio-l1-1-0.dll',
    'BINARY'),
   ('api-ms-win-crt-locale-l1-1-0.dll',
    'C:\\Program '
@@ -291,21 +303,9 @@
    'C:\\Program '
    'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-math-l1-1-0.dll',
    'BINARY'),
-  ('api-ms-win-crt-filesystem-l1-1-0.dll',
+  ('api-ms-win-crt-conio-l1-1-0.dll',
    'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-filesystem-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-stdio-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-stdio-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-heap-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-heap-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-crt-environment-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-environment-l1-1-0.dll',
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-conio-l1-1-0.dll',
    'BINARY'),
   ('VCRUNTIME140_1.dll',
    'B:\\Program Files\\Python\\Python310\\VCRUNTIME140_1.dll',
@@ -331,12 +331,12 @@
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\Pythonwin\\mfc140u.dll',
    'BINARY'),
-  ('python3.dll',
-   'B:\\Program Files\\Python\\Python310\\python3.dll',
-   'BINARY'),
   ('api-ms-win-core-synch-l1-2-0.dll',
    'C:\\Program '
    'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-synch-l1-2-0.dll',
+   'BINARY'),
+  ('python3.dll',
+   'B:\\Program Files\\Python\\Python310\\python3.dll',
    'BINARY'),
   ('ucrtbase.dll',
    'C:\\Program Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\ucrtbase.dll',
@@ -345,781 +345,781 @@
    'C:\\Program '
    'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-crt-multibyte-l1-1-0.dll',
    'BINARY'),
-  ('api-ms-win-core-interlocked-l1-1-0.dll',
+  ('api-ms-win-core-file-l2-1-0.dll',
    'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-interlocked-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-profile-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-profile-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-sysinfo-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-sysinfo-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-memory-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-memory-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-localization-l1-2-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-localization-l1-2-0.dll',
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-file-l2-1-0.dll',
    'BINARY'),
   ('api-ms-win-core-synch-l1-1-0.dll',
    'C:\\Program '
    'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-synch-l1-1-0.dll',
    'BINARY'),
-  ('api-ms-win-core-datetime-l1-1-0.dll',
+  ('api-ms-win-core-interlocked-l1-1-0.dll',
    'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-datetime-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-namedpipe-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-namedpipe-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-rtlsupport-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-rtlsupport-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-string-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-string-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-processthreads-l1-1-1.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-processthreads-l1-1-1.dll',
-   'BINARY'),
-  ('api-ms-win-core-libraryloader-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-libraryloader-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-processthreads-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-processthreads-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-heap-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-heap-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-errorhandling-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-errorhandling-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-console-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-console-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-file-l2-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-file-l2-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-file-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-file-l1-1-0.dll',
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-interlocked-l1-1-0.dll',
    'BINARY'),
   ('api-ms-win-core-timezone-l1-1-0.dll',
    'C:\\Program '
    'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-timezone-l1-1-0.dll',
    'BINARY'),
-  ('api-ms-win-core-handle-l1-1-0.dll',
+  ('api-ms-win-core-memory-l1-1-0.dll',
    'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-handle-l1-1-0.dll',
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-memory-l1-1-0.dll',
    'BINARY'),
-  ('api-ms-win-core-processenvironment-l1-1-0.dll',
+  ('api-ms-win-core-namedpipe-l1-1-0.dll',
    'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-processenvironment-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-debug-l1-1-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-debug-l1-1-0.dll',
-   'BINARY'),
-  ('api-ms-win-core-file-l1-2-0.dll',
-   'C:\\Program '
-   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-file-l1-2-0.dll',
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-namedpipe-l1-1-0.dll',
    'BINARY'),
   ('api-ms-win-core-util-l1-1-0.dll',
    'C:\\Program '
    'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-util-l1-1-0.dll',
    'BINARY'),
-  ('pdfminer\\cmap\\KSC-Johab-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSC-Johab-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\NWP-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\NWP-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\CNS-EUC-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\CNS-EUC-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Hankaku-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Hankaku-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Ext-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Ext-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\ETen-B5-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\ETen-B5-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\KSCms-UHC-HW-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSCms-UHC-HW-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS2004-UTF16-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS2004-UTF16-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GB-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GB-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Add-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Add-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Hiragana-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Hiragana-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\CNS-EUC-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\CNS-EUC-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniKS-UCS2-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UCS2-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\HKgccs-B5-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKgccs-B5-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\RKSJ-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\RKSJ-H.json.gz',
-   'DATA'),
+  ('api-ms-win-core-processthreads-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-processthreads-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-processthreads-l1-1-1.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-processthreads-l1-1-1.dll',
+   'BINARY'),
+  ('api-ms-win-core-file-l1-2-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-file-l1-2-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-errorhandling-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-errorhandling-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-handle-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-handle-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-debug-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-debug-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-datetime-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-datetime-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-sysinfo-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-sysinfo-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-file-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-file-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-localization-l1-2-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-localization-l1-2-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-libraryloader-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-libraryloader-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-processenvironment-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-processenvironment-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-rtlsupport-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-rtlsupport-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-console-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-console-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-profile-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-profile-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-heap-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-heap-l1-1-0.dll',
+   'BINARY'),
+  ('api-ms-win-core-string-l1-1-0.dll',
+   'C:\\Program '
+   'Files\\Microsoft\\jdk-11.0.16.101-hotspot\\bin\\api-ms-win-core-string-l1-1-0.dll',
+   'BINARY'),
   ('pdfminer\\cmap\\GBKp-EUC-V.json.gz',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBKp-EUC-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\HKm314-B5-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKm314-B5-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\KSCpc-EUC-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSCpc-EUC-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\HKm314-B5-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKm314-B5-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS2004-UTF8-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS2004-UTF8-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJISX0213-UTF32-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJISX0213-UTF32-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Add-RKSJ-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Add-RKSJ-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\ETenms-B5-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\ETenms-B5-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\KSC-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSC-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GBT-EUC-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBT-EUC-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS-UTF16-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UTF16-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Katakana-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Katakana-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJISX02132004-UTF32-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJISX02132004-UTF32-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS2004-UTF16-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS2004-UTF16-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniKS-UTF8-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UTF8-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\90msp-RKSJ-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\90msp-RKSJ-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJISX0213-UTF32-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJISX0213-UTF32-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\KSCms-UHC-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSCms-UHC-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GBK2K-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBK2K-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\78-RKSJ-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78-RKSJ-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\HKm471-B5-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKm471-B5-V.json.gz',
-   'DATA'),
-  ('pdfminer\\py.typed',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\py.typed',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS-UCS2-HW-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UCS2-HW-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\to-unicode-Adobe-CNS1.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\to-unicode-Adobe-CNS1.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\90pv-RKSJ-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\90pv-RKSJ-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\78-EUC-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78-EUC-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\78ms-RKSJ-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78ms-RKSJ-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS2004-UTF32-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS2004-UTF32-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Katakana-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Katakana-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\RKSJ-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\RKSJ-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\EUC-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\EUC-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\78-RKSJ-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78-RKSJ-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GBpc-EUC-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBpc-EUC-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\HKscs-B5-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKscs-B5-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\HKdlb-B5-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKdlb-B5-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\WP-Symbol-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\WP-Symbol-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\CNS1-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\CNS1-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS-UTF16-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UTF16-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\90msp-RKSJ-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\90msp-RKSJ-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\KSCpc-EUC-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSCpc-EUC-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Add-RKSJ-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Add-RKSJ-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\to-unicode-Adobe-Japan1.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\to-unicode-Adobe-Japan1.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\90pv-RKSJ-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\90pv-RKSJ-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\EUC-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\EUC-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\CNS1-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\CNS1-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\NWP-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\NWP-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Roman-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Roman-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Add-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Add-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniKS-UTF16-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UTF16-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GB-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GB-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniKS-UTF8-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UTF8-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GBT-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBT-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\KSC-EUC-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSC-EUC-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GBT-EUC-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBT-EUC-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniCNS-UCS2-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UCS2-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniCNS-UCS2-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UCS2-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GBT-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBT-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\B5pc-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\B5pc-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniCNS-UTF32-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UTF32-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS-UTF32-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UTF32-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\B5-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\B5-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\WP-Symbol-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\WP-Symbol-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\CNS2-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\CNS2-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS2004-UTF32-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS2004-UTF32-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\HKscs-B5-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKscs-B5-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS-UTF32-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UTF32-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Hiragana-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Hiragana-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS-UTF8-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UTF8-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GBK-EUC-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBK-EUC-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniCNS-UTF16-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UTF16-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Ext-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Ext-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\ETHK-B5-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\ETHK-B5-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\KSC-Johab-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSC-Johab-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniGB-UTF16-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UTF16-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\78-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\HKdlb-B5-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKdlb-B5-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\KSCms-UHC-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSCms-UHC-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GBK2K-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBK2K-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\83pv-RKSJ-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\83pv-RKSJ-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GB-EUC-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GB-EUC-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\78-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniGB-UCS2-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UCS2-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Ext-RKSJ-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Ext-RKSJ-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\B5pc-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\B5pc-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniCNS-UTF32-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UTF32-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS-UCS2-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UCS2-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Ext-RKSJ-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Ext-RKSJ-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJISX02132004-UTF32-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJISX02132004-UTF32-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS-UTF8-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UTF8-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\README.txt',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\README.txt',
-   'DATA'),
-  ('pdfminer\\cmap\\GBTpc-EUC-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBTpc-EUC-H.json.gz',
    'DATA'),
   ('pdfminer\\cmap\\90ms-RKSJ-H.json.gz',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\90ms-RKSJ-H.json.gz',
    'DATA'),
-  ('pdfminer\\cmap\\Hankaku-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Hankaku-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniKS-UTF16-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UTF16-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GBpc-EUC-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBpc-EUC-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\CNS2-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\CNS2-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\KSCms-UHC-HW-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSCms-UHC-HW-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GBKp-EUC-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBKp-EUC-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GBTpc-EUC-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBTpc-EUC-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\KSC-EUC-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSC-EUC-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniKS-UTF32-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UTF32-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniJIS2004-UTF8-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS2004-UTF8-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\to-unicode-Adobe-Korea1.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\to-unicode-Adobe-Korea1.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\HKgccs-B5-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKgccs-B5-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\HKm471-B5-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKm471-B5-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\ETen-B5-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\ETen-B5-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\HKdla-B5-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKdla-B5-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\to-unicode-Adobe-GB1.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\to-unicode-Adobe-GB1.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniKS-UTF32-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UTF32-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniKS-UCS2-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UCS2-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniCNS-UTF8-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UTF8-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\B5-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\B5-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniGB-UCS2-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UCS2-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\GB-EUC-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GB-EUC-V.json.gz',
-   'DATA'),
   ('pdfminer\\cmap\\ETenms-B5-H.json.gz',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\ETenms-B5-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniCNS-UTF8-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UTF8-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniGB-UTF32-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UTF32-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\83pv-RKSJ-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\83pv-RKSJ-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniGB-UTF8-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UTF8-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\ETHK-B5-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\ETHK-B5-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniGB-UTF16-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UTF16-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\90ms-RKSJ-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\90ms-RKSJ-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniGB-UTF32-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UTF32-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\KSC-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSC-V.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\UniCNS-UTF16-H.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UTF16-H.json.gz',
-   'DATA'),
-  ('pdfminer\\cmap\\Roman-V.json.gz',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Roman-V.json.gz',
    'DATA'),
   ('pdfminer\\cmap\\GBK-EUC-H.json.gz',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBK-EUC-H.json.gz',
    'DATA'),
-  ('pdfminer\\cmap\\HKdla-B5-H.json.gz',
+  ('pdfminer\\cmap\\UniJIS-UTF16-V.json.gz',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKdla-B5-H.json.gz',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UTF16-V.json.gz',
    'DATA'),
-  ('pdfminer\\cmap\\78ms-RKSJ-V.json.gz',
+  ('pdfminer\\cmap\\GB-EUC-H.json.gz',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78ms-RKSJ-V.json.gz',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GB-EUC-H.json.gz',
    'DATA'),
-  ('pdfminer\\cmap\\UniJIS-UCS2-HW-H.json.gz',
+  ('pdfminer\\cmap\\UniJISX0213-UTF32-H.json.gz',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UCS2-HW-H.json.gz',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJISX0213-UTF32-H.json.gz',
    'DATA'),
-  ('pdfminer\\cmap\\UniJIS-UCS2-V.json.gz',
+  ('pdfminer\\cmap\\HKm471-B5-V.json.gz',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UCS2-V.json.gz',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKm471-B5-V.json.gz',
    'DATA'),
-  ('pdfminer\\cmap\\78-EUC-H.json.gz',
+  ('pdfminer\\cmap\\KSCms-UHC-H.json.gz',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78-EUC-H.json.gz',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSCms-UHC-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\to-unicode-Adobe-GB1.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\to-unicode-Adobe-GB1.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS2004-UTF16-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS2004-UTF16-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GB-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GB-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Hiragana-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Hiragana-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\RKSJ-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\RKSJ-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\KSC-Johab-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSC-Johab-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniCNS-UCS2-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UCS2-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS2004-UTF8-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS2004-UTF8-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniCNS-UTF8-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UTF8-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\ETen-B5-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\ETen-B5-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\ETenms-B5-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\ETenms-B5-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Ext-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Ext-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS2004-UTF8-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS2004-UTF8-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\B5-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\B5-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Add-RKSJ-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Add-RKSJ-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniKS-UTF16-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UTF16-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GB-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GB-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\CNS2-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\CNS2-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\78-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Roman-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Roman-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniCNS-UTF32-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UTF32-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS-UCS2-HW-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UCS2-HW-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Ext-RKSJ-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Ext-RKSJ-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\CNS1-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\CNS1-H.json.gz',
    'DATA'),
   ('pdfminer\\cmap\\UniGB-UTF8-H.json.gz',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UTF8-H.json.gz',
    'DATA'),
-  ('cryptography-44.0.3.dist-info\\licenses\\LICENSE.BSD',
+  ('pdfminer\\cmap\\KSCms-UHC-HW-H.json.gz',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\cryptography-44.0.3.dist-info\\licenses\\LICENSE.BSD',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSCms-UHC-HW-H.json.gz',
    'DATA'),
-  ('cryptography-44.0.3.dist-info\\licenses\\LICENSE',
+  ('pdfminer\\cmap\\WP-Symbol-V.json.gz',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\cryptography-44.0.3.dist-info\\licenses\\LICENSE',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\WP-Symbol-V.json.gz',
    'DATA'),
-  ('cryptography-44.0.3.dist-info\\INSTALLER',
+  ('pdfminer\\cmap\\Katakana-H.json.gz',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\cryptography-44.0.3.dist-info\\INSTALLER',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Katakana-H.json.gz',
    'DATA'),
-  ('cryptography-44.0.3.dist-info\\METADATA',
+  ('pdfminer\\cmap\\UniCNS-UTF16-H.json.gz',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\cryptography-44.0.3.dist-info\\METADATA',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UTF16-H.json.gz',
    'DATA'),
-  ('cryptography-44.0.3.dist-info\\RECORD',
+  ('pdfminer\\cmap\\HKdla-B5-H.json.gz',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\cryptography-44.0.3.dist-info\\RECORD',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKdla-B5-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\ETHK-B5-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\ETHK-B5-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GBpc-EUC-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBpc-EUC-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\HKdla-B5-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKdla-B5-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\WP-Symbol-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\WP-Symbol-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\CNS-EUC-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\CNS-EUC-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS-UTF8-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UTF8-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GBK2K-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBK2K-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\KSCpc-EUC-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSCpc-EUC-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\HKscs-B5-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKscs-B5-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniKS-UTF8-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UTF8-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GBK-EUC-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBK-EUC-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\HKgccs-B5-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKgccs-B5-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS-UCS2-HW-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UCS2-HW-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS-UCS2-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UCS2-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJISX0213-UTF32-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJISX0213-UTF32-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\KSCms-UHC-HW-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSCms-UHC-HW-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\90pv-RKSJ-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\90pv-RKSJ-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\NWP-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\NWP-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GBpc-EUC-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBpc-EUC-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\EUC-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\EUC-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniGB-UTF8-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UTF8-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\CNS2-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\CNS2-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GBT-EUC-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBT-EUC-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GBTpc-EUC-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBTpc-EUC-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniGB-UCS2-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UCS2-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GBT-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBT-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\KSCms-UHC-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSCms-UHC-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\B5pc-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\B5pc-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Ext-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Ext-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\78-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniCNS-UTF16-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UTF16-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS2004-UTF16-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS2004-UTF16-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\to-unicode-Adobe-Korea1.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\to-unicode-Adobe-Korea1.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\90ms-RKSJ-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\90ms-RKSJ-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\CNS-EUC-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\CNS-EUC-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS2004-UTF32-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS2004-UTF32-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS-UTF8-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UTF8-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniKS-UTF32-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UTF32-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\KSC-EUC-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSC-EUC-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniCNS-UTF32-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UTF32-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\B5pc-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\B5pc-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\to-unicode-Adobe-Japan1.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\to-unicode-Adobe-Japan1.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniKS-UCS2-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UCS2-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniKS-UCS2-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UCS2-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GBKp-EUC-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBKp-EUC-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniGB-UCS2-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UCS2-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Katakana-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Katakana-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\HKm471-B5-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKm471-B5-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\KSCpc-EUC-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSCpc-EUC-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\78-EUC-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78-EUC-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Hankaku-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Hankaku-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\ETen-B5-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\ETen-B5-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniGB-UTF16-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UTF16-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\90msp-RKSJ-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\90msp-RKSJ-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\README.txt',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\README.txt',
+   'DATA'),
+  ('pdfminer\\cmap\\CNS1-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\CNS1-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\KSC-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSC-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS-UCS2-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UCS2-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\90pv-RKSJ-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\90pv-RKSJ-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Hiragana-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Hiragana-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GBTpc-EUC-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBTpc-EUC-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\RKSJ-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\RKSJ-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GBT-EUC-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBT-EUC-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\B5-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\B5-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\83pv-RKSJ-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\83pv-RKSJ-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniKS-UTF16-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UTF16-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJISX02132004-UTF32-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJISX02132004-UTF32-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Ext-RKSJ-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Ext-RKSJ-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\78-RKSJ-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78-RKSJ-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\83pv-RKSJ-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\83pv-RKSJ-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\78-RKSJ-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78-RKSJ-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Add-RKSJ-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Add-RKSJ-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\HKdlb-B5-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKdlb-B5-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\78-EUC-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78-EUC-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniGB-UTF16-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UTF16-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniKS-UTF32-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UTF32-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\78ms-RKSJ-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78ms-RKSJ-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GB-EUC-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GB-EUC-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\NWP-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\NWP-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\78ms-RKSJ-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\78ms-RKSJ-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GBT-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBT-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\KSC-Johab-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSC-Johab-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJISX02132004-UTF32-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJISX02132004-UTF32-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Hankaku-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Hankaku-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\to-unicode-Adobe-CNS1.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\to-unicode-Adobe-CNS1.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Add-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Add-H.json.gz',
+   'DATA'),
+  ('pdfminer\\py.typed',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\py.typed',
+   'DATA'),
+  ('pdfminer\\cmap\\UniCNS-UTF8-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UTF8-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\HKm314-B5-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKm314-B5-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniGB-UTF32-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UTF32-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS2004-UTF32-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS2004-UTF32-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\ETHK-B5-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\ETHK-B5-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniCNS-UCS2-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniCNS-UCS2-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\HKm314-B5-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKm314-B5-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniKS-UTF8-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniKS-UTF8-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\HKscs-B5-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKscs-B5-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\90msp-RKSJ-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\90msp-RKSJ-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Add-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Add-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\EUC-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\EUC-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniGB-UTF32-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniGB-UTF32-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS-UTF32-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UTF32-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\KSC-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSC-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\KSC-EUC-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\KSC-EUC-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\Roman-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\Roman-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\HKgccs-B5-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKgccs-B5-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS-UTF16-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UTF16-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\GBK2K-H.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\GBK2K-H.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\HKdlb-B5-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\HKdlb-B5-V.json.gz',
+   'DATA'),
+  ('pdfminer\\cmap\\UniJIS-UTF32-V.json.gz',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer\\cmap\\UniJIS-UTF32-V.json.gz',
    'DATA'),
   ('cryptography-44.0.3.dist-info\\WHEEL',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\cryptography-44.0.3.dist-info\\WHEEL',
    'DATA'),
+  ('cryptography-44.0.3.dist-info\\METADATA',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\cryptography-44.0.3.dist-info\\METADATA',
+   'DATA'),
+  ('cryptography-44.0.3.dist-info\\INSTALLER',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\cryptography-44.0.3.dist-info\\INSTALLER',
+   'DATA'),
+  ('cryptography-44.0.3.dist-info\\licenses\\LICENSE',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\cryptography-44.0.3.dist-info\\licenses\\LICENSE',
+   'DATA'),
   ('cryptography-44.0.3.dist-info\\licenses\\LICENSE.APACHE',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\cryptography-44.0.3.dist-info\\licenses\\LICENSE.APACHE',
    'DATA'),
-  ('numpy-2.2.6.dist-info\\WHEEL',
+  ('cryptography-44.0.3.dist-info\\licenses\\LICENSE.BSD',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\numpy-2.2.6.dist-info\\WHEEL',
+   'Files\\Python\\Python310\\lib\\site-packages\\cryptography-44.0.3.dist-info\\licenses\\LICENSE.BSD',
    'DATA'),
-  ('numpy-2.2.6.dist-info\\INSTALLER',
+  ('cryptography-44.0.3.dist-info\\RECORD',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\numpy-2.2.6.dist-info\\INSTALLER',
-   'DATA'),
-  ('pdfminer_six-20251230.dist-info\\RECORD',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer_six-20251230.dist-info\\RECORD',
+   'Files\\Python\\Python310\\lib\\site-packages\\cryptography-44.0.3.dist-info\\RECORD',
    'DATA'),
   ('numpy-2.2.6.dist-info\\DELVEWHEEL',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\numpy-2.2.6.dist-info\\DELVEWHEEL',
    'DATA'),
-  ('numpy-2.2.6.dist-info\\RECORD',
+  ('pdfminer_six-20251230.dist-info\\top_level.txt',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\numpy-2.2.6.dist-info\\RECORD',
-   'DATA'),
-  ('numpy-2.2.6.dist-info\\entry_points.txt',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\numpy-2.2.6.dist-info\\entry_points.txt',
-   'DATA'),
-  ('pdfminer_six-20251230.dist-info\\INSTALLER',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer_six-20251230.dist-info\\INSTALLER',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer_six-20251230.dist-info\\top_level.txt',
    'DATA'),
   ('numpy-2.2.6.dist-info\\METADATA',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\numpy-2.2.6.dist-info\\METADATA',
    'DATA'),
-  ('pdfminer_six-20251230.dist-info\\licenses\\LICENSE',
+  ('pdfminer_six-20251230.dist-info\\RECORD',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer_six-20251230.dist-info\\licenses\\LICENSE',
-   'DATA'),
-  ('pdfminer_six-20251230.dist-info\\top_level.txt',
-   'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer_six-20251230.dist-info\\top_level.txt',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer_six-20251230.dist-info\\RECORD',
    'DATA'),
   ('pdfminer_six-20251230.dist-info\\METADATA',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\pdfminer_six-20251230.dist-info\\METADATA',
    'DATA'),
+  ('pdfminer_six-20251230.dist-info\\WHEEL',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer_six-20251230.dist-info\\WHEEL',
+   'DATA'),
   ('numpy-2.2.6.dist-info\\LICENSE.txt',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\numpy-2.2.6.dist-info\\LICENSE.txt',
    'DATA'),
-  ('pdfminer_six-20251230.dist-info\\WHEEL',
+  ('pdfminer_six-20251230.dist-info\\licenses\\LICENSE',
    'B:\\Program '
-   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer_six-20251230.dist-info\\WHEEL',
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer_six-20251230.dist-info\\licenses\\LICENSE',
+   'DATA'),
+  ('numpy-2.2.6.dist-info\\RECORD',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\numpy-2.2.6.dist-info\\RECORD',
+   'DATA'),
+  ('numpy-2.2.6.dist-info\\INSTALLER',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\numpy-2.2.6.dist-info\\INSTALLER',
+   'DATA'),
+  ('numpy-2.2.6.dist-info\\WHEEL',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\numpy-2.2.6.dist-info\\WHEEL',
+   'DATA'),
+  ('pdfminer_six-20251230.dist-info\\INSTALLER',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\pdfminer_six-20251230.dist-info\\INSTALLER',
+   'DATA'),
+  ('numpy-2.2.6.dist-info\\entry_points.txt',
+   'B:\\Program '
+   'Files\\Python\\Python310\\lib\\site-packages\\numpy-2.2.6.dist-info\\entry_points.txt',
    'DATA'),
   ('base_library.zip',
    'H:\\AI提示词\\资产\\prompt_studio\\prompt_studio_desktop\\desktop\\build\\prompt-studio-server\\base_library.zip',
@@ -1127,7 +1127,7 @@
  [],
  False,
  False,
- 1779076980,
+ 1779199666,
  [('run.exe',
    'B:\\Program '
    'Files\\Python\\Python310\\lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\run.exe',
