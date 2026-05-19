@@ -3605,6 +3605,55 @@
         if (state.view !== viewKey) navigate(viewKey, state.projectId);
         else { renderSidebar(); renderPage(); }
       });
+      // Right-click context menu: rename / delete
+      el.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const folderId = el.dataset.folderId;
+        const viewKey = el.dataset.folderView;
+        const m = document.getElementById('ctxMenu');
+        m.innerHTML = `
+          <div class="ctx-menu-item" data-act="sidebar-rename">✏️ ${t('重命名','Rename')}</div>
+          <div class="ctx-menu-sep"></div>
+          <div class="ctx-menu-item danger" data-act="sidebar-delete">🗑️ ${t('删除文件夹','Delete Folder')}</div>
+        `;
+        m.style.display = 'block';
+        m.style.left = Math.min(e.clientX, innerWidth - 180) + 'px';
+        m.style.top = Math.min(e.clientY, innerHeight - 100) + 'px';
+        m.querySelector('[data-act="sidebar-rename"]').addEventListener('click', async () => {
+          m.style.display = 'none';
+          const proj = getProject(state.projectId);
+          const folder = (proj?.[viewKey]||[]).find(p => p.id === folderId);
+          if (!folder) return;
+          const newName = prompt(t('重命名文件夹：','Rename folder:'), folder.title || '');
+          if (newName !== null && newName.trim()) {
+            folder.title = newName.trim();
+            folder.updated_at = new Date().toISOString();
+            await saveData(data); data = await loadData();
+            renderSidebar(); renderPage();
+            toast(`✅ ${t('已重命名为','Renamed to')}「${folder.title}」`);
+          }
+        });
+        m.querySelector('[data-act="sidebar-delete"]').addEventListener('click', async () => {
+          m.style.display = 'none';
+          const proj = getProject(state.projectId);
+          const folder = (proj?.[viewKey]||[]).find(p => p.id === folderId);
+          if (!folder) return;
+          const msg = t(
+            `删除文件夹「${folder.title}」？其中的提示词将移回根目录。`,
+            `Delete folder "${folder.title}"? Prompts inside will be moved to root.`
+          );
+          if (!confirm(msg)) return;
+          // Move contained items to root
+          (proj[viewKey]||[]).forEach(p => { if (p.folder_id === folderId) delete p.folder_id; });
+          // Remove the folder
+          proj[viewKey] = (proj[viewKey]||[]).filter(p => p.id !== folderId);
+          if (state.folderFilter === folderId) state.folderFilter = null;
+          await saveData(data); data = await loadData();
+          renderSidebar(); renderPage();
+          toast(`✅ ${t('文件夹已删除','Folder deleted')}`);
+        });
+      });
     });
     const backBtn = document.getElementById('backToProjects');
     if (backBtn) backBtn.onclick = () => navigate('projects');
@@ -3980,13 +4029,15 @@
     const activeType = viewTypeMap[state.view] || 'all';
     let prompts = buildProjectAssets(proj);
     if (activeType !== 'all') prompts = prompts.filter(p => p.__type === activeType);
-    // Folder filtering for image/video views (folders are in sidebar, not grid)
+    // Folder filtering for image/video views (sidebar tree + grid)
     const isAssetView = activeType === 'image' || activeType === 'video';
     if (isAssetView) {
-      // Never show folder cards in grid
-      prompts = prompts.filter(p => !p.is_folder);
       if (state.folderFilter) {
-        prompts = prompts.filter(p => p.folder_id === state.folderFilter);
+        // Inside a folder: only show that folder's prompts (no folder cards)
+        prompts = prompts.filter(p => !p.is_folder && p.folder_id === state.folderFilter);
+      } else {
+        // Root level: show folder cards + prompts not in any folder
+        prompts = prompts.filter(p => p.is_folder || !p.folder_id);
       }
     }
     if (!state.folderFilter) {
@@ -4097,6 +4148,7 @@
           else openItemEditor(item);
         } else if ((type === 'image' || type === 'video') && item.is_folder) {
           state.folderFilter = item.id;
+          renderSidebar();
           renderPage();
           syncToolbarControls();
         } else {
