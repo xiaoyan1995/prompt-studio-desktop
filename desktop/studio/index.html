@@ -248,7 +248,7 @@
     grid-column:1;grid-row:2;
     min-height:0;overflow:auto;
     display:flex;flex-direction:column;
-    background:linear-gradient(175deg,#edf5ff 0%,#c5daf5 55%,#a8c6ee 100%);
+    background:#f0f6ff;
   }
   .workspace-main{
     flex:1;min-height:100%;
@@ -513,6 +513,7 @@
   .insp-title-text{font-size:15px;font-weight:700;color:var(--text);line-height:1.45;flex:1;min-width:0;word-break:break-all}
   .insp-pencil{flex-shrink:0;width:24px;height:24px;border:none;background:none;color:var(--subtle);font-size:13px;cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;-webkit-app-region:no-drag}
   .insp-pencil:hover{background:var(--primary-soft);color:var(--primary)}
+  .insp-magic:hover{background:var(--primary-soft);color:var(--primary)!important}
   .insp-tags-row{padding:0 0 2px;font-size:11px}
   .insp-add-tag{flex-shrink:0;width:20px;height:20px;border:1px dashed var(--border);background:none;color:var(--subtle);font-size:13px;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;-webkit-app-region:no-drag}
   .insp-add-tag:hover{border-color:var(--primary);color:var(--primary)}
@@ -731,12 +732,31 @@
 
   /* Toast */
   .toast{
-    position:fixed;bottom:24px;right:24px;background:#1a2740;color:#fff;
-    padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;
-    box-shadow:0 8px 24px rgba(0,0,0,.2);transform:translateY(80px);opacity:0;
-    transition:all .25s;z-index:9999;pointer-events:none;
+    position:fixed;bottom:24px;right:24px;
+    background:#ffffff;
+    color:#1e293b;
+    border:1px solid rgba(59, 130, 246, 0.12);
+    padding:12px 20px 15px 20px;border-radius:12px;font-size:13px;font-weight:600;
+    box-shadow:0 10px 30px rgba(15, 23, 42, 0.08);
+    transform:translateY(80px);opacity:0;
+    transition:all .28s cubic-bezier(0.16, 1, 0.3, 1);z-index:9999;pointer-events:none;
+    overflow:hidden;
   }
   .toast.show{transform:translateY(0);opacity:1}
+  .toast-bar{
+    position:absolute;bottom:0;left:0;height:3px;
+    background:linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6);
+    width:35%;
+    display:none;
+  }
+  .toast.loading .toast-bar{
+    display:block;
+    animation:toast-loading-bar 1.4s infinite ease-in-out;
+  }
+  @keyframes toast-loading-bar{
+    0% { left: -35%; }
+    100% { left: 100%; }
+  }
 
   /* Tags input */
   .tags-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
@@ -1086,7 +1106,15 @@
   }
   .palette-row{gap:3px;overflow:visible}
   .palette-chip{flex:1;height:12px;border:none;border-radius:3px}
-  /* inspector overrides: handled by body.dark block below */
+  body.dark .toast{
+    background:#17202b;
+    color:#f1f5f9;
+    border:1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+  body.dark .toast-bar{
+    background:linear-gradient(90deg, #d6a15d, #ffe0ad, #d6a15d);
+  }
   .field input,.field textarea,.field select{
     background:#111923;border-color:#2b3a4a;color:#e6edf5;
   }
@@ -1236,7 +1264,7 @@
     box-shadow:none;
   }
   .workspace-main{
-    background:linear-gradient(160deg,#f4f8ff 0%,#eaf2fc 45%,#dce9f8 100%);
+    background:#f0f6ff;
     border-color:#dae2ee;
     box-shadow:none;
   }
@@ -1917,7 +1945,10 @@
 </div>
 
 <!-- Toast -->
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast">
+  <span id="toastText"></span>
+  <div class="toast-bar"></div>
+</div>
 
 <!-- Modal: Project form -->
 <div class="modal-backdrop" id="projModal">
@@ -2890,11 +2921,24 @@
   function h(v) {
     return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
-  function toast(msg, ms=2200) {
+  function toast(msg, ms=2200, isLoading=false) {
     const el = document.getElementById('toast');
-    el.textContent = msg; el.classList.add('show');
+    const txt = document.getElementById('toastText');
+    if (txt) txt.textContent = msg;
+    else el.textContent = msg;
+
+    if (isLoading) {
+      el.classList.add('loading');
+    } else {
+      el.classList.remove('loading');
+    }
+
+    el.classList.add('show');
     clearTimeout(el._t);
-    el._t = setTimeout(() => el.classList.remove('show'), ms);
+    el._t = setTimeout(() => {
+      el.classList.remove('show');
+      el.classList.remove('loading');
+    }, ms);
   }
   function getProject(id) { return data.projects.find(p => p.id === id); }
   function toTs(v) {
@@ -3428,7 +3472,7 @@
         <div class="insp-body">
           <div class="insp-title-row">
             <span class="insp-title-text">${h(item.title || t('未命名','Untitled'))}</span>
-            <button class="insp-pencil" id="inspectorOpenBtn" title="${t('编辑','Edit')}">✏</button>
+            <button class="insp-magic" id="inspectorGenTitleBtn" style="flex-shrink:0;border:none;background:none;color:#3b82f6;font-size:11px;cursor:pointer;padding:4px 6px;display:flex;align-items:center;gap:2px;border-radius:6px;transition:background .15s" title="${t('大模型一键生成创意标题','AI Generate Title')}">${t('AI 标题','AI Title')}</button>
           </div>
           <div class="insp-tags-row"><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">${tags}<button class="insp-add-tag" id="inspTagAddBtn">+</button></div></div>
           ${promptBlock}
@@ -3447,6 +3491,60 @@
           ${opsBlock}
         </div>
       `;
+    }
+    const genTitleBtn = document.getElementById('inspectorGenTitleBtn');
+    if (genTitleBtn) {
+      genTitleBtn.onclick = async () => {
+        if (!item.prompt) { toast('⚠️ 请先填写提示词内容才能生成标题'); return; }
+        
+        const isVid = item.__type === 'video';
+        const apiKey = isVid ? (desktopSettings.videoApiKey || desktopSettings.imageApiKey) : (desktopSettings.imageApiKey || desktopSettings.videoApiKey);
+        const apiBase = isVid ? (desktopSettings.videoApiBase || desktopSettings.imageApiBase) : (desktopSettings.imageApiBase || desktopSettings.videoApiBase);
+        const model = isVid ? (desktopSettings.videoModel || desktopSettings.imageModel) : (desktopSettings.imageModel || desktopSettings.videoModel);
+        
+        if (!apiKey) {
+          toast('⚠️ 请先在右上角「设置」里填写 API Key');
+          return;
+        }
+
+        // 按钮进入 Loading 动画
+        const originalText = genTitleBtn.textContent;
+        genTitleBtn.disabled = true;
+        genTitleBtn.style.opacity = '0.6';
+        genTitleBtn.textContent = '⏳ 提炼中...';
+
+        // 弹出 10 分钟长驻 Toast + 发光循环进度拉条，绝不消失
+        toast('正在生成标题...', 600000, true);
+
+        try {
+          const res = await postJson('/api/gen-title', { 
+            prompt: item.prompt,
+            apiKey: apiKey,
+            apiBase: apiBase,
+            model: model || 'gpt-4o-mini'
+          });
+          const proj = data.projects.find(p => p.id === state.projectId);
+          if (proj) {
+            const key = item.__category || (item.__type === 'skill' ? 'skill_prompts' : (item.__type === 'video' ? 'video_prompts' : 'image_prompts'));
+            const pItem = (proj[key] || []).find(x => x.id === item.id);
+            if (pItem) {
+              pItem.title = res.title;
+              await saveData(data);
+              await reloadData();
+              uiState.selectedItem = { ...pItem, __type: item.__type, __category: key };
+              renderInspector();
+              toast('✅ 创意标题生成成功！');
+            }
+          }
+        } catch (e) {
+          toast('❌ 生成失败: ' + e.message, 4000);
+        } finally {
+          // 恢复按钮状态
+          genTitleBtn.disabled = false;
+          genTitleBtn.style.opacity = '1';
+          genTitleBtn.textContent = originalText;
+        }
+      };
     }
     const openBtn = document.getElementById('inspectorOpenBtn');
     if (openBtn) {
@@ -4379,7 +4477,7 @@
       const cardLabelText = isAssetFolder
         ? t('文件夹','Folder') + ' · ' + assetFolderItems.length + (isImg ? t(' 个图片',' Images') : t(' 个视频',' Videos'))
         : isImg ? t('图片','Image') : ((isSkill && p.is_folder) ? t('文件夹','Folder') + ' · ' + (p.files||[]).length + t(' 个文件',' Files') : (isSkill ? 'Skills' : t('视频','Video')));
-      const galleryCount = isImg && !isAssetFolder && (p.gallery||[]).length > 0 ? p.gallery.length + 1 : 0;
+      const galleryCount = isImg && !isAssetFolder && (p.gallery||[]).length > 0 ? p.gallery.length : 0;
       const galleryBadge = galleryCount > 1 ? `<div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.55);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;font-weight:700;backdrop-filter:blur(4px);pointer-events:none;z-index:2">×${galleryCount}</div>` : '';
       const assetFolderThumb = isAssetFolder ? (() => {
         const previews = assetFolderItems.slice(0, 4);
@@ -6891,6 +6989,10 @@
     if (!cfg.apiKey) { toast('⚠️ 请先在右上角「设置」里填写 API Key'); return; }
     const btn = document.getElementById('pmReanalyzeBtn');
     btn.disabled = true; btn.textContent = '⏳ 分析中…';
+    
+    // 弹出 10 分钟长驻 Toast + 发光循环进度拉条，绝不消失
+    toast('正在反推画面...', 600000, true);
+
     document.getElementById('pmReanalyzeResult').style.display = 'none';
     try {
       const res = await fetch('/api/reverse-prompt', {
@@ -6923,6 +7025,7 @@
         document.getElementById('pmAnalysis').value = d.analysis;
         document.getElementById('pmAnalysisWrap').style.display = '';
       }
+      toast('✅ 画面反推及视觉报告分析成功！');
     } catch(e) {
       toast('❌ 反推失败：' + e.message);
     } finally {
@@ -8378,8 +8481,8 @@
   });
 
   // Grid background right-click → new folder
-  document.getElementById('mainGrid').addEventListener('contextmenu', (e) => {
-    if (e.target.closest('.card')) return; // card has its own handler
+  document.querySelector('.workspace-main').addEventListener('contextmenu', (e) => {
+    if (e.target.closest('.card') || e.target.closest('.cat-bar')) return; // card or tag-bar has its own handler
     const isAssetView = state.view === 'image_prompts' || state.view === 'video_prompts' || state.view === 'pdf_files';
     if (!isAssetView || state.folderFilter) return;
     e.preventDefault();

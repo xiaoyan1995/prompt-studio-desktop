@@ -2033,13 +2033,16 @@ class Handler(SimpleHTTPRequestHandler):
             return self._err(400, "Missing apiKey")
         payload = json.dumps({
             "model": model,
-            "max_tokens": 30,
             "temperature": 0.7,
             "messages": [
-                {"role": "system", "content":
-                    "根据用户提供的 AI 绘图提示词，生成一个简短的中文标题（6-14个字）。"
-                    "只输出标题本身，不加引号、不加解释、不加标点以外的任何内容。"},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": 
+                    f"请根据下面这段 AI 绘图提示词，用一句极其直白、通俗的中文，概括出这张图片画了什么内容（核心主体 + 画面场景）。\n\n"
+                    f"{prompt}\n\n"
+                    f"【硬性要求】\n"
+                    f"1. 必须使用大白话、通俗易懂地总结（例如：'和风霓虹少女海报'、'丛林遗迹废土风景' 这样直白、一眼能看懂画了什么的内容，绝对不要使用晦涩、文艺、矫情或华而不实的艺术词汇）。\n"
+                    f"2. 字数必须控制在 4 到 12 个汉字之间。\n"
+                    f"3. 只需要直接输出这几个字的标题文字本身，千万不要带任何标点、任何引号、引言、多余的字或解释。"
+                }
             ]
         }).encode()
         req = urllib.request.Request(
@@ -2049,17 +2052,29 @@ class Handler(SimpleHTTPRequestHandler):
             method="POST"
         )
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = json.loads(resp.read())
-            title = (data["choices"][0]["message"]["content"] or "").strip().strip('"').strip("'")
-            self._json_resp({"ok": True, "title": title})
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                res_data = json.loads(resp.read().decode())
+                title = res_data["choices"][0]["message"]["content"].strip()
+                title = title.replace('"', '').replace('“', '').replace('”', '').replace('`', '')
+                if not title:
+                    return self._err(500, "大模型未能生成有效标题，API 实际返回为空。请检查设置中的模型名称是否支持。")
+                return self._json_resp({"ok": True, "title": title})
         except urllib.error.HTTPError as e:
-            raw = e.read().decode("utf-8", errors="replace")
-            try:   msg = (json.loads(raw).get("error") or {}).get("message") or raw[:200]
-            except: msg = raw[:200]
-            self._err(502, f"AI API {e.code}: {msg}")
+            err_msg = e.read().decode('utf-8', errors='ignore')
+            try:
+                err_json = json.loads(err_msg)
+                detail = err_json.get("error", {}).get("message", err_msg)
+            except Exception:
+                detail = err_msg
+            return self._err(502, f"大模型接口服务报错 ({e.code}): {detail}")
+        except socket.timeout:
+            return self._err(504, "网络请求超时：大模型服务商响应过慢，请检查大模型网络或重试。")
+        except urllib.error.URLError as e:
+            if isinstance(e.reason, socket.timeout):
+                return self._err(504, "网络请求超时：大模型服务商响应过慢，请检查大模型网络或重试。")
+            return self._err(502, f"无法连接到大模型接口: {e.reason}")
         except Exception as e:
-            self._err(502, str(e))
+            return self._err(500, f"服务器内部错误: {str(e)}")
 
     def _handle_rewrite_prompt(self, body):
         original = (body.get("prompt") or "").strip()
@@ -2076,7 +2091,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self._err(400, "Missing API Key in desktop settings")
         payload = json.dumps({
             "model": model,
-            "max_tokens": 2000,
+            "max_tokens": 20000,
             "temperature": 0.7,
             "messages": [
                 {"role": "system", "content":
@@ -2094,9 +2109,12 @@ class Handler(SimpleHTTPRequestHandler):
             method="POST"
         )
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=60) as resp:
                 data = json.loads(resp.read())
-            result = (data["choices"][0]["message"]["content"] or "").strip()
+            choice = data["choices"][0]
+            result = (choice["message"]["content"] or "").strip()
+            if choice.get("finish_reason") == "length":
+                result += "\n\n⚠️ [输出被截断，提示词可能不完整]"
             self._json_resp({"ok": True, "prompt": result})
         except urllib.error.HTTPError as e:
             raw = e.read().decode("utf-8", errors="replace")
@@ -2261,6 +2279,24 @@ class Handler(SimpleHTTPRequestHandler):
                 "Output only the prompt, no explanations."
             )
 
+        # 强制格式约束，仅当使用系统默认指令时，才拼上标准的 JSON 结构，从而 100% 提取出标题、视觉报告
+        if not custom:
+            json_suffix = (
+                "\n\n【重要格式要求】请务必将你的全部分析结果整理并以标准的 JSON 格式返回，不要带有任何多余的解释，必须以 '{' 开头和 '}' 结尾。JSON 格式如下：\n"
+                "{\n"
+                '  "title": "请为这张图/视频起一个简短、有意境的创意中文标题（15字以内）",\n'
+                '  "reversePrompt": "这是根据画面提炼出的、用于AI重新生成该媒体的最终核心英文提示词（即作为 SD/Midjourney 绘图的 Prompt）",\n'
+                '  "coreExpression": "对媒体核心情感、主题与艺术表达的简要提炼",\n'
+                '  "style": "分析画风、媒介类型、精细度、描线、着色风格等",\n'
+                '  "subject": "分析画面中的主体人物、外貌、姿态、动作、服装细节与道具细节",\n'
+                '  "camera": "分析镜头景别、视角、焦距感、透视与构图方式",\n'
+                '  "scene": "分析环境类型、场景层次、背景元素与空间纵深感",\n'
+                '  "lighting": "分析整体色调、光源、光影对比与材质质感"\n'
+                "}\n"
+                "注意：必须输出标准的、无任何语法错误的合法 JSON 字符串，确保可以直接被 json.loads 解析。"
+            )
+            prompt_instruction += json_suffix
+
         # Download media
         try:
             if url.startswith("/uploads/"):
@@ -2342,6 +2378,33 @@ class Handler(SimpleHTTPRequestHandler):
                 analysis = _format_art_brief(obj)
             except Exception:
                 pass  # not valid JSON, use raw text as-is
+
+        # 如果没有成功解析出 JSON（比如用户使用了自定义指令），我们智能使用正则尝试从纯文本里分流出标题和报告
+        if not auto_title or not analysis:
+            # 1. 寻找可能存在的标题：形如 【标题】或 标题: 或 Title:
+            title_patterns = [
+                r"(?:【标题】|标题[:：]|Title[:：])\s*([^\n]+)",
+                r"^#\s*([^\n]+)", # markdown 一级标题
+            ]
+            for pat in title_patterns:
+                m = re.search(pat, result_text, re.IGNORECASE)
+                if m:
+                    auto_title = m.group(1).strip()
+                    # 移掉纯文本里的标题行，让提示词干净
+                    final_text = re.sub(re.escape(m.group(0)), "", final_text)
+                    break
+
+            # 2. 寻找可能存在的视觉报告：形如 【视觉分析】或 【分析】或 分析[:：]
+            analysis_patterns = [
+                r"(?:【视觉分析报告】|【分析报告】|【分析】|视觉分析[:：]|分析报告[:：]|分析[:：]|Analysis[:：])\s*([\s\S]+)$"
+            ]
+            for pat in analysis_patterns:
+                m = re.search(pat, result_text, re.IGNORECASE)
+                if m:
+                    analysis = m.group(1).strip()
+                    # 移掉纯文本里的分析报告部分，保证提示词主框内只有纯净的描述语
+                    final_text = final_text.replace(m.group(0), "").strip()
+                    break
 
         resp = {"ok": True, "prompt": final_text}
         if auto_title: resp["title"]    = auto_title
