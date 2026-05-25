@@ -187,7 +187,10 @@ function setAspect(w, h) {
 function renderPreview() {
   const box = document.getElementById('previewBox');
   if (!mediaUrl) {
-    box.innerHTML = '<div class="preview-url">（无媒体 URL）</div>';
+    const hint = mediaType === 'video'
+      ? '（未检测到视频流）<br><small style="color:#888;font-size:11px">💡 请先在页面上点击播放视频，再右键保存</small>'
+      : '（无媒体 URL）';
+    box.innerHTML = `<div class="preview-url" style="text-align:center;padding:16px;line-height:1.8">${hint}</div>`;
     return;
   }
   if (mediaType === 'video') {

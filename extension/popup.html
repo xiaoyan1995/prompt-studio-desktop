@@ -113,6 +113,15 @@
       <button id="cSendBtn" disabled data-i18n="send_btn" style="padding:6px 16px;background:#16a34a;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;opacity:.4">💾 发送到 Prompt Studio</button>
     </div>
   </div>
+  <!-- Detected video section -->
+  <div id="videoDetectSection" style="display:none;margin-top:8px;border:1px solid #fed7aa;border-radius:8px;overflow:hidden;background:#fff7ed">
+    <div style="padding:6px 10px;background:#ffedd5;border-bottom:1px solid #fed7aa;display:flex;align-items:center;gap:6px">
+      <span style="font-size:13px">🎬</span>
+      <span style="font-size:11px;font-weight:700;color:#9a3412;flex:1" id="videoDetectLabel">检测到视频</span>
+      <span style="font-size:10px;color:#c2410c" id="videoDetectCount"></span>
+    </div>
+    <div id="videoDetectList" style="padding:6px 8px;display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto"></div>
+  </div>
   <button class="btn" id="openSettingsBtn">
     <span class="btn-icon">⚙️</span>
     <span class="btn-text" data-i18n="ext_settings">插件设置</span>

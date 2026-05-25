@@ -1,0 +1,461 @@
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+@custom-variant dark (&:where(.dark, .dark *));
+@source "../../**/*.{ts,tsx}";
+
+:root {
+  --background: #f4f4f5; /* Light grey canvas background matching parent */
+  --foreground: #18181b;
+  --canvas-dots-color: rgba(9, 9, 11, 0.08); /* Subtle dark dots for light theme */
+  --credits-pill-bg: radial-gradient(94.74% 157.5% at 50% 21.25%, #f4f4f5 0%, #d4d4d8 100%);
+  --credits-pill-border: rgba(9, 9, 11, 0.08);
+  --credits-pill-text: #18181b;
+  --credits-pill-btn-bg: #18181b;
+  --credits-pill-btn-text: #f4f4f5;
+  --credits-pill-btn-hover: #27272a;
+  --credits-icon-invert: 0;
+}
+
+.dark {
+  --background: #09090b; /* Deep dark canvas background */
+  --foreground: #f4f4f5;
+  --canvas-dots-color: rgba(255, 255, 255, 0.08); /* Subtle white dots for dark theme */
+  --credits-pill-bg: radial-gradient(94.74% 157.5% at 50% 21.25%, #1a1a1a 0%, #656766 100%);
+  --credits-pill-border: rgba(255, 255, 255, 0.1);
+  --credits-pill-text: #f4f4f5;
+  --credits-pill-btn-bg: #ffffff;
+  --credits-pill-btn-text: #000000;
+  --credits-pill-btn-hover: rgba(255, 255, 255, 0.8);
+  --credits-icon-invert: 1;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: Inter, "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Hide native scrollbar — replaced by custom ScrollbarEffect component */
+*,
+*::before,
+*::after {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+  background: transparent !important;
+}
+
+/* Prevent layout shift when scrollbar would appear/disappear */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+/* MiniMap: override Panel positioning to fill container */
+.xinyu-minimap.react-flow__minimap {
+  position: static !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.xinyu-minimap .react-flow__minimap-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* React Flow background color forced to use our theme variable */
+.react-flow {
+  --xy-background-color: var(--background) !important;
+  background-color: var(--background) !important;
+}
+
+/* Group node: transparent background, hide resize lines, remove selection outline */
+.react-flow__node-group {
+  background-color: transparent !important;
+  --xy-node-group-background-color: transparent;
+  --xy-node-group-background-color-default: transparent;
+  --xy-node-background-color: transparent;
+  --xy-node-background-color-default: transparent;
+  --xy-node-boxshadow-hover: none;
+  --xy-node-boxshadow-hover-default: none;
+  --xy-node-boxshadow-selected: none;
+  --xy-node-boxshadow-selected-default: none;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+.react-flow__node-group .react-flow__resize-control.line {
+  display: none !important;
+}
+.react-flow__node-group.selected,
+.react-flow__node-group:focus,
+.react-flow__node-group:focus-visible {
+  outline: none !important;
+  background-color: transparent !important;
+  border: none !important;
+}
+
+
+/* Comment mode: speech-bubble cursor overriding React Flow internals */
+.xinyu-comment-mode,
+.xinyu-comment-mode .react-flow__pane,
+.xinyu-comment-mode .react-flow__renderer,
+.xinyu-comment-mode .react-flow__viewport {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M16 3C9.4 3 4 7.6 4 13.2c0 3.2 1.7 6 4.4 7.9L7 27l6.2-2.9c.9.2 1.8.3 2.8.3 6.6 0 12-4.6 12-10.2S22.6 3 16 3z' fill='%23CCFF00' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E") 16 16, crosshair !important;
+}
+
+/* Stability first: avoid aggressive compositor hint that can trigger black flicker on some GPUs during zoom */
+.react-flow__viewport {
+  will-change: auto;
+}
+
+/* Guardrail: disable library edge dash animations if any animated class leaks in from historical data */
+.react-flow__edge.animated path,
+.react-flow__connection .animated {
+  animation: none !important;
+  stroke-dasharray: none !important;
+}
+
+/* Canvas style-lite mode: reduce expensive visual effects for stability debugging. */
+.xinyu-canvas-style-lite .react-flow__viewport {
+  will-change: auto !important;
+}
+
+.xinyu-canvas-style-lite .react-flow,
+.xinyu-canvas-style-lite .react-flow * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.xinyu-canvas-style-lite [class*="backdrop-blur"],
+.xinyu-canvas-style-lite [style*="backdrop-filter"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Handle: allow plus icon to overflow the size-0 handle */
+.react-flow__handle {
+  overflow: visible !important;
+}
+
+/* Handle hit area: invisible but interactive on node hover/selected */
+.xinyu-handle-hitarea {
+  pointer-events: none;
+}
+.react-flow__node:hover .xinyu-handle-hitarea,
+.react-flow__node.selected .xinyu-handle-hitarea {
+  pointer-events: auto;
+}
+
+/* TipTap / ProseMirror editor styles (dark, matching XinYu AI theme) */
+.tiptap.ProseMirror {
+  color: var(--foreground);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100px;
+}
+.tiptap.ProseMirror:focus {
+  outline: none;
+}
+.tiptap.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #52525b;
+  pointer-events: none;
+  height: 0;
+}
+.tiptap.ProseMirror h1 { font-size: 1.5em; font-weight: 700; margin: 0.5em 0 0.25em; }
+.tiptap.ProseMirror h2 { font-size: 1.25em; font-weight: 600; margin: 0.5em 0 0.25em; }
+.tiptap.ProseMirror h3 { font-size: 1.1em; font-weight: 600; margin: 0.5em 0 0.25em; }
+.tiptap.ProseMirror p { margin: 0.25em 0; }
+.tiptap.ProseMirror ul { padding-left: 1.75em; margin: 0.25em 0; list-style-type: disc; }
+.tiptap.ProseMirror ol { padding-left: 1.75em; margin: 0.25em 0; list-style-type: decimal; }
+.tiptap.ProseMirror li { margin: 0.1em 0; }
+.tiptap.ProseMirror li::marker { color: currentColor !important; }
+.tiptap.ProseMirror[contenteditable] li:has([style*="color: rgb(150, 66, 67)"]) { color: rgb(150, 66, 67); }
+.tiptap.ProseMirror[contenteditable] li:has([style*="color: rgb(131, 73, 21)"]) { color: rgb(131, 73, 21); }
+.tiptap.ProseMirror[contenteditable] li:has([style*="color: rgb(143, 128, 48)"]) { color: rgb(143, 128, 48); }
+.tiptap.ProseMirror[contenteditable] li:has([style*="color: rgb(61, 115, 68)"]) { color: rgb(61, 115, 68); }
+.tiptap.ProseMirror[contenteditable] li:has([style*="color: rgb(51, 114, 130)"]) { color: rgb(51, 114, 130); }
+.tiptap.ProseMirror[contenteditable] li:has([style*="color: rgb(43, 82, 132)"]) { color: rgb(43, 82, 132); }
+.tiptap.ProseMirror[contenteditable] li:has([style*="color: rgb(118, 56, 134)"]) { color: rgb(118, 56, 134); }
+.tiptap.ProseMirror hr {
+  border: none;
+  border-top: 1px solid #3f3f46;
+  margin: 0.75em 0;
+}
+.tiptap.ProseMirror strong { font-weight: 700; }
+.tiptap.ProseMirror em { font-style: italic; }
+
+/* Lightweight preview for idle text nodes (no TipTap/ProseMirror overhead) */
+.xinyu-text-preview {
+  color: var(--foreground);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.xinyu-text-preview h1 { font-size: 1.5em; font-weight: 700; margin: 0.5em 0 0.25em; }
+.xinyu-text-preview h2 { font-size: 1.25em; font-weight: 600; margin: 0.5em 0 0.25em; }
+.xinyu-text-preview h3 { font-size: 1.1em; font-weight: 600; margin: 0.5em 0 0.25em; }
+.xinyu-text-preview p { margin: 0.25em 0; }
+.xinyu-text-preview ul { padding-left: 1.75em; margin: 0.25em 0; list-style-type: disc; }
+.xinyu-text-preview ol { padding-left: 1.75em; margin: 0.25em 0; list-style-type: decimal; }
+.xinyu-text-preview li { margin: 0.1em 0; }
+.xinyu-text-preview li::marker { color: currentColor !important; }
+.xinyu-text-preview hr { border: none; border-top: 1px solid #3f3f46; margin: 0.75em 0; }
+.xinyu-text-preview strong { font-weight: 700; }
+.xinyu-text-preview em { font-style: italic; }
+
+/* Node resize handles (XinYu style: arc/crescent on hover at corners) */
+.react-flow__resize-control.line {
+  border-color: transparent !important;
+  background: transparent !important;
+}
+.react-flow__resize-control.handle,
+.react-flow__node.selected .react-flow__resize-control.handle {
+  --xinyu-corner-radius: 12px;
+  --xinyu-corner-gap: 1px;
+  --xinyu-arc-stroke: 1px;
+  --xinyu-corner-radius-local: var(--xinyu-corner-radius);
+  --xinyu-corner-gap-local: var(--xinyu-corner-gap);
+  --xinyu-arc-stroke-local: var(--xinyu-arc-stroke);
+  --xinyu-arc-radius-local: calc(var(--xinyu-corner-radius-local) + var(--xinyu-corner-gap-local));
+  --xinyu-arc-size-local: calc(var(--xinyu-arc-radius-local) * 2);
+  width: calc(var(--xinyu-corner-radius) * 2) !important;
+  height: calc(var(--xinyu-corner-radius) * 2) !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+}
+.react-flow__resize-control.handle::after {
+  content: "";
+  position: absolute;
+  width: var(--xinyu-arc-size-local);
+  height: var(--xinyu-arc-size-local);
+  border-radius: 50%;
+  border: var(--xinyu-arc-stroke-local) solid transparent;
+  transition: border-color 0.15s;
+  pointer-events: none;
+}
+
+/* Custom bottom-right-only control (used by text node) */
+.xinyu-text-resize-control {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+}
+.xinyu-text-resize-control::before,
+.xinyu-text-resize-control::after {
+  content: none !important;
+}
+
+.xinyu-text-resize-control {
+  /* Tune these 4 vars to match XinYu's tighter arc */
+  --xinyu-arc-radius: 15px;   /* smaller arc */
+  --xinyu-arc-stroke: 3px;  /* thinner stroke */
+  --xinyu-arc-offset-x: -10px; /* move arc closer to node corner */
+  --xinyu-arc-offset-y: -10px; /* move arc closer to node corner */
+}
+
+.xinyu-text-resize-arc {
+  width: calc(var(--xinyu-arc-radius) * 1.8);
+  height: calc(var(--xinyu-arc-radius) * 1.8);
+  border-bottom: var(--xinyu-arc-stroke) solid var(--xinyu-arc-color, rgba(255, 255, 255, 0.9));
+  border-right: var(--xinyu-arc-stroke) solid var(--xinyu-arc-color, rgba(255, 255, 255, 0.9));
+  border-bottom-right-radius: var(--xinyu-arc-radius);
+  pointer-events: none;
+  transform: translate(var(--xinyu-arc-offset-x), var(--xinyu-arc-offset-y));
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.xinyu-text-resize-control:hover .xinyu-text-resize-arc,
+.xinyu-text-resize-control:active .xinyu-text-resize-arc {
+  opacity: 1;
+}
+.react-flow__resize-control.handle.top.left {
+  --xinyu-corner-radius-local: var(--xinyu-corner-radius-tl, var(--xinyu-corner-radius));
+  --xinyu-corner-gap-local: var(--xinyu-corner-gap-tl, var(--xinyu-corner-gap));
+  --xinyu-arc-stroke-local: var(--xinyu-arc-stroke-tl, var(--xinyu-arc-stroke));
+}
+/* top-left: arc faces outward (top + left borders visible) */
+.react-flow__resize-control.handle.top.left::after {
+  left: calc(var(--xinyu-corner-radius-local) * 2 - var(--xinyu-arc-radius-local));
+  top: calc(var(--xinyu-corner-radius-local) * 2 - var(--xinyu-arc-radius-local));
+}
+.react-flow__resize-control.handle.top.left:hover::after {
+  border-top-color: rgba(255, 255, 255, 0.85);
+  border-left-color: rgba(255, 255, 255, 0.85);
+}
+.react-flow__resize-control.handle.top.right {
+  --xinyu-corner-radius-local: var(--xinyu-corner-radius-tr, var(--xinyu-corner-radius));
+  --xinyu-corner-gap-local: var(--xinyu-corner-gap-tr, var(--xinyu-corner-gap));
+  --xinyu-arc-stroke-local: var(--xinyu-arc-stroke-tr, var(--xinyu-arc-stroke));
+}
+/* top-right: arc faces outward (top + right borders visible) */
+.react-flow__resize-control.handle.top.right::after {
+  left: calc(0px - var(--xinyu-arc-radius-local));
+  top: calc(var(--xinyu-corner-radius-local) * 2 - var(--xinyu-arc-radius-local));
+}
+.react-flow__resize-control.handle.top.right:hover::after {
+  border-top-color: rgba(255, 255, 255, 0.85);
+  border-right-color: rgba(255, 255, 255, 0.85);
+}
+.react-flow__resize-control.handle.bottom.left {
+  --xinyu-corner-radius-local: var(--xinyu-corner-radius-bl, var(--xinyu-corner-radius));
+  --xinyu-corner-gap-local: var(--xinyu-corner-gap-bl, var(--xinyu-corner-gap));
+  --xinyu-arc-stroke-local: var(--xinyu-arc-stroke-bl, var(--xinyu-arc-stroke));
+}
+/* bottom-left: arc faces outward (bottom + left borders visible) */
+.react-flow__resize-control.handle.bottom.left::after {
+  left: calc(var(--xinyu-corner-radius-local) * 2 - var(--xinyu-arc-radius-local));
+  top: calc(0px - var(--xinyu-arc-radius-local));
+}
+.react-flow__resize-control.handle.bottom.left:hover::after {
+  border-bottom-color: rgba(255, 255, 255, 0.85);
+  border-left-color: rgba(255, 255, 255, 0.85);
+}
+.react-flow__resize-control.handle.bottom.right {
+  --xinyu-corner-radius-local: var(--xinyu-corner-radius-br, var(--xinyu-corner-radius));
+  --xinyu-corner-gap-local: var(--xinyu-corner-gap-br, var(--xinyu-corner-gap));
+  --xinyu-arc-stroke-local: var(--xinyu-arc-stroke-br, var(--xinyu-arc-stroke));
+}
+/* bottom-right: arc faces outward (bottom + right borders visible) */
+.react-flow__resize-control.handle.bottom.right::after {
+  left: calc(0px - var(--xinyu-arc-radius-local));
+  top: calc(0px - var(--xinyu-arc-radius-local));
+}
+.react-flow__resize-control.handle.bottom.right:hover::after {
+  border-bottom-color: rgba(255, 255, 255, 0.85);
+  border-right-color: rgba(255, 255, 255, 0.85);
+}
+
+@keyframes heartBeat {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.3); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+@keyframes scissorFadeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ── Firefly generating overlay for nodes ── */
+@keyframes xinyu-firefly {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1.5); }
+}
+
+.xinyu-meteor-text {
+  animation: xinyu-meteor-text-breathe 2s ease-in-out infinite;
+}
+
+@keyframes xinyu-meteor-text-breathe {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+/* ── Light Mode Core Overrides for Storyboard & Marketing panels ── */
+:root:not(.dark) {
+  .relative.max-w-\[1200px\],
+  .relative.max-w-\[1400px\] {
+    /* Panel wrapper backgrounds */
+    &.bg-white,
+    .bg-\#141414,
+    .bg-\[\#141414\],
+    .bg-\[\#1c1c1c\],
+    .bg-\[\#1e1e1e\],
+    .bg-\[\#111\] {
+      background-color: #ffffff !important;
+    }
+    
+    /* Semi-transparent backgrounds */
+    .bg-white\/\[0\.02\],
+    .bg-white\/\[0\.03\],
+    .bg-white\/\[0\.04\],
+    .bg-white\/\[0\.05\],
+    .bg-white\/\[0\.06\],
+    .bg-white\/\[0\.07\],
+    .bg-white\/\[0\.08\],
+    .bg-white\/10 {
+      background-color: #f4f4f5 !important;
+    }
+    
+    /* Border colors */
+    .border-white\/10,
+    .border-white\/\[0\.08\],
+    .border-white\/\[0\.06\],
+    .border-white\/\[0\.1\] {
+      border-color: #e4e4e7 !important;
+    }
+
+    /* High contrast text */
+    .text-white,
+    .text-white\/90,
+    .text-white\/88,
+    .text-white\/80 {
+      color: #18181b !important;
+    }
+    
+    .text-white\/70,
+    .text-white\/60,
+    .text-zinc-200,
+    .text-zinc-300 {
+      color: #27272a !important;
+    }
+
+    .text-white\/50,
+    .text-white\/40,
+    .text-zinc-400 {
+      color: #71717a !important;
+    }
+
+    .text-white\/30,
+    .text-white\/20,
+    .text-white\/25,
+    .text-zinc-500 {
+      color: #a1a1aa !important;
+    }
+
+    /* Neon green brand highlights in light mode -> emerald green */
+    .text-\[\#CCFF00\],
+    .text-\[\#CCFF00\]\/90,
+    .text-\[\#CCFF00\]\/80 {
+      color: #16a34a !important;
+    }
+    .bg-\[\#CCFF00\]\/10,
+    .bg-\[\#CCFF00\]\/20 {
+      background-color: rgba(34, 197, 94, 0.1) !important;
+    }
+    .bg-\[\#CCFF00\] {
+      background-color: #16a34a !important;
+      color: #ffffff !important;
+    }
+    .border-\[\#CCFF00\],
+    .border-\[\#CCFF00\]\/20,
+    .border-\[\#CCFF00\]\/30,
+    .border-\[\#CCFF00\]\/40 {
+      border-color: rgba(34, 197, 94, 0.3) !important;
+    }
+  }
+}

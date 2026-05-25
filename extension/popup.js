@@ -518,6 +518,71 @@ document.getElementById('insertToggleBtn').addEventListener('click', async () =>
   }
 });
 
+// ── Detected Video Section ────────────────────────────────────────────────────
+function candFileName(url) {
+  try {
+    const segs = new URL(url).pathname.split('/').filter(Boolean);
+    return segs[segs.length - 1] || url.slice(-40);
+  } catch { return url.slice(-40); }
+}
+function candFmtBadge(item) {
+  const ext = (item.ext || '').toLowerCase();
+  const colors = { mpd: '#7c3aed', m3u8: '#0369a1', mp4: '#15803d', flv: '#b45309', webm: '#0e7490', ts: '#6b7280' };
+  const label = item.kind === 'stream' ? (ext === 'mpd' ? 'DASH' : 'HLS') : (ext.toUpperCase() || 'VIDEO');
+  const bg = colors[ext] || '#475569';
+  return `<span style="font-size:9px;font-weight:700;color:#fff;background:${bg};padding:1px 5px;border-radius:4px;flex-shrink:0">${label}</span>`;
+}
+function fmtFileSize(bytes) {
+  if (!bytes) return '';
+  return bytes < 1048576 ? (bytes / 1024).toFixed(0) + ' KB' : (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+async function initVideoDetect() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) return;
+    const res = await new Promise(r =>
+      chrome.runtime.sendMessage({ type: 'get-media-candidates', tabId: tab.id }, r)
+    );
+    const items = (res?.items || []).filter(i => i.kind === 'video' || i.kind === 'stream');
+    if (!items.length) return;
+
+    const section = document.getElementById('videoDetectSection');
+    const list    = document.getElementById('videoDetectList');
+    const count   = document.getElementById('videoDetectCount');
+    section.style.display = '';
+    count.textContent = `${items.length} 条`;
+
+    list.innerHTML = '';
+    items.slice(0, 6).forEach(item => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:6px;background:#fff;border:1px solid #fed7aa;cursor:pointer;transition:background .1s';
+      row.innerHTML = `
+        ${candFmtBadge(item)}
+        <span style="flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1a2340" title="${item.url}">${candFileName(item.url)}</span>
+        ${item.size ? `<span style="font-size:10px;color:#9a3412;flex-shrink:0">${fmtFileSize(item.size)}</span>` : ''}
+        <span style="font-size:11px;flex-shrink:0">💾</span>`;
+      row.addEventListener('mouseenter', () => { row.style.background = '#ffedd5'; });
+      row.addEventListener('mouseleave', () => { row.style.background = '#fff'; });
+      row.addEventListener('click', () => {
+        chrome.runtime.sendMessage({
+          type: 'open-dialog',
+          mediaUrl: item.url,
+          mediaType: 'video',
+          mode: 'save',
+          pageUrl: tab.url,
+          pageTitle: tab.title,
+          tabId: tab.id,
+          referer: item.referer || tab.url
+        });
+        window.close();
+      });
+      list.appendChild(row);
+    });
+  } catch {}
+}
+
 checkServer();
 initBlockBtn();
 initInsertBtn();
+initVideoDetect();

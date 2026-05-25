@@ -5,11 +5,13 @@ Usage:  python server.py
 Then open:  http://127.0.0.1:8767/
 """
 import base64, json, mimetypes, os, re, socket, sys, tempfile, threading, time, urllib.request, urllib.error, uuid, zipfile, hashlib, difflib
+import subprocess
 from urllib.parse import unquote, urljoin, parse_qs, quote
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 import shutil
+from lapian_manager import LapianManager
 
 # ── SSE broadcast registry ────────────────────────────────────────────────────
 _sse_lock    = threading.Lock()
@@ -44,8 +46,10 @@ DATA_FILE  = DATA_DIR / "data.json"
 UPLOAD_DIR = DATA_DIR / "uploads"
 CONFIG_FILE = DATA_DIR / "desktop_settings.json"
 EXPORT_DIR = DATA_DIR / "exports"
+LAPIAN_PROJECTS_FILE = DATA_DIR / "lapian_projects.json"
 SNAPSHOT_DIR = DATA_DIR / "snapshots"
 SMART_FOLDERS_FILE = DATA_DIR / "smart_folders.json"
+lapian_mgr = LapianManager(DATA_DIR)
 PORT       = 8767
 
 # ── ffmpeg on-demand ──────────────────────────────────────────────────────────
@@ -53,6 +57,8 @@ FFMPEG_TOOLS_DIR = DATA_DIR / "tools"
 FFMPEG_EXE       = FFMPEG_TOOLS_DIR / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
 FFMPEG_DL_URL    = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
 _ffmpeg_install  = {"status": "idle", "percent": 0, "error": ""}
+
+DREAMINA_BIN_NAME = "dreamina.exe" if os.name == "nt" else "dreamina"
 
 def find_ffmpeg():
     if FFMPEG_EXE.exists():
@@ -87,6 +93,96 @@ def _do_install_ffmpeg():
     except Exception as exc:
         _ffmpeg_install = {"status": "error", "percent": 0, "error": str(exc)}
 
+
+def _find_dreamina_cli():
+    candidates = [
+        (Path(__file__).resolve().parent.parent / "bin" / DREAMINA_BIN_NAME),
+        (Path(__file__).resolve().parent / "bin" / DREAMINA_BIN_NAME),
+        (Path.cwd() / "bin" / DREAMINA_BIN_NAME),
+    ]
+    for c in candidates:
+        try:
+            if c.exists() and c.is_file():
+                return str(c)
+        except Exception:
+            continue
+    found = shutil.which("dreamina") or shutil.which("dreamina.exe")
+    return found or ""
+
+
+def _decode_cli_text(raw):
+    if raw is None:
+        return ""
+    if isinstance(raw, str):
+        return raw
+    for enc in ("utf-8", "gbk", "cp936"):
+        try:
+            return raw.decode(enc)
+        except Exception:
+            continue
+    return raw.decode("utf-8", errors="ignore")
+
+
+def _run_dreamina_cli(args, timeout=240):
+    cli = _find_dreamina_cli()
+    if not cli:
+        return {
+            "ok": False,
+            "returncode": -1,
+            "stdout": "",
+            "stderr": "未找到 dreamina CLI，可先执行官方安装命令。",
+            "command": [],
+        }
+    cmd = [cli] + [str(a) for a in (args or [])]
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=timeout)
+        stdout = _decode_cli_text(result.stdout).strip()
+        stderr = _decode_cli_text(result.stderr).strip()
+        return {
+            "ok": result.returncode == 0,
+            "returncode": int(result.returncode),
+            "stdout": stdout,
+            "stderr": stderr,
+            "command": cmd,
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "ok": False,
+            "returncode": -2,
+            "stdout": "",
+            "stderr": f"dreamina CLI 执行超时（{timeout}s）",
+            "command": cmd,
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "returncode": -3,
+            "stdout": "",
+            "stderr": str(exc),
+            "command": cmd,
+        }
+
+
+def _extract_json_from_cli_text(text):
+    if not text:
+        return None
+    start = text.find("{")
+    end = text.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    chunk = text[start:end + 1]
+    try:
+        return json.loads(chunk)
+    except Exception:
+        return None
+
+
+def _extract_cli_value(text, key):
+    if not text or not key:
+        return ""
+    m = re.search(rf"{re.escape(key)}\s*:\s*(\S+)", text)
+    return m.group(1).strip() if m else ""
+
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -106,6 +202,15 @@ DEFAULT_DESKTOP_SETTINGS = {
     "videoApiKey": "",
     "videoModel": "gemini-2.5-pro",
     "videoUploadTimeoutSec": "240",
+    "lapianApiBase": "https://generativelanguage.googleapis.com/v1beta",
+    "lapianApiKey": "",
+    "lapianModel": "gemini-2.5-flash",
+    "lapianVideoApiBase": "https://generativelanguage.googleapis.com/v1beta",
+    "lapianVideoApiKey": "",
+    "lapianVideoModel": "gemini-2.5-flash",
+    "lapianCustomPromptImage": "",
+    "lapianCustomPromptVideo": "",
+    "lapianAigcPromptInstruction": "",
     "llmApiBase": "https://api.openai.com/v1",
     "llmApiKey": "",
     "llmModel": "gpt-4o-mini",
@@ -833,6 +938,61 @@ class Handler(SimpleHTTPRequestHandler):
         elif path == "/api/ffmpeg-status":
             ff = find_ffmpeg()
             self._json_resp({"ok": bool(ff), "path": ff or "", "install": _ffmpeg_install})
+        elif path == "/api/lapian/list":
+            self._json_resp({"ok": True, "projects": lapian_mgr.get_list()})
+        elif path == "/api/lapian/video":
+            proj_id = (query.get("id") or [""])[0]
+            detail = lapian_mgr.get_detail(proj_id)
+            if not detail:
+                return self._err(404, "project_not_found")
+            vid = Path(detail.get("videoPath", ""))
+            if not vid.exists() or not vid.is_file():
+                return self._err(404, "video_not_found")
+            ctype = mimetypes.guess_type(str(vid))[0] or "video/mp4"
+            file_size = vid.stat().st_size
+            range_header = self.headers.get("Range")
+            if range_header:
+                try:
+                    spec = range_header.replace("bytes=", "").strip()
+                    parts = spec.split("-")
+                    start = int(parts[0]) if parts[0] else 0
+                    end = int(parts[1]) if len(parts) > 1 and parts[1] else file_size - 1
+                    end = min(end, file_size - 1)
+                except (ValueError, IndexError):
+                    self.send_response(416); self.send_header("Content-Range", f"bytes */{file_size}"); self.end_headers(); return
+                length = end - start + 1
+                self.send_response(206)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
+                self.send_header("Content-Length", str(length))
+                self.send_header("Accept-Ranges", "bytes")
+                self.end_headers()
+                with open(vid, "rb") as f:
+                    f.seek(start)
+                    remaining = length
+                    while remaining > 0:
+                        chunk = f.read(min(65536, remaining))
+                        if not chunk: break
+                        self.wfile.write(chunk)
+                        remaining -= len(chunk)
+            else:
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", str(file_size))
+                self.send_header("Accept-Ranges", "bytes")
+                self.end_headers()
+                with open(vid, "rb") as f:
+                    while True:
+                        chunk = f.read(65536)
+                        if not chunk: break
+                        self.wfile.write(chunk)
+        elif path == "/api/lapian/detail":
+            proj_id = (query.get("id") or [""])[0]
+            detail = lapian_mgr.get_detail(proj_id)
+            if detail:
+                self._json_resp({"ok": True, "project": detail})
+            else:
+                self._json_resp({"ok": False, "error": "project_not_found"})
         elif path == "/api/local-audio":
             self._serve_local_audio(query)
         elif path.startswith("/uploads/"):
@@ -971,6 +1131,8 @@ class Handler(SimpleHTTPRequestHandler):
             self._json_resp({"ok": True})
         elif path == "/api/upload-image":
             self._handle_upload(body)
+        elif path == "/api/upload-material":
+            self._handle_upload_material(body)
         elif path == "/api/save-media":
             self._handle_save_media(body)
         elif path == "/api/save-prompt":
@@ -985,6 +1147,8 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_reverse_prompt(body)
         elif path == "/api/create-project":
             self._handle_create_project(body)
+        elif path == "/api/rename-project":
+            self._handle_rename_project(body)
         elif path == "/api/gen-title":
             self._handle_gen_title(body)
         elif path == "/api/rewrite-prompt":
@@ -1003,8 +1167,205 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_delete_pdf(body)
         elif path == "/api/asset/quality":
             self._handle_asset_quality(body)
+        elif path == "/api/asset/palette":
+            self._handle_save_palette(body)
         elif path == "/api/asset/lineage":
             self._handle_asset_lineage(body)
+        elif path == "/api/upload-to-public":
+            self._handle_upload_to_public(body)
+        elif path == "/api/lapian/create":
+            video_path = body.get("videoPath", "")
+            video_asset_url = body.get("videoAssetUrl", "")
+            video_name = body.get("videoName", "")
+            movie_name = body.get("movieName", "")
+            desc = body.get("desc", "")
+            mode = body.get("mode", "standard")
+            threshold = body.get("threshold", None)
+            # Pre-flight: FFmpeg must be available
+            ff = find_ffmpeg()
+            if not ff:
+                self._json_resp({"ok": False, "ffmpeg_missing": True,
+                                 "error": "未检测到 FFmpeg，请先在「设置中心 → 工具依赖」中一键安装 FFmpeg 后再使用智能拉片。"})
+                return
+            # Resolve relative asset URL to absolute path via DATA_DIR
+            if video_asset_url and not video_path:
+                rel = video_asset_url.lstrip("/")
+                resolved = (DATA_DIR / rel).resolve()
+                if resolved.exists():
+                    video_path = str(resolved)
+                else:
+                    self._json_resp({"ok": False, "error": f"视频文件不存在: {resolved}"})
+                    return
+            try:
+                lp_id = lapian_mgr.create_project(ff, video_path, video_name, movie_name, desc, mode, threshold=threshold)
+                self._json_resp({"ok": True, "projectId": lp_id})
+            except Exception as e:
+                self._json_resp({"ok": False, "error": str(e)})
+        elif path == "/api/lapian/resplit":
+            lp_id = body.get("id", "")
+            mode = body.get("mode", "standard")
+            threshold = body.get("threshold", None)
+            ff = find_ffmpeg()
+            if not ff:
+                self._json_resp({"ok": False, "error": "FFmpeg 未安装"})
+                return
+            try:
+                lapian_mgr.resplit_project(ff, lp_id, mode=mode, threshold=threshold)
+                self._json_resp({"ok": True})
+            except Exception as e:
+                self._json_resp({"ok": False, "error": str(e)})
+        elif path == "/api/lapian/delete":
+            lp_id = body.get("id", "")
+            success = lapian_mgr.delete_project(lp_id)
+            self._json_resp({"ok": success})
+        elif path == "/api/lapian/analyze-shot":
+            lp_id = body.get("projectId", "")
+            shot_id = body.get("shotId", "")
+            use_video = bool(body.get("useVideo", False))
+            cfg = _load_settings()
+
+            if use_video:
+                # Video analysis mode: use dedicated video API config
+                api_base = cfg.get("lapianVideoApiBase", "")
+                api_key = cfg.get("lapianVideoApiKey", "")
+                model = cfg.get("lapianVideoModel", "")
+                if not api_key:
+                    self._json_resp({"ok": False, "error": "未配置视频分析模式 API Key，请在「设置中心 → 智能拉片 → 视频分析模式」中填写。"})
+                    return
+            else:
+                # Image analysis mode: use lapian-specific or fallback configs
+                api_base = cfg.get("lapianApiBase", "")
+                api_key = cfg.get("lapianApiKey", "")
+                model = cfg.get("lapianModel", "")
+                if not api_key:
+                    api_base = cfg.get("videoApiBase", "https://generativelanguage.googleapis.com/v1beta")
+                    api_key = cfg.get("videoApiKey", "")
+                    model = cfg.get("videoModel", "gemini-2.5-pro")
+                if not api_key:
+                    api_key = cfg.get("llmApiKey", "")
+                    api_base = cfg.get("llmApiBase", "https://api.openai.com/v1")
+                    model = cfg.get("llmModel", "gpt-4o-mini")
+                if not api_key:
+                    self._json_resp({"ok": False, "error": "未配置智能拉片或大模型 API Key，请先去左下角「设置中心」配置拉片专属 API"})
+                    return
+
+            custom_prompt = body.get("customPrompt", "")
+            if not custom_prompt:
+                if use_video:
+                    custom_prompt = cfg.get("lapianCustomPromptVideo", "")
+                else:
+                    custom_prompt = cfg.get("lapianCustomPromptImage", "")
+            aigc_instruction = cfg.get("lapianAigcPromptInstruction", "")
+            ff = find_ffmpeg()
+            res = lapian_mgr.analyze_shot(lp_id, shot_id, api_base, api_key, model, custom_prompt,
+                                          use_video=use_video, ffmpeg_path=ff,
+                                          aigc_instruction=aigc_instruction)
+            self._json_resp(res)
+        elif path == "/api/lapian/shot/delete":
+            res = lapian_mgr.delete_shot(body.get("projectId",""), body.get("shotId",""))
+            self._json_resp(res)
+        elif path == "/api/lapian/shot/split":
+            ff = find_ffmpeg()
+            if not ff:
+                self._json_resp({"ok": False, "error": "FFmpeg 未安装"})
+                return
+            res = lapian_mgr.split_shot(body.get("projectId",""), body.get("shotId",""),
+                                        float(body.get("splitSec", 0)), ff)
+            self._json_resp(res)
+        elif path == "/api/lapian/project/update-all-shots":
+            ff = find_ffmpeg()
+            if not ff:
+                self._json_resp({"ok": False, "error": "FFmpeg 未安装"})
+                return
+            res = lapian_mgr.update_bulk_shots(
+                body.get("projectId", ""),
+                body.get("shots", []),
+                ff
+            )
+            self._json_resp(res)
+        elif path == "/api/lapian/shot/merge":
+            ff = find_ffmpeg()
+            if not ff:
+                self._json_resp({"ok": False, "error": "FFmpeg 未安装"})
+                return
+            res = lapian_mgr.merge_shots(body.get("projectId",""), body.get("shotIds",[]), ff)
+            self._json_resp(res)
+        elif path == "/api/lapian/shot/update-desc":
+            res = lapian_mgr.update_shot_description(
+                body.get("projectId",""), body.get("shotId",""), body.get("description",""))
+            self._json_resp(res)
+        elif path == "/api/lapian/shot/chat":
+            cfg = _load_settings()
+            api_base = cfg.get("lapianApiBase", cfg.get("videoApiBase",""))
+            api_key  = cfg.get("lapianApiKey",  cfg.get("videoApiKey",""))
+            model    = cfg.get("lapianModel",    cfg.get("videoModel","gpt-4o"))
+            res = lapian_mgr.shot_chat(
+                body.get("projectId",""), body.get("shotId",""),
+                body.get("message",""), body.get("history",[]),
+                api_base, api_key, model)
+            self._json_resp(res)
+        elif path == "/api/lapian/export":
+            res = lapian_mgr.export_report(body.get("projectId",""), body.get("fmt","json"))
+            if res.get("ok"):
+                content = res["content"]
+                mime    = res.get("mime","text/plain")
+                fname   = res.get("filename","export.txt")
+                enc = content.encode("utf-8") if isinstance(content, str) else content
+                self.send_response(200)
+                self.send_header("Content-Type", f"{mime}; charset=utf-8")
+                self.send_header("Content-Disposition", f'attachment; filename="{fname}"')
+                self.send_header("Content-Length", str(len(enc)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(enc)
+            else:
+                self._json_resp(res)
+        elif path == "/api/lapian/shot/capture-frame":
+            res = lapian_mgr.capture_custom_frame(
+                body.get("projectId",""), body.get("shotId",""),
+                body.get("frameData",""), body.get("replaceIndex",None))
+            self._json_resp(res)
+        elif path == "/api/lapian/download-url":
+            ff = find_ffmpeg()
+            if not ff:
+                self._json_resp({"ok": False, "error": "FFmpeg 未安装"})
+                return
+            res = lapian_mgr.download_video_url(
+                body.get("url",""), body.get("videoName",""),
+                body.get("movieName",""), body.get("desc",""),
+                body.get("mode","standard"), ff)
+            self._json_resp(res)
+        elif path == "/api/lapian/save-to-assets":
+            target_proj_id = body.get("projectId", "")
+            shot = body.get("shot", {})
+            if not target_proj_id or not shot:
+                self._json_resp({"ok": False, "error": "missing_params"})
+                return
+            
+            data_db = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+            target_proj = None
+            for p in data_db.get("projects", []):
+                if p.get("id") == target_proj_id:
+                    target_proj = p
+                    break
+            
+            if not target_proj:
+                self._json_resp({"ok": False, "error": "target_project_not_found"})
+                return
+            
+            new_prompt = {
+                "id": f"pr_{uuid.uuid4().hex[:12]}",
+                "title": f"镜头_{shot.get('index', 1)}_{shot.get('summary', '未命名')[:20]}",
+                "content": shot.get("prompt", ""),
+                "notes": f"【时段时间】{shot.get('startTime')} - {shot.get('endTime')}\n【视听描述】\n{shot.get('desc', '')}",
+                "image": shot.get("img", ""),
+                "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+            target_proj["video_prompts"] = target_proj.get("video_prompts", []) or []
+            target_proj["video_prompts"].append(new_prompt)
+            
+            DATA_FILE.write_text(json.dumps(data_db, ensure_ascii=False, indent=2), encoding="utf-8")
+            self._json_resp({"ok": True, "promptId": new_prompt["id"]})
         elif path == "/api/import-bundle":
             return self._handle_import_bundle()
         elif path == "/api/studio-config":
@@ -1042,6 +1403,16 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_download_video(body)
         elif path == "/api/cli/push":
             self._handle_cli_push(body)
+        elif path == "/api/jimeng-cli/login/headless":
+            self._handle_jimeng_cli_login_headless(body)
+        elif path == "/api/jimeng-cli/login/check":
+            self._handle_jimeng_cli_login_check(body)
+        elif path == "/api/jimeng-cli/user-credit":
+            self._handle_jimeng_cli_user_credit(body)
+        elif path == "/api/jimeng-cli/generate-video":
+            self._handle_jimeng_cli_generate_video(body)
+        elif path == "/api/jimeng-cli/query":
+            self._handle_jimeng_cli_query(body)
         else:
             self._err(404, "Not found")
 
@@ -1075,6 +1446,99 @@ class Handler(SimpleHTTPRequestHandler):
             counter += 1
         out_path.write_bytes(base64.b64decode(b64))
         self._json_resp({"ok": True, "path": f"/uploads/{proj_folder}/images/{out_path.name}"})
+
+    def _handle_upload_material(self, body):
+        project_id = body.get("projectId", "")
+        filename = body.get("filename", "file.bin") or "file.bin"
+        media_type = body.get("type", "IMAGE")  # "IMAGE" | "VIDEO" | "AUDIO"
+        data_url = body.get("data_url", "")
+
+        # Read DB
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        
+        proj = next((p for p in data.get("projects", []) if p["id"] == project_id), None)
+        if not proj:
+            # Fallback to the first available project or create a default one if project_id is "ps-local" or not found
+            projects = data.get("projects", [])
+            if projects:
+                proj = projects[0]
+            else:
+                proj = {
+                    "id": "ps-local",
+                    "name": "默认画布项目",
+                    "description": "自动创建的默认画布项目",
+                    "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "is_canvas": True,
+                    "image_prompts": [],
+                    "video_prompts": [],
+                    "skill_prompts": []
+                }
+                data["projects"].append(proj)
+                DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        # Strip unsafe chars from filename
+        filename = re.sub(r"[^\w.\-]", "_", Path(filename).name)[:60]
+        stem = Path(filename).stem
+
+        proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", proj.get("name", "default"))[:40]
+        sub = "images" if media_type == "IMAGE" else "videos" if media_type == "VIDEO" else "audio"
+        save_dir = UPLOAD_DIR / proj_folder / "materials" / sub
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        # Support two modes: data_url (base64) or source_url (existing local path)
+        source_url = body.get("source_url", "")
+        if source_url and source_url.startswith("/"):
+            # Already a local file, just register it (or copy to materials folder)
+            src_path = DATA_DIR / source_url.lstrip("/")
+            if not src_path.exists():
+                src_path = BASE_DIR / source_url.lstrip("/")
+            if not src_path.exists():
+                return self._err(400, f"Source file not found: {source_url}")
+            ext = src_path.suffix or ".png"
+            out_path = save_dir / f"{stem}{ext}"
+            counter = 1
+            while out_path.exists():
+                out_path = save_dir / f"{stem}_{counter}{ext}"
+                counter += 1
+            import shutil
+            shutil.copy2(str(src_path), str(out_path))
+        elif data_url:
+            m = re.match(r"data:([^;]+);base64,(.+)", data_url, re.DOTALL)
+            if not m:
+                return self._err(400, "Invalid data_url")
+            mime, b64 = m.group(1), m.group(2)
+            ext = mimetypes.guess_extension(mime) or ".bin"
+            out_path = save_dir / f"{stem}{ext}"
+            counter = 1
+            while out_path.exists():
+                out_path = save_dir / f"{stem}_{counter}{ext}"
+                counter += 1
+            out_path.write_bytes(base64.b64decode(b64))
+        else:
+            return self._err(400, "Missing 'data_url' or 'source_url'")
+        
+        rel_path = f"/uploads/{proj_folder}/materials/{sub}/{out_path.name}"
+
+        # Register in project materials list
+        materials_list = proj.setdefault("materials", [])
+        mat_item = {
+            "id": uuid.uuid4().hex[:12],
+            "name": out_path.name,
+            "type": media_type,
+            "storage_key": rel_path,
+            "thumbnail_url": rel_path,
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%S")
+        }
+        materials_list.append(mat_item)
+        
+        # Save DB
+        DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        _sse_notify()
+
+        self._json_resp({"ok": True, "path": rel_path, "item": mat_item})
 
     def _handle_video_upload(self):
         length = int(self.headers.get("Content-Length", 0))
@@ -1546,15 +2010,32 @@ class Handler(SimpleHTTPRequestHandler):
             return self._err(404, "Project not found")
 
         analysis   = body.get("analysis", "")
-        item_id  = uuid.uuid4().hex[:16]
-        new_item = {
-            "id": item_id, "title": title or "未命名提示词",
-            "prompt": prompt, "analysis": analysis, "model": model, "tags": tags,
-            "image": "", "video": "", "ref_images": [], "aspect": "",
-            "created_at": time.strftime("%Y-%m-%dT%H:%M:%S")
-        }
-        _ensure_item_schema(new_item)
-        proj.setdefault(category, []).insert(0, new_item)
+        item_id    = body.get("id", "")
+        
+        existing_item = None
+        if item_id:
+            existing_item = next((item for item in proj.get(category, []) if item.get("id") == item_id), None)
+
+        if existing_item:
+            existing_item["title"] = title or existing_item.get("title", "未命名提示词")
+            existing_item["prompt"] = prompt
+            existing_item["model"] = model
+            existing_item["tags"] = tags
+            existing_item["analysis"] = analysis
+            existing_item["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+            new_item = existing_item
+        else:
+            if not item_id:
+                item_id = uuid.uuid4().hex[:16]
+            new_item = {
+                "id": item_id, "title": title or "未命名提示词",
+                "prompt": prompt, "analysis": analysis, "model": model, "tags": tags,
+                "image": "", "video": "", "ref_images": [], "aspect": "",
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%S")
+            }
+            _ensure_item_schema(new_item)
+            proj.setdefault(category, []).insert(0, new_item)
+
         DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         _sse_notify()
         self._json_resp({"ok": True, "item": new_item})
@@ -1573,6 +2054,23 @@ class Handler(SimpleHTTPRequestHandler):
         DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         _sse_notify()
         self._json_resp({"ok": True, "project": proj})
+
+    def _handle_rename_project(self, body):
+        project_id = body.get("projectId", "")
+        name = (body.get("name") or "").strip()
+        if not project_id:
+            return self._err(400, "Missing projectId")
+        if not name:
+            return self._err(400, "Missing name")
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        proj = next((p for p in data.get("projects", []) if p["id"] == project_id), None)
+        if not proj:
+            return self._err(404, "Project not found")
+        proj["name"] = name
+        DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        _sse_notify()
+        self._json_resp({"ok": True})
 
     def _handle_delete_prompt(self, body):
         project_id = body.get("projectId", "")
@@ -1828,6 +2326,22 @@ class Handler(SimpleHTTPRequestHandler):
         DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         _sse_notify()
         self._json_resp({"ok": True, "quality": item["quality"], "itemId": item_id})
+
+    def _handle_save_palette(self, body):
+        project_id = body.get("projectId", "")
+        category = body.get("category", "")
+        item_id = body.get("itemId", "")
+        palette = body.get("palette", [])
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data, changed = _ensure_data_schema(data)
+        if changed:
+            DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        proj, item = self._find_item_mut(data, project_id, category, item_id)
+        if not proj or not item:
+            return self._err(404, "Item not found")
+        item["palette_cache"] = palette
+        DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._json_resp({"ok": True, "palette": palette, "itemId": item_id})
 
     def _handle_asset_lineage(self, body):
         project_id = body.get("projectId", "")
@@ -2152,6 +2666,9 @@ class Handler(SimpleHTTPRequestHandler):
             return self._err(404, "Project not found")
 
         # Download media
+        raw = None
+        forced_ext = ""
+        ct = ""
         try:
             if url.startswith("/uploads/"):
                 rel_in = unquote(url[len("/uploads/"):]).replace("\\", "/")
@@ -2160,6 +2677,12 @@ class Handler(SimpleHTTPRequestHandler):
                 raw = local_path.read_bytes()
                 ct = mimetypes.guess_type(str(local_path))[0] or "application/octet-stream"
                 forced_ext = local_path.suffix.lower()
+            elif url.startswith("data:"):
+                m = re.match(r"data:([^;]+);base64,(.+)", url, re.DOTALL)
+                if m:
+                    ct = m.group(1)
+                    raw = base64.b64decode(m.group(2))
+                    forced_ext = mimetypes.guess_extension(ct) or ".jpg"
             else:
                 if not media_type:
                     media_type = "video" if category == "video_prompts" else "image"
@@ -2168,30 +2691,36 @@ class Handler(SimpleHTTPRequestHandler):
                     timeout=120 if media_type == "video" else 30
                 )
         except Exception as e:
-            return self._err(502, f"Download failed: {e}")
+            print(f"[save-media] Warning: download failed for {url}, using original url as fallback. Error: {e}")
 
-        url_ext = _url_ext(url)
-        is_video = (
-            media_type == "video"
-            or category == "video_prompts"
-            or "video" in (ct or "")
-            or url_ext in VIDEO_EXTS
-            or forced_ext in VIDEO_EXTS
-        )
-        url_ext_ok = url_ext if url_ext in VIDEO_EXTS or url_ext in IMAGE_EXTS else ""
-        mime_ext = "" if (ct == "application/octet-stream" and is_video) else (mimetypes.guess_extension(ct) or "")
-        ext = forced_ext or url_ext_ok or mime_ext or (".mp4" if is_video else ".jpg")
-        if ext == ".m3u8":
-            ext = ".ts"
-        ext = ext.replace(".jpe", ".jpg")
-        proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", proj.get("name","default"))[:40]
-        sub = "videos" if is_video else "images"
-        save_dir = UPLOAD_DIR / proj_folder / sub
-        save_dir.mkdir(parents=True, exist_ok=True)
-        stem = f"clip_{uuid.uuid4().hex[:8]}"
-        out_path = save_dir / f"{stem}{ext}"
-        out_path.write_bytes(raw)
-        rel = f"/uploads/{proj_folder}/{sub}/{out_path.name}"
+        if raw:
+            url_ext = _url_ext(url)
+            is_video = (
+                media_type == "video"
+                or category == "video_prompts"
+                or "video" in (ct or "")
+                or url_ext in VIDEO_EXTS
+                or forced_ext in VIDEO_EXTS
+            )
+            url_ext_ok = url_ext if url_ext in VIDEO_EXTS or url_ext in IMAGE_EXTS else ""
+            mime_ext = "" if (ct == "application/octet-stream" and is_video) else (mimetypes.guess_extension(ct) or "")
+            ext = forced_ext or url_ext_ok or mime_ext or (".mp4" if is_video else ".jpg")
+            if ext == ".m3u8":
+                ext = ".ts"
+            ext = ext.replace(".jpe", ".jpg")
+            proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", proj.get("name","default"))[:40]
+            sub = "videos" if is_video else "images"
+            save_dir = UPLOAD_DIR / proj_folder / sub
+            save_dir.mkdir(parents=True, exist_ok=True)
+            stem = f"clip_{uuid.uuid4().hex[:8]}"
+            out_path = save_dir / f"{stem}{ext}"
+            out_path.write_bytes(raw)
+            rel = f"/uploads/{proj_folder}/{sub}/{out_path.name}"
+        else:
+            is_video = (media_type == "video" or category == "video_prompts" or _url_ext(url) in VIDEO_EXTS)
+            sub = "videos" if is_video else "images"
+            rel = url
+            stem = f"clip_{uuid.uuid4().hex[:8]}"
 
         item_id = uuid.uuid4().hex[:16]
         new_item = {
@@ -2513,6 +3042,350 @@ class Handler(SimpleHTTPRequestHandler):
             data = json.loads(r.read())
         return data["candidates"][0]["content"]["parts"][0]["text"].strip()
 
+    def _resolve_jimeng_cli_media_path(self, value, media_kind="image", project_ref="default"):
+        src = str(value or "").strip()
+        if not src:
+            return ""
+
+        rel = _normalize_upload_ref(src)
+        if rel:
+            try:
+                target = _upload_target(rel)
+                if target.exists() and target.is_file():
+                    return str(target)
+            except Exception:
+                pass
+
+        if src.startswith("data:"):
+            m = re.match(r"data:([^;]+);base64,(.+)", src, re.DOTALL)
+            if not m:
+                return ""
+            mime, b64 = m.group(1), m.group(2)
+            ext = (mimetypes.guess_extension(mime) or (".jpg" if media_kind == "image" else ".mp4")).replace(".jpe", ".jpg")
+            proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", str(project_ref or "default"))[:40] or "default"
+            tmp_dir = UPLOAD_DIR / proj_folder / "_jimeng_cli_tmp"
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            out = tmp_dir / f"{media_kind}_{uuid.uuid4().hex[:12]}{ext}"
+            try:
+                out.write_bytes(base64.b64decode(b64))
+                return str(out)
+            except Exception:
+                return ""
+
+        if src.startswith("http://") or src.startswith("https://"):
+            proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", str(project_ref or "default"))[:40] or "default"
+            tmp_dir = UPLOAD_DIR / proj_folder / "_jimeng_cli_tmp"
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            ext = _url_ext(src) or (".jpg" if media_kind == "image" else ".mp4")
+            if not ext.startswith("."):
+                ext = f".{ext}"
+            out = tmp_dir / f"{media_kind}_{uuid.uuid4().hex[:12]}{ext}"
+            try:
+                req = urllib.request.Request(src, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=120) as r:
+                    raw = r.read()
+                out.write_bytes(raw)
+                return str(out)
+            except Exception:
+                return ""
+
+        p = Path(src)
+        if p.exists() and p.is_file():
+            return str(p.resolve())
+        p2 = (DATA_DIR / src.lstrip("/")).resolve()
+        try:
+            p2.relative_to(DATA_DIR.resolve())
+            if p2.exists() and p2.is_file():
+                return str(p2)
+        except Exception:
+            pass
+        return ""
+
+    def _jimeng_cli_model_version(self, model_id):
+        mid = str(model_id or "").strip()
+        if mid == "seedance-2-fast-cli":
+            return "seedance2.0fast"
+        if mid == "seedance-2-cli":
+            return "seedance2.0"
+        if "fast" in mid:
+            return "seedance2.0fast"
+        return "seedance2.0"
+
+    def _extract_submit_id_from_cli(self, payload, text):
+        if isinstance(payload, dict):
+            candidates = [
+                payload.get("submit_id"),
+                payload.get("task_id"),
+                payload.get("id"),
+                (payload.get("data") or {}).get("submit_id") if isinstance(payload.get("data"), dict) else None,
+                (payload.get("data") or {}).get("task_id") if isinstance(payload.get("data"), dict) else None,
+            ]
+            for c in candidates:
+                if c:
+                    return str(c)
+        m = re.search(r"submit_id\s*[:=]\s*([A-Za-z0-9\-]+)", text or "")
+        return m.group(1) if m else ""
+
+    def _extract_cli_video_url(self, payload):
+        if not isinstance(payload, dict):
+            return ""
+        for key in ("video_url", "url", "result_url", "output_url"):
+            v = payload.get(key)
+            if isinstance(v, str) and v.startswith(("http://", "https://", "/")):
+                return v
+        for key in ("result_urls", "urls", "outputs", "videos"):
+            v = payload.get(key)
+            if isinstance(v, list) and v:
+                first = v[0]
+                if isinstance(first, str):
+                    return first
+                if isinstance(first, dict):
+                    for k in ("url", "video_url", "output"):
+                        vv = first.get(k)
+                        if isinstance(vv, str) and vv:
+                            return vv
+        data = payload.get("data")
+        if isinstance(data, dict):
+            return self._extract_cli_video_url(data)
+        return ""
+
+    def _handle_jimeng_cli_login_headless(self, body):
+        data = body if isinstance(body, dict) else {}
+        use_relogin = str(data.get("relogin", "true")).lower() in ("1", "true", "yes", "on")
+        cmd = ["relogin" if use_relogin else "login", "--headless"]
+        run = _run_dreamina_cli(cmd, timeout=60)
+        out_text = "\n".join(x for x in [run.get("stdout", ""), run.get("stderr", "")] if x)
+        self._json_resp({
+            "ok": run.get("ok", False),
+            "returncode": run.get("returncode", -1),
+            "verification_uri": _extract_cli_value(out_text, "verification_uri"),
+            "user_code": _extract_cli_value(out_text, "user_code"),
+            "device_code": _extract_cli_value(out_text, "device_code"),
+            "expires_at": _extract_cli_value(out_text, "expires_at"),
+            "raw": out_text,
+            "command": run.get("command", []),
+        })
+
+    def _handle_jimeng_cli_login_check(self, body):
+        data = body if isinstance(body, dict) else {}
+        device_code = str(data.get("device_code", "")).strip()
+        poll = _as_int(data.get("poll", 5), default=5, min_value=0, max_value=120)
+        if not device_code:
+            return self._json_resp({"ok": False, "error": "missing_device_code"})
+        run = _run_dreamina_cli(["login", "checklogin", f"--device_code={device_code}", f"--poll={poll}"], timeout=max(30, poll + 20))
+        out_text = "\n".join(x for x in [run.get("stdout", ""), run.get("stderr", "")] if x)
+        success = ("OAuth 登录成功" in out_text) or ("LOGIN_SUCCESS" in out_text) or (run.get("returncode") == 0 and "登录成功" in out_text)
+        self._json_resp({
+            "ok": success,
+            "returncode": run.get("returncode", -1),
+            "user_id": _extract_cli_value(out_text, "user_id"),
+            "vip_level": _extract_cli_value(out_text, "vip_level"),
+            "total_credit": _extract_cli_value(out_text, "total_credit"),
+            "raw": out_text,
+            "command": run.get("command", []),
+        })
+
+    def _handle_jimeng_cli_user_credit(self, _body):
+        run = _run_dreamina_cli(["user_credit"], timeout=30)
+        out_text = run.get("stdout", "") or run.get("stderr", "")
+        payload = _extract_json_from_cli_text(out_text)
+        if isinstance(payload, dict):
+            return self._json_resp({"ok": run.get("ok", False), "returncode": run.get("returncode", -1), **payload})
+        self._json_resp({
+            "ok": run.get("ok", False),
+            "returncode": run.get("returncode", -1),
+            "raw": out_text,
+            "error": run.get("stderr", "") or run.get("stdout", "") or "user_credit_failed",
+        })
+
+    def _handle_jimeng_cli_generate_video(self, body):
+        data = body if isinstance(body, dict) else {}
+        prompt = str(data.get("prompt", "")).strip()
+        model_id = str(data.get("model_id", "seedance-2-fast-cli")).strip() or "seedance-2-fast-cli"
+        aspect_ratio = str(data.get("aspect_ratio", "16:9")).strip() or "16:9"
+        duration_s = _as_int(data.get("duration_s", 5), default=5, min_value=4, max_value=15)
+        resolution = str(data.get("resolution", "720p")).strip() or "720p"
+        ref_mode = str(data.get("video_ref_mode", "imageRef")).strip() or "imageRef"
+        project_ref = str(data.get("project_id", "default")).strip() or "default"
+
+        start_image = self._resolve_jimeng_cli_media_path(data.get("start_image_url", ""), "image", project_ref)
+        end_image = self._resolve_jimeng_cli_media_path(data.get("end_image_url", ""), "image", project_ref)
+
+        image_refs = []
+        if start_image:
+            image_refs.append(start_image)
+        if end_image:
+            image_refs.append(end_image)
+        for item in (data.get("element_images") or []):
+            p = self._resolve_jimeng_cli_media_path(item, "image", project_ref)
+            if p:
+                image_refs.append(p)
+        dedup_images = []
+        for p in image_refs:
+            if p not in dedup_images:
+                dedup_images.append(p)
+        image_refs = dedup_images[:9]
+
+        video_refs = []
+        for item in (data.get("ref_video_urls") or []):
+            p = self._resolve_jimeng_cli_media_path(item, "video", project_ref)
+            if p:
+                video_refs.append(p)
+        dedup_videos = []
+        for p in video_refs:
+            if p not in dedup_videos:
+                dedup_videos.append(p)
+        video_refs = dedup_videos[:3]
+
+        audio_refs = []
+        for item in (data.get("ref_audio_urls") or []):
+            p = self._resolve_jimeng_cli_media_path(item, "audio", project_ref)
+            if p:
+                audio_refs.append(p)
+        dedup_audios = []
+        for p in audio_refs:
+            if p not in dedup_audios:
+                dedup_audios.append(p)
+        audio_refs = dedup_audios[:3]
+
+        model_version = self._jimeng_cli_model_version(model_id)
+        if video_refs or audio_refs:
+            if not image_refs and not video_refs:
+                return self._json_resp({"ok": False, "error": "multimodal mode needs at least one image or video reference"})
+            cmd = ["multimodal2video"]
+            for p in image_refs:
+                cmd += ["--image", p]
+            for p in video_refs:
+                cmd += ["--video", p]
+            for p in audio_refs:
+                cmd += ["--audio", p]
+            if prompt:
+                cmd += ["--prompt", prompt]
+            cmd += [
+                f"--duration={duration_s}",
+                f"--ratio={aspect_ratio}",
+                f"--video_resolution={resolution}",
+                f"--model_version={model_version}",
+                "--poll=0",
+            ]
+        elif ref_mode == "startEnd" and len(image_refs) >= 2:
+            cmd = [
+                "frames2video",
+                "--first", image_refs[0],
+                "--last", image_refs[1],
+                "--prompt", prompt,
+                f"--duration={duration_s}",
+                f"--video_resolution={resolution}",
+                f"--model_version={model_version}",
+                "--poll=0",
+            ]
+        elif len(image_refs) >= 1:
+            cmd = [
+                "image2video",
+                "--image", image_refs[0],
+                "--prompt", prompt,
+                f"--duration={duration_s}",
+                f"--video_resolution={resolution}",
+                f"--model_version={model_version}",
+                "--poll=0",
+            ]
+        else:
+            if not prompt:
+                return self._json_resp({"ok": False, "error": "missing_prompt"})
+            cmd = [
+                "text2video",
+                "--prompt", prompt,
+                f"--duration={duration_s}",
+                f"--ratio={aspect_ratio}",
+                f"--video_resolution={resolution}",
+                f"--model_version={model_version}",
+                "--poll=0",
+            ]
+
+        run = _run_dreamina_cli(cmd, timeout=300)
+        out_text = "\n".join(x for x in [run.get("stdout", ""), run.get("stderr", "")] if x)
+        payload = _extract_json_from_cli_text(out_text)
+        submit_id = self._extract_submit_id_from_cli(payload, out_text)
+        gen_status = ""
+        if isinstance(payload, dict):
+            gen_status = str(payload.get("gen_status", payload.get("status", ""))).lower()
+
+        if not submit_id:
+            return self._json_resp({
+                "ok": False,
+                "error": run.get("stderr", "") or run.get("stdout", "") or "no_submit_id",
+                "returncode": run.get("returncode", -1),
+                "raw": out_text,
+                "command": run.get("command", []),
+            })
+
+        self._json_resp({
+            "ok": True,
+            "submit_id": submit_id,
+            "gen_status": gen_status or "querying",
+            "returncode": run.get("returncode", -1),
+            "raw": out_text,
+            "command": run.get("command", []),
+        })
+
+    def _handle_jimeng_cli_query(self, body):
+        data = body if isinstance(body, dict) else {}
+        submit_id = str(data.get("submit_id", "")).strip()
+        project_ref = str(data.get("project_id", "default")).strip() or "default"
+        if not submit_id:
+            return self._json_resp({"ok": False, "error": "missing_submit_id"})
+
+        run = _run_dreamina_cli(["query_result", f"--submit_id={submit_id}"], timeout=120)
+        out_text = "\n".join(x for x in [run.get("stdout", ""), run.get("stderr", "")] if x)
+        payload = _extract_json_from_cli_text(out_text)
+        if not isinstance(payload, dict):
+            if run.get("returncode", 0) != 0:
+                return self._json_resp({"ok": False, "status": "FAILED", "error": out_text or "query_failed"})
+            return self._json_resp({"ok": True, "status": "RUNNING", "raw": out_text})
+
+        raw_status = str(payload.get("gen_status", payload.get("status", ""))).strip().lower()
+        if raw_status in ("querying", "running", "pending", "queued", "processing"):
+            return self._json_resp({"ok": True, "status": "RUNNING", "raw_status": raw_status})
+
+        if raw_status in ("fail", "failed", "error"):
+            return self._json_resp({
+                "ok": False,
+                "status": "FAILED",
+                "raw_status": raw_status,
+                "error": str(payload.get("fail_reason", payload.get("error", "视频生成失败"))),
+                "raw": out_text,
+            })
+
+        if raw_status in ("success", "succeeded", "completed", "done"):
+            remote_url = self._extract_cli_video_url(payload)
+            local_url = ""
+            if remote_url and remote_url.startswith(("http://", "https://")):
+                local_url = self._save_agent_media(
+                    project_ref,
+                    "video",
+                    b64="",
+                    url=remote_url,
+                    filename=f"jimeng_{submit_id}.mp4",
+                )
+            display_url = local_url or remote_url
+            if not display_url:
+                return self._json_resp({
+                    "ok": False,
+                    "status": "FAILED",
+                    "error": "任务成功但未解析到视频地址",
+                    "raw": out_text,
+                })
+            return self._json_resp({
+                "ok": True,
+                "status": "SUCCEEDED",
+                "videoUrl": display_url,
+                "originalVideoUrl": remote_url or display_url,
+                "raw_status": raw_status,
+            })
+
+        if run.get("returncode", 0) == 0:
+            return self._json_resp({"ok": True, "status": "RUNNING", "raw_status": raw_status or "unknown"})
+        return self._json_resp({"ok": False, "status": "FAILED", "error": out_text or "query_failed"})
     def _handle_download_video(self, body):
         """Download a remote video/stream URL via ffmpeg and save to uploads."""
         import subprocess as _sp
@@ -2538,13 +3411,169 @@ class Handler(SimpleHTTPRequestHandler):
         stem     = f"video_{int(time.time())}"
         out_path = save_dir / f"{stem}.mp4"
 
+        is_dash = re.search(r'\.mpd([?#]|$)', video_url, re.I) is not None
+        is_hls  = re.search(r'\.(m3u8|ts)([?#]|$)', video_url, re.I) is not None
+
         cmd = [ff, "-y", "-loglevel", "error"]
         extra_headers = ""
         if referer: extra_headers += f"Referer: {referer}\r\n"
         if cookie:  extra_headers += f"Cookie: {cookie}\r\n"
         if extra_headers:
             cmd += ["-headers", extra_headers]
-        cmd += ["-i", video_url, "-c", "copy", "-bsf:a", "aac_adtstoasc", str(out_path)]
+        if is_dash:
+            # ffmpeg's DASH demuxer has a hardcoded manifest size limit (~100KB).
+            # Bypass completely: Python parses the MPD, downloads every segment,
+            # then ffmpeg only does the final audio+video merge.
+            try:
+                import xml.etree.ElementTree as _ET
+                import urllib.request as _ur
+
+                _UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+
+                def _fetch(url):
+                    _r2 = _ur.Request(url)
+                    _r2.add_header('User-Agent', _UA)
+                    if referer: _r2.add_header('Referer', referer)
+                    if cookie:  _r2.add_header('Cookie', cookie)
+                    with _ur.urlopen(_r2, timeout=120) as _rr:
+                        return _rr.read()
+
+                # 1. Download MPD (Python has no size limit)
+                _mpd_bytes = _fetch(video_url)
+
+                # 2. Parse MPD XML
+                _root = _ET.fromstring(_mpd_bytes)
+                _tag0 = _root.tag
+                _ns = _tag0[1:_tag0.index('}')] if _tag0.startswith('{') else ''
+                def _T(name): return f'{{{_ns}}}{name}' if _ns else name
+
+                _base = video_url.rsplit('?', 1)[0].rsplit('/', 1)[0] + '/'
+                _base_el = _root.find(f'.//{_T("BaseURL")}')
+                if _base_el is not None and (_base_el.text or '').strip():
+                    _b = _base_el.text.strip()
+                    _base = _b if _b.startswith('http') else _base + _b
+
+                def _abs(rel):
+                    return rel if rel.startswith('http') else _base + rel
+
+                # 3. Find best video + audio AdaptationSets
+                _tracks = {}
+
+                def _tmpl_apply(tmpl, rep_id, num=None):
+                    t = tmpl.replace('$RepresentationID$', str(rep_id))
+                    if num is not None:
+                        t = re.sub(r'\$Number%0?(\d+)d\$', lambda m: str(num).zfill(int(m.group(1))), t)
+                        t = t.replace('$Number$', str(num))
+                    return t
+
+                for _aset in _root.findall(f'.//{_T("AdaptationSet")}'):
+                    # Determine type: mimeType or contentType on AdaptationSet
+                    _mime = (_aset.get('mimeType') or _aset.get('contentType') or '').lower()
+                    _kind = 'video' if 'video' in _mime else ('audio' if 'audio' in _mime else None)
+
+                    # Fallback: check first Representation's mimeType or codecs
+                    if not _kind:
+                        _fr = _aset.find(f'{_T("Representation")}')
+                        if _fr is not None:
+                            _rm = (_fr.get('mimeType') or _fr.get('codecs') or '').lower()
+                            _kind = 'video' if ('video' in _rm or _rm.startswith(('avc','hvc','hevc','vp9','av1'))) \
+                                    else ('audio' if ('audio' in _rm or _rm.startswith(('mp4a','ac-3','ec-3','opus','flac'))) else None)
+
+                    if not _kind:
+                        continue
+
+                    _reps = _aset.findall(f'{_T("Representation")}')
+                    _best = max(_reps, key=lambda r: int(r.get('bandwidth', 0)), default=None)
+                    if _best is None:
+                        continue
+                    _rep_id = _best.get('id', '')
+
+                    # Try SegmentList (check rep → adaptation set)
+                    _sl = _best.find(f'{_T("SegmentList")}') or _aset.find(f'{_T("SegmentList")}')
+                    if _sl is not None:
+                        _init_el = _sl.find(f'{_T("Initialization")}')
+                        _init = _abs(_init_el.get('sourceURL', '')) if _init_el is not None else None
+                        _segs = [_abs(s.get('media', '')) for s in _sl.findall(f'{_T("SegmentURL")}') if s.get('media')]
+                        if _segs:
+                            _tracks[_kind] = {'init': _init, 'segs': _segs}
+                        continue
+
+                    # Try SegmentTemplate (check rep → adaptation set → period → root)
+                    _st = (_best.find(f'{_T("SegmentTemplate")}') or
+                           _aset.find(f'{_T("SegmentTemplate")}') or
+                           _root.find(f'.//{_T("SegmentTemplate")}'))
+                    if _st is not None:
+                        _init_tmpl = _st.get('initialization', '')
+                        _media_tmpl = _st.get('media', '')
+                        _start_num = int(_st.get('startNumber', 1))
+                        _init = _abs(_tmpl_apply(_init_tmpl, _rep_id)) if _init_tmpl else None
+                        _segs = []
+                        _tl = _st.find(f'{_T("SegmentTimeline")}')
+                        if _tl is not None:
+                            _n = _start_num
+                            for _s in _tl.findall(f'{_T("S")}'):
+                                for _ in range(int(_s.get('r', 0)) + 1):
+                                    _segs.append(_abs(_tmpl_apply(_media_tmpl, _rep_id, _n)))
+                                    _n += 1
+                        if _segs:
+                            _tracks[_kind] = {'init': _init, 'segs': _segs}
+
+                if not _tracks:
+                    _rep_tag = _T("Representation")
+                    _aset_tag = _T("AdaptationSet")
+                    _dbg = '; '.join(
+                        'aset[' + str(i) + '] mime=' + a.get('mimeType','') + ' ct=' + a.get('contentType','') + ' reps=' + str(len(a.findall(_rep_tag)))
+                        for i, a in enumerate(_root.findall('.//' + _aset_tag))
+                    )
+                    raise Exception('MPD 中未找到可下载的流. AdaptationSets: [' + _dbg + ']')
+
+                # 4. Download segments and concatenate per track
+                def _dl_track(kind, info):
+                    _tp = save_dir / f"{stem}_{kind}.mp4"
+                    with open(_tp, 'wb') as _tf:
+                        if info.get('init'):
+                            _tf.write(_fetch(info['init']))
+                        for _su in info['segs']:
+                            _tf.write(_fetch(_su))
+                    return _tp
+
+                _vid_path = _dl_track('video', _tracks['video']) if 'video' in _tracks else None
+                _aud_path = _dl_track('audio', _tracks['audio']) if 'audio' in _tracks else None
+
+                # 5. Merge with ffmpeg
+                if _vid_path and _aud_path:
+                    _mc = [ff, '-y', '-loglevel', 'error',
+                           '-i', str(_vid_path), '-i', str(_aud_path),
+                           '-c', 'copy', str(out_path)]
+                elif _vid_path:
+                    _mc = [ff, '-y', '-loglevel', 'error',
+                           '-i', str(_vid_path), '-c', 'copy', str(out_path)]
+                else:
+                    raise Exception('未找到视频轨道')
+
+                _mr = _sp.run(_mc, capture_output=True, timeout=120)
+                for _p in [_vid_path, _aud_path]:
+                    if _p and _p.exists():
+                        try: _p.unlink()
+                        except Exception: pass
+
+                if _mr.returncode == 0 and out_path.exists() and out_path.stat().st_size > 0:
+                    self._json_resp({"ok": True,
+                                     "path": f"/uploads/{proj_folder}/videos/{out_path.name}",
+                                     "filename": out_path.name,
+                                     "size": out_path.stat().st_size})
+                else:
+                    _err = (_mr.stderr or b'').decode('utf-8', errors='replace')[-600:]
+                    if out_path.exists(): out_path.unlink(missing_ok=True)
+                    self._json_resp({"ok": False, "error": _err or "ffmpeg_merge_failed"})
+            except Exception as _de:
+                self._json_resp({"ok": False, "error": f"dash_download_failed: {_de}"})
+            return
+
+        if is_hls:
+            cmd += ["-i", video_url, "-c", "copy", "-bsf:a", "aac_adtstoasc", str(out_path)]
+        else:
+            cmd += ["-i", video_url, "-c", "copy", "-bsf:a", "aac_adtstoasc", str(out_path)]
 
         try:
             result = _sp.run(cmd, capture_output=True, timeout=600)
@@ -2696,6 +3725,161 @@ class Handler(SimpleHTTPRequestHandler):
             try: self._err(500, str(e))
             except: pass
 
+    def _handle_upload_to_public(self, body):
+        """Upload a local file (by URL, path or base64) to a public image host (Catbox/Telegraph)."""
+        local_url = body.get("url", "")
+        file_path = body.get("file_path", "")
+        base64_data = body.get("base64", "")
+        try:
+            file_data = None
+            file_ext = "png"
+            if base64_data:
+                import base64
+                if "," in base64_data:
+                    header, base64_data = base64_data.split(",", 1)
+                    if "image/jpeg" in header or "image/jpg" in header:
+                        file_ext = "jpg"
+                    elif "image/webp" in header:
+                        file_ext = "webp"
+                    elif "image/gif" in header:
+                        file_ext = "gif"
+                file_data = base64.b64decode(base64_data)
+            elif file_path:
+                p = Path(file_path)
+                if not p.exists():
+                    return self._err(400, f"File not found: {file_path}")
+                file_data = p.read_bytes()
+                file_ext = p.suffix.lstrip(".") or "png"
+            elif local_url:
+                # Resolve: blob or local URL → fetch
+                if local_url.startswith("blob:"):
+                    return self._err(400, "blob URLs must be converted to base64 by renderer process first")
+                elif local_url.startswith("/"):
+                    # Relative to DATA_DIR
+                    rel = local_url.lstrip("/")
+                    candidates = [DATA_DIR / rel, BASE_DIR / rel]
+                    for c in candidates:
+                        if c.exists():
+                            file_data = c.read_bytes()
+                            file_ext = c.suffix.lstrip(".") or "png"
+                            break
+                    if not file_data:
+                        return self._err(400, f"Cannot resolve local path: {local_url}")
+                elif "localhost" in local_url or "127.0.0.1" in local_url:
+                    req = urllib.request.Request(local_url)
+                    with urllib.request.urlopen(req, timeout=30) as resp:
+                        file_data = resp.read()
+                    # Guess extension from URL
+                    url_path = urlparse(local_url).path
+                    file_ext = url_path.rsplit(".", 1)[-1] if "." in url_path else "png"
+                else:
+                    return self._err(400, "URL is not a local URL")
+            else:
+                return self._err(400, "Missing 'base64', 'url' or 'file_path'")
+
+            if not file_data:
+                return self._err(500, "Failed to read file data")
+
+            safe_ext = file_ext.lower().replace("jpeg", "jpg")
+            if safe_ext not in ("png", "jpg", "webp", "gif"):
+                safe_ext = "png"
+            filename = f"image.{safe_ext}"
+
+            # Try Catbox.moe
+            try:
+                boundary = uuid.uuid4().hex
+                body_parts = []
+                body_parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"reqtype\"\r\n\r\nfileupload".encode())
+                body_parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"fileToUpload\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode() + file_data)
+                body_parts.append(f"--{boundary}--\r\n".encode())
+                multipart_body = b"\r\n".join(body_parts)
+                req = urllib.request.Request(
+                    "https://catbox.moe/user/api.php",
+                    data=multipart_body,
+                    headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    result = resp.read().decode().strip()
+                    if result.startswith("http"):
+                        return self._json_resp({"ok": True, "public_url": result})
+            except Exception as e:
+                print(f"[upload-to-public] Catbox failed: {e}")
+
+            # Try Telegraph
+            try:
+                boundary = uuid.uuid4().hex
+                body_parts = []
+                body_parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode() + file_data)
+                body_parts.append(f"--{boundary}--\r\n".encode())
+                multipart_body = b"\r\n".join(body_parts)
+                req = urllib.request.Request(
+                    "https://telegra.ph/upload",
+                    data=multipart_body,
+                    headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    result = json.loads(resp.read().decode())
+                    if isinstance(result, list) and result and result[0].get("src"):
+                        public_url = f"https://telegra.ph{result[0]['src']}"
+                        return self._json_resp({"ok": True, "public_url": public_url})
+            except Exception as e:
+                print(f"[upload-to-public] Telegraph failed: {e}")
+
+            # Try sm.ms (国内可访问)
+            try:
+                import base64 as b64mod
+                boundary = uuid.uuid4().hex
+                body_parts = []
+                body_parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"smfile\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode() + file_data)
+                body_parts.append(f"--{boundary}--\r\n".encode())
+                multipart_body = b"\r\n".join(body_parts)
+                req = urllib.request.Request(
+                    "https://sm.ms/api/v2/upload",
+                    data=multipart_body,
+                    headers={
+                        "Content-Type": f"multipart/form-data; boundary={boundary}",
+                        "User-Agent": "Mozilla/5.0",
+                    },
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    result = json.loads(resp.read().decode())
+                    smurl = ""
+                    if result.get("success") and result.get("data", {}).get("url"):
+                        smurl = result["data"]["url"]
+                    elif result.get("code") == "image_repeated" and result.get("images"):
+                        smurl = result["images"]
+                    if smurl:
+                        print(f"[upload-to-public] sm.ms succeeded: {smurl}")
+                        return self._json_resp({"ok": True, "public_url": smurl})
+            except Exception as e:
+                print(f"[upload-to-public] sm.ms failed: {e}")
+
+            # Try freeimage.host (国内可访问, 免费无需注册)
+            try:
+                import base64 as b64mod
+                b64_str = b64mod.b64encode(file_data).decode()
+                req = urllib.request.Request(
+                    "https://freeimage.host/api/1/upload",
+                    data=urllib.parse.urlencode({"key": "6d207e02198a847aa98d0a2a901485a5", "source": b64_str, "format": "json"}).encode(),
+                    headers={"User-Agent": "Mozilla/5.0"},
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    result = json.loads(resp.read().decode())
+                    if result.get("status_code") == 200 and result.get("image", {}).get("url"):
+                        furl = result["image"]["url"]
+                        print(f"[upload-to-public] freeimage.host succeeded: {furl}")
+                        return self._json_resp({"ok": True, "public_url": furl})
+            except Exception as e:
+                print(f"[upload-to-public] freeimage.host failed: {e}")
+
+            self._err(500, "所有公网图床上传均失败（Catbox / Telegraph / sm.ms / freeimage.host），可能因网络原因无法连接。请配置 S3 存储或使用公网图片链接。")
+        except Exception as e:
+            self._err(500, f"Upload error: {e}")
+
     def _cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -2723,3 +3907,4 @@ if __name__ == "__main__":
         srv.serve_forever()
     except KeyboardInterrupt:
         print("\nStopped.")
+

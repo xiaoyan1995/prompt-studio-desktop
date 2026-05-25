@@ -943,32 +943,37 @@
     .pqi-folder-item.on { color: #1d4ed8; font-weight: 600; }
     .pqi-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-content: start; }
     .pqi-item {
-      width: calc(50% - 4px); border-radius: 8px; cursor: pointer;
-      border: 1px solid #eee; transition: all .12s;
-      overflow: hidden; background: #fff;
+      box-sizing: border-box !important;
+      width: calc(50% - 4px) !important; border-radius: 8px !important; cursor: pointer !important;
+      border: 1px solid #eee !important; transition: all .12s !important;
+      overflow: hidden !important; background: #fff !important;
+      display: flex !important; flex-direction: column !important;
     }
-    .pqi-item:hover { border-color: #c7d8f4; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .pqi-item:hover { border-color: #c7d8f4 !important; box-shadow: 0 2px 8px rgba(0,0,0,.08) !important; }
     .pqi-item-thumb-wrap {
-      width: 100%; height: 140px; position: relative;
-      overflow: hidden; background: #f0f4fc;
+      box-sizing: border-box !important;
+      width: 100% !important; height: 140px !important; position: relative !important;
+      overflow: hidden !important; background: #f0f4fc !important;
     }
     .pqi-item-thumb {
-      position: absolute; top: 0; left: 0;
-      width: 100%; height: 100%; object-fit: cover; display: block;
+      position: absolute !important; top: 0 !important; left: 0 !important;
+      width: 100% !important; height: 100% !important; object-fit: cover !important; display: block !important;
     }
     .pqi-item-thumb-placeholder {
-      position: absolute; top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: linear-gradient(135deg, #eef4ff, #e2ebff);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 28px; color: #9fb8e9;
+      position: absolute !important; top: 0 !important; left: 0 !important;
+      width: 100% !important; height: 100% !important;
+      background: linear-gradient(135deg, #eef4ff, #e2ebff) !important;
+      display: flex !important; align-items: center !important; justify-content: center !important;
+      font-size: 28px !important; color: #9fb8e9 !important;
     }
-    .pqi-item-info { padding: 7px 8px 8px; display: flex; flex-direction: column; gap: 3px; }
-    .pqi-item-title { font-size: 12px; font-weight: 700; color: #1a2340; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .pqi-item-prompt { font-size: 11px; color: #6b7a99; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
-    .pqi-item-tags { display: flex; gap: 3px; flex-wrap: wrap; }
-    .pqi-item-tag { font-size: 9px; background: #f0f4fc; color: #5b6eae; padding: 1px 5px; border-radius: 4px; }
-    .pqi-empty { padding: 24px; text-align: center; color: #9ca3af; font-size: 12px; grid-column: 1 / -1; }
+    .pqi-item-info { box-sizing: border-box !important; padding: 7px 8px 8px !important; display: flex !important; flex-direction: column !important; gap: 3px !important; }
+    .pqi-item-title { font-size: 12px !important; font-weight: 700 !important; color: #1a2340 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+    .pqi-item-prompt { font-size: 11px !important; color: #6b7a99 !important; line-height: 1.4 !important; display: -webkit-box !important; -webkit-line-clamp: 2 !important; -webkit-box-orient: vertical !important; overflow: hidden !important; word-break: break-all !important; }
+    .pqi-item-tags { display: flex !important; gap: 3px !important; flex-wrap: wrap !important; }
+    .pqi-item-tag { font-size: 9px !important; background: #f0f4fc !important; color: #5b6eae !important; padding: 1px 5px !important; border-radius: 4px !important; }
+    .pqi-ribbon { box-sizing: border-box !important; display: flex !important; height: 5px !important; width: 100% !important; border-bottom: 1px solid #eee !important; overflow: hidden !important; }
+    .pqi-ribbon div { box-sizing: border-box !important; min-width: 0 !important; flex-shrink: 1 !important; flex-grow: 1 !important; }
+    .pqi-empty { padding: 24px !important; text-align: center !important; color: #9ca3af !important; font-size: 12px !important; grid-column: 1 / -1 !important; }
     .pqi-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,.85); color: #fff; padding: 8px 18px; border-radius: 8px; font-size: 12px; font-weight: 600; z-index: 2147483647; pointer-events: none; animation: pqi-pop .15s; }
   `;
   document.head.appendChild(pqiStyle);
@@ -990,6 +995,7 @@
   let _pqiSelectedCat = 'image_prompts';
   let _pqiFolderFilter = null; // null = root (all non-folder items without folder_id)
   let _pqiSearch = '';
+  let _pqiInjectPalette = true;
 
   function pqiGetVisibleRect(el) {
     // For contenteditable, use the [contenteditable] container itself
@@ -1109,6 +1115,12 @@
         <span class="pqi-rewrite-label">✨ 改写</span>
         <input class="pqi-rewrite-input" id="pqiRewriteInput" placeholder="输入改写指令（如“把主体换成猫”），然后点卡片…">
       </div>
+      <div class="pqi-palette-toggle" style="display:flex!important;align-items:center!important;gap:6px!important;padding:2px 10px 4px!important;font-size:11px!important;color:#666!important;user-select:none!important;">
+        <label style="display:flex!important;align-items:center!important;gap:4px!important;cursor:pointer!important;margin:0!important;">
+          <input type="checkbox" id="pqiPaletteToggle" ${_pqiInjectPalette ? 'checked' : ''} style="margin:0!important;cursor:pointer!important;">
+          <span>🎨 注入色彩配方</span>
+        </label>
+      </div>
       <div class="pqi-body">
         <div class="pqi-sidebar" id="pqiSidebar"></div>
         <div class="pqi-list" id="pqiList"></div>
@@ -1123,6 +1135,10 @@
       pqiRenderList();
     });
     // Don't auto-focus search to avoid stealing _pqiFocusedEl
+
+    // Palette toggle
+    const palToggle = pqiPanel.querySelector('#pqiPaletteToggle');
+    if (palToggle) palToggle.addEventListener('change', () => { _pqiInjectPalette = palToggle.checked; });
 
     // Sidebar
     const sidebar = pqiPanel.querySelector('#pqiSidebar');
@@ -1164,6 +1180,55 @@
     pqiRenderList();
   }
 
+  // ── CIE L*a*b* Perceptual color translator inside Extension ──
+  function pqiRgbToLab(r,g,b) {
+    let R=r/255,G=g/255,B=b/255;
+    R=R<=0.04045?R/12.92:Math.pow((R+0.055)/1.055,2.4);
+    G=G<=0.04045?G/12.92:Math.pow((G+0.055)/1.055,2.4);
+    B=B<=0.04045?B/12.92:Math.pow((B+0.055)/1.055,2.4);
+    let X=R*0.4124564+G*0.3575761+B*0.1804375;
+    let Y=R*0.2126729+G*0.7151522+B*0.0721750;
+    let Z=R*0.0193339+G*0.1191920+B*0.9503041;
+    X/=0.95047; Z/=1.08883;
+    const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116;
+    return [116*f(Y)-16, 500*(f(X)-f(Y)), 200*(f(Y)-f(Z))];
+  }
+  function pqiHexToLab(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return pqiRgbToLab(r, g, b);
+  }
+  function pqiDeltaE(lab1, lab2) {
+    return Math.sqrt(Math.pow(lab1[0]-lab2[0], 2) + Math.pow(lab1[1]-lab2[1], 2) + Math.pow(lab1[2]-lab2[2], 2));
+  }
+  const PQI_COLOR_TARGETS = {
+    'rich ruby crimson red': [53, 80, 67],
+    'warm amber tangerine orange': [65, 48, 75],
+    'soft golden marigold yellow': [81, 10, 80],
+    'emerald botanical sage green': [66, -60, 43],
+    'vibrant aquatic teal cyan': [68, -43, -15],
+    'celestial cobalt indigo blue': [55, 11, -73],
+    'velvet amethyst violet purple': [50, 58, -65],
+    'deep obsidian charcoal black': [15, 3, -4],
+    'pure minimalist alabaster white': [98, -1, -2]
+  };
+  function pqiTranslateHexToAesthetic(hex) {
+    const lab = pqiHexToLab(hex);
+    let bestName = 'color';
+    let minDiff = 999;
+    for (const [name, target] of Object.entries(PQI_COLOR_TARGETS)) {
+      const diff = pqiDeltaE(lab, target);
+      if (diff < minDiff) {
+        minDiff = diff;
+        bestName = name;
+      }
+    }
+    return bestName;
+  }
+
   function pqiRenderList() {
     const proj = _pqiProjects[_pqiSelectedProjIdx] || _pqiProjects[0];
     let items = (proj[_pqiSelectedCat] || []).filter(it => !it.is_folder);
@@ -1198,21 +1263,56 @@
       const titleText = it.title || promptText.substring(0, 40) || '无标题';
       const tags = (it.tags || []).slice(0, 3);
       const imgPath = it.image || (it.gallery && it.gallery[0]) || '';
-      const thumbInner = imgPath
-        ? `<img class="pqi-item-thumb" src="${esc(_pqiServerUrl + (imgPath.startsWith('/') ? '' : '/uploads/') + imgPath)}" onerror="this.parentNode.innerHTML='<div class=pqi-item-thumb-placeholder>🖼️</div>'">`
-        : `<div class="pqi-item-thumb-placeholder">${_pqiSelectedCat === 'video_prompts' ? '🎬' : _pqiSelectedCat === 'skill_prompts' ? '🤖' : '🖼️'}</div>`;
-      div.innerHTML = `<div class="pqi-item-thumb-wrap">${thumbInner}</div><div class="pqi-item-info"><div class="pqi-item-title">${esc(titleText)}</div>${promptText ? `<div class="pqi-item-prompt">${esc(promptText.substring(0, 120))}</div>` : ''}</div>`;
-      div.onclick = () => pqiHandleCardClick(promptText);
+      
+      const imgUrl = imgPath ? ( /^https?:\/\//i.test(imgPath) ? imgPath : (_pqiServerUrl + (imgPath.startsWith('/') ? '' : '/uploads/') + imgPath) ) : '';
+      const placeholderEmoji = _pqiSelectedCat === 'video_prompts' ? '🎬' : _pqiSelectedCat === 'skill_prompts' ? '🤖' : '🖼️';
+      const thumbInner = imgUrl
+        ? `<img referrerpolicy="no-referrer" class="pqi-item-thumb" src="" data-pqi-src="${esc(imgUrl)}">`
+        : `<div class="pqi-item-thumb-placeholder">${placeholderEmoji}</div>`;
+      
+      const palette = it.palette_cache || [];
+      const ribbonHtml = palette.length > 0
+        ? `<div class="pqi-ribbon">${palette.map(c => `<div style="background:${c.hex};flex:${c.pct};height:100%" title="${c.hex} (${c.pct}%)"></div>`).join('')}</div>`
+        : '';
+
+      div.innerHTML = `<div class="pqi-item-thumb-wrap">${thumbInner}</div>${ribbonHtml}<div class="pqi-item-info"><div class="pqi-item-title">${esc(titleText)}</div>${promptText ? `<div class="pqi-item-prompt">${esc(promptText.substring(0, 120))}</div>` : ''}</div>`;
+      div.onclick = () => pqiHandleCardClick(it);
       list.appendChild(div);
+    });
+    // Bypass page CSP: fetch images via content script and set blob URLs
+    list.querySelectorAll('img[data-pqi-src]').forEach(img => {
+      const realSrc = img.getAttribute('data-pqi-src');
+      fetch(realSrc).then(r => r.blob()).then(blob => {
+        img.src = URL.createObjectURL(blob);
+      }).catch(() => {
+        const wrap = img.closest('.pqi-item-thumb-wrap');
+        if (wrap) wrap.innerHTML = '<div class="pqi-item-thumb-placeholder">🖼️</div>';
+      });
     });
   }
 
-  async function pqiHandleCardClick(promptText) {
+  async function pqiHandleCardClick(item) {
+    const promptText = item.prompt || '';
+    const palette = item.palette_cache || [];
+    let injectText = promptText;
+
+    // 智能提取全部色卡颜色生成美学色彩提示词，并融合成一条注入
+    if (_pqiInjectPalette && palette.length > 0 && (_pqiSelectedCat === 'image_prompts' || _pqiSelectedCat === 'video_prompts')) {
+      const sorted = palette.slice().sort((a,b) => b.pct - a.pct);
+      const parts = sorted.map((c, i) => {
+        const desc = pqiTranslateHexToAesthetic(c.hex);
+        return i === 0 ? `dominant ${desc} (${Math.round(c.pct)}%)` : `${desc} (${Math.round(c.pct)}%)`;
+      });
+      if (parts.length > 0) {
+        injectText += `, color palette: [ ${parts.join(', ')} ]`;
+      }
+    }
+
     const rewriteInput = pqiPanel.querySelector('#pqiRewriteInput');
     const instruction = rewriteInput ? rewriteInput.value.trim() : '';
     if (!instruction) {
-      // No rewrite instruction → insert original
-      pqiInsertText(promptText);
+      // No rewrite instruction → insert original with palette recipe
+      pqiInsertText(injectText);
       return;
     }
     // AI rewrite
@@ -1223,7 +1323,7 @@
       const res = await fetch(`${_pqiServerUrl}/api/rewrite-prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: promptText, instruction })
+        body: JSON.stringify({ prompt: injectText, instruction })
       });
       const d = await res.json();
       if (!d.ok) throw new Error(d.error || 'rewrite failed');

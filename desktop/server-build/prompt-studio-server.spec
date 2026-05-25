@@ -1,13 +1,25 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+from PyInstaller.utils.hooks import collect_submodules, collect_dynamic_libs
 _server_py = os.path.join(SPECPATH, '..', 'studio', 'server.py')
+
+_studio = os.path.join(SPECPATH, '..', 'studio')
+_hidden = (
+    ['email.mime.text','email.mime.multipart','http.server','urllib.parse',
+     'cv2','numpy','tqdm','click','platformdirs',
+     'onnxruntime','onnxruntime.capi']
+    + collect_submodules('scenedetect')
+    + collect_submodules('onnxruntime')
+)
 
 a = Analysis(
     [_server_py],
     pathex=[],
-    binaries=[],
-    datas=[],
-    hiddenimports=['email.mime.text','email.mime.multipart','http.server','urllib.parse'],
+    binaries=collect_dynamic_libs('cv2'),
+    datas=[
+        (os.path.join(_studio, 'transnetv2.onnx'), '.'),
+    ],
+    hiddenimports=_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

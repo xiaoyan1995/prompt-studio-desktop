@@ -20,3 +20,9 @@ desktop/server-build/prompt-studio-server/
 ci-artifacts/
 
 desktop/build/
+
+# Runtime and Dependency Caches
+desktop/canvas-src/node_modules/
+desktop/server-build/build/
+desktop/studio/canvas-bundle/
+

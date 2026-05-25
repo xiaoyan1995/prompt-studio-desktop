@@ -139,10 +139,15 @@ function isMediaResponse(data) {
   if (!/^https?:\/\//i.test(url)) return false;
   const contentType = headerValue(data.responseHeaders, 'content-type').split(';')[0].trim().toLowerCase();
   const ext = mediaExt(url);
-  if (['mp4', 'webm', 'mov', 'm4v', 'm3u8', 'mpd'].includes(ext)) return true;
+  if (['mp4', 'webm', 'mov', 'm4v', 'm3u8', 'mpd', 'ts', 'flv'].includes(ext)) return true;
   if (/^(video|audio)\//i.test(contentType)) return true;
-  if (/mpegurl|m3u8|dash\+xml|mpd/i.test(contentType)) return true;
-  return data.type === 'media' && /octet-stream/i.test(contentType);
+  if (/mpegurl|m3u8|dash\+xml|mpd|x-flv/i.test(contentType)) return true;
+  if (/octet-stream/i.test(contentType)) {
+    if (data.type === 'media') return true;
+    if (/[/.](m3u8|ts|mp4|flv|mpd)([?#]|$)/i.test(url)) return true;
+    if (/[?&](format|type|media)=(hls|ts|mp4|m3u8|video|stream)/i.test(url)) return true;
+  }
+  return false;
 }
 
 function mediaKind(item) {
@@ -153,7 +158,7 @@ function mediaKind(item) {
 
 function scoreMedia(item) {
   const ext = item.ext || mediaExt(item.url);
-  const extScore = { mp4: 120, webm: 115, mov: 110, m4v: 105, m3u8: 95, mpd: 85 }[ext] || 50;
+  const extScore = { mp4: 120, webm: 115, mov: 110, m4v: 105, m3u8: 95, mpd: 85, flv: 100, ts: 70 }[ext] || 50;
   const sizeScore = Math.min(40, Math.floor((item.size || 0) / (1024 * 1024)));
   return extScore + sizeScore + Math.min(20, Math.floor((Date.now() - item.time) / -30000) + 20);
 }

@@ -1536,6 +1536,17 @@
     backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
   }
   body.dark .card-label-ov{background:rgba(10,16,24,.74)!important;color:#c8d5e8!important;border-color:rgba(255,255,255,.08)!important}
+  /* 完美的透明毛玻璃绿色标签 */
+  .card-label-ov.label-canvas {
+    background: rgba(236, 253, 245, 0.85)!important;
+    color: #059669!important;
+    border-color: rgba(16, 185, 129, 0.4)!important;
+  }
+  body.dark .card-label-ov.label-canvas {
+    background: rgba(6, 78, 59, 0.45)!important;
+    color: #34d399!important;
+    border-color: rgba(52, 211, 153, 0.25)!important;
+  }
   body.dark .card-aspect-ov{background:rgba(0,0,0,.65);color:#e8f0fa}
 
   /* ── Rubber-band selection rect ─────────────────── */
@@ -1776,6 +1787,18 @@
           <option value="all" disabled hidden>标签</option>
           <option value="all">全部</option>
         </select>
+        <select class="toolbar-select" id="filterColor" style="max-width:110px">
+          <option value="all">🎨 全部色彩</option>
+          <option value="red">🔴 红色系</option>
+          <option value="orange">🟠 橙色系</option>
+          <option value="yellow">🟡 黄色系</option>
+          <option value="green">🟢 绿色系</option>
+          <option value="cyan">🔵 青色系</option>
+          <option value="blue">🟣 蓝色系</option>
+          <option value="purple">🟤 紫色系</option>
+          <option value="black">🖤 黑色系</option>
+          <option value="white">⚪ 白色系</option>
+        </select>
         <select class="toolbar-select" id="filterType" style="display:none"><option value="all">类型</option><option value="image">类型：图片</option><option value="video">类型：视频</option><option value="skill">类型：Skills</option></select>
         <select class="toolbar-select" id="filterTime" style="display:none"><option value="latest">时间：最新</option><option value="oldest">时间：最早</option></select>
         <select class="toolbar-select" id="sortMode">
@@ -1814,6 +1837,16 @@
           <p>点击右上角「新建项目」开始创作</p>
         </div>
       </section>
+    </div>
+
+    <!-- ── 生成画布 iframe ──────────────────── -->
+    <div id="canvasShell" style="display:none;flex:1;min-height:0;overflow:hidden;position:relative">
+      <iframe id="canvasIframe"
+        src="/canvas-bundle/index.html"
+        style="width:100%;height:100%;border:none;display:block"
+        allow="clipboard-read; clipboard-write"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads">
+      </iframe>
     </div>
 
     <!-- Audio mini player (sticky bottom) -->
@@ -1983,6 +2016,7 @@
       <nav style="width:100px;border-right:1px solid var(--border);padding:8px 6px;flex-shrink:0;display:flex;flex-direction:column;gap:2px">
         <button class="settings-nav-btn active" data-sec="settings">API 配置</button>
         <button class="settings-nav-btn" data-sec="llm">文本 LLM</button>
+        <button class="settings-nav-btn" data-sec="lapian">智能拉片</button>
         <button class="settings-nav-btn" data-sec="tools">增强功能</button>
       </nav>
       <div style="flex:1;overflow-y:auto;padding:16px 20px">
@@ -2033,6 +2067,7 @@
             </div>
             <button class="btn btn-danger btn-sm" id="desktopCleanupMedia">清理未引用素材</button>
           </div>
+          <div id="dsJimengMovedHint" class="hint" style="border:1px dashed var(--border);border-radius:10px;padding:10px 12px;background:var(--bg)">即梦 CLI 登录入口已迁移到画布内「API 设置」面板。</div>
         </div>
         <!-- ── 文本 LLM ──────────────────────────── -->
         <div id="settingsSec-llm" style="display:none;flex-direction:column;gap:16px">
@@ -2044,8 +2079,47 @@
             <div class="field"><label>模型</label><input id="dsLlmModel" placeholder="gpt-4o-mini"></div>
           </div>
         </div>
+        <!-- ── 智能拉片 ──────────────────────────── -->
+        <div id="settingsSec-lapian" style="display:none;flex-direction:column;gap:16px">
+          <div class="field-row">
+            <div style="display:grid;gap:12px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:14px">
+              <div id="dsLapianChip" class="chip label-image" style="width:max-content">图片分析模式</div>
+              <div class="field"><label>API Base</label><input id="dsLapianApiBase" placeholder="https://generativelanguage.googleapis.com/v1beta"></div>
+              <div class="field"><label>API Key</label><div style="display:flex;gap:6px"><input id="dsLapianApiKey" type="password" placeholder="sk-... / AIza..." style="flex:1"><button class="btn btn-secondary btn-sm" id="testLapianApiBtn" style="white-space:nowrap">🔌 测试</button></div></div>
+              <div class="field"><label>视觉模型</label><input id="dsLapianModel" placeholder="gemini-2.5-flash"></div>
+            </div>
+            <div style="display:grid;gap:12px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:14px">
+              <div class="chip label-skill" style="width:max-content">视频分析模式</div>
+              <div class="field"><label>API Base</label><input id="dsLapianVideoApiBase" placeholder="https://generativelanguage.googleapis.com/v1beta"></div>
+              <div class="field"><label>API Key</label><input id="dsLapianVideoApiKey" type="password" placeholder="AIza..."></div>
+              <div class="field"><label>视频模型</label><input id="dsLapianVideoModel" placeholder="gemini-2.5-flash"></div>
+            </div>
+          </div>
+          <div class="hint" style="margin-top:-8px">智能拉片需支持 <b>Vision 多模态视觉分析</b> 的大模型（首推 Gemini 2.5 / GPT-4o-mini）。留空则自动继承「API 配置」中的视频/图片反推设置。视频模式将发送含音轨的视频片段，留空则视频分析不可用。</div>
+          <div class="field-row">
+            <div class="field"><label>自定义分析提示词（图片）</label><textarea id="dsLapianCustomPromptImage" placeholder="留空使用内置默认。自定义时须要求 JSON 返回并保留全部字段名。"></textarea></div>
+            <div class="field"><label>自定义分析提示词（视频）</label><textarea id="dsLapianCustomPromptVideo" placeholder="留空使用内置默认。自定义时须要求 JSON 返回并保留全部字段名。"></textarea></div>
+          </div>
+          <div class="field"><label>🔥 AIGC 提示词写法要求（图片 & 视频通用）</label><textarea id="dsLapianAigcPromptInstruction" placeholder="例：Write a cinematic Sora prompt. Start with camera movement, then subject, then mood and lighting. 80-120 words."></textarea></div>
+        </div>
         <!-- ── 资源工具 ──────────────────────────── -->
         <div id="settingsSec-tools" style="display:none;flex-direction:column;gap:14px">
+          <div class="ops-panel" id="ffmpegPanel">
+            <h3>⚙️ FFmpeg 工具依赖</h3>
+            <div class="hint">智能拉片、视频下载合并等功能依赖 FFmpeg。如果你的系统中已全局安装了 FFmpeg，无需重复安装；否则点击下方按钮一键下载安装到本地数据目录（约 50-80 MB）。</div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px">
+              <div id="ffmpegStatusDot" style="width:10px;height:10px;border-radius:50%;background:var(--border);flex-shrink:0"></div>
+              <span id="ffmpegStatusText" style="font-size:12px;color:var(--subtle)">检测中...</span>
+              <button class="btn btn-primary btn-sm" id="ffmpegInstallBtn" style="display:none">⬇️ 一键安装 FFmpeg</button>
+              <button class="btn btn-secondary btn-sm" id="ffmpegReCheckBtn">🔍 重新检测</button>
+            </div>
+            <div id="ffmpegInstallProgress" style="display:none;margin-top:8px">
+              <div style="height:6px;border-radius:3px;background:var(--border);overflow:hidden">
+                <div id="ffmpegProgressBar" style="height:100%;width:0%;background:var(--primary);transition:width .4s ease;border-radius:3px"></div>
+              </div>
+              <div id="ffmpegProgressText" style="font-size:11px;color:var(--subtle);margin-top:4px">正在下载...</div>
+            </div>
+          </div>
           <div class="ops-panel">
             <h3>🌐 界面语言 / Interface Language</h3>
             <div class="hint">切换软件界面语言 · Switch the application interface language</div>
@@ -2372,7 +2446,7 @@
               <details style="font-size:11px">
                 <summary style="cursor:pointer;color:var(--subtle);font-weight:600;list-style:none;display:flex;align-items:center;gap:4px">⚙️ AI 配置<span id="raApiHint" style="margin-left:4px;color:var(--primary)"></span></summary>
                 <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
-                  <input id="raApiKey"   placeholder="API Key"  style="width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;outline:none">
+                  <input id="raApiKey"   type="password" placeholder="API Key"  style="width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;outline:none">
                   <input id="raApiBase"  placeholder="API Base（默认 OpenAI）" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;outline:none">
                   <input id="raModel"    placeholder="模型（如 gpt-4o）" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;outline:none">
                   <button id="raApiSave" style="align-self:flex-start;padding:4px 12px;border:1px solid var(--primary);border-radius:6px;background:var(--primary-soft);color:var(--primary);font-size:11px;font-weight:600;cursor:pointer">保存配置</button>
@@ -2616,6 +2690,7 @@
       ['#dsLocalMediaChip',   '本地素材', 'Local Media'],
       ['#dsLocalMediaHint',   '清理未被任何提示词引用的图片和视频。', 'Clean up media not referenced by any prompt.'],
       ['#desktopCleanupMedia','清理未引用素材', 'Clean Unused Media'],
+      ['#dsJimengMovedHint',  '即梦 CLI 登录入口已迁移到画布内「API 设置」面板。', 'Jimeng CLI login has moved to Canvas "API Settings".'],
       ['#dsLlmChip',          '文本 LLM', 'Text LLM'],
       ['#settingsFooterHint', '新版浏览器插件会读取这里的 AI 配置；插件只保留网页采集和连接设置。', 'The extension reads AI config from here; it only keeps collection and connection settings.'],
       ['#desktopSettingsCancel', '取消', 'Cancel'],
@@ -2838,10 +2913,12 @@
     imageReverseInstruction: '',
     videoReverseInstruction: '',
     promptPresets: [],
+    jimengDefaultModel: 'seedance-2-fast-cli',
+    jimengDeviceCode: '',
   };
 
   // ── State ─────────────────────────────────────────────────────────────
-  let state = { view: 'projects', projectId: null, promptId: null, skillFolderId: null, skillFolderPath: [], folderFilter: null, audioFolderId: null, audioSubPath: '' };
+  let state = { view: 'projects', projectId: null, promptId: null, skillFolderId: null, skillFolderPath: [], folderFilter: null, audioFolderId: null, audioSubPath: '', canvasProjectId: null, canvasLoadTime: 0 };
   let _dragItems = []; // items being dragged for internal folder-drop
   let _audioScanCache = {}; // folderId → {items, ts}
   let _audioEl = null;      // current Audio element
@@ -2852,6 +2929,7 @@
     viewMode: 'grid',
     filterModel: 'all',
     filterTag: 'all',
+    filterColor: 'all',
     filterType: 'all',
     filterTime: 'latest',
     sortMode: 'updated',
@@ -3102,20 +3180,46 @@
     }
   }
 
+  // ── Perceptual Color Space (CIE L*a*b*) and deltaE CIE76 color difference ──
+  function rgbToLab(r,g,b) {
+    let R=r/255,G=g/255,B=b/255;
+    R=R<=0.04045?R/12.92:Math.pow((R+0.055)/1.055,2.4);
+    G=G<=0.04045?G/12.92:Math.pow((G+0.055)/1.055,2.4);
+    B=B<=0.04045?B/12.92:Math.pow((B+0.055)/1.055,2.4);
+    let X=R*0.4124564+G*0.3575761+B*0.1804375;
+    let Y=R*0.2126729+G*0.7151522+B*0.0721750;
+    let Z=R*0.0193339+G*0.1191920+B*0.9503041;
+    X/=0.95047; Z/=1.08883;
+    const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116;
+    return [116*f(Y)-16, 500*(f(X)-f(Y)), 200*(f(Y)-f(Z))];
+  }
+  function hexToLab(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return rgbToLab(r, g, b);
+  }
+  function deltaE(lab1, lab2) {
+    const dl = lab1[0] - lab2[0];
+    const da = lab1[1] - lab2[1];
+    const db = lab1[2] - lab2[2];
+    return Math.sqrt(dl*dl + da*da + db*db);
+  }
+  const COLOR_TARGETS = {
+    red: [53, 80, 67],      // 🔴 #EF4444
+    orange: [65, 48, 75],   // 🟠 #F97316
+    yellow: [81, 10, 80],   // 🟡 #FBBF24
+    green: [66, -60, 43],   // 🟢 #10B981
+    cyan: [68, -43, -15],   // 🔵 #06B6D4
+    blue: [55, 11, -73],    // 🟣 #3B82F6
+    purple: [50, 58, -65],   // 🟤 #8B5CF6
+    black: [15, 3, -4],     // 🖤 #1E293B
+    white: [98, -1, -2]     // ⚪ #F8FAFC
+  };
+
   function extractPaletteFromImage(src, swatches=8) {
-    // RGB → CIE L*a*b* for perceptual distance clustering
-    function rgbToLab(r,g,b) {
-      let R=r/255,G=g/255,B=b/255;
-      R=R<=0.04045?R/12.92:Math.pow((R+0.055)/1.055,2.4);
-      G=G<=0.04045?G/12.92:Math.pow((G+0.055)/1.055,2.4);
-      B=B<=0.04045?B/12.92:Math.pow((B+0.055)/1.055,2.4);
-      let X=R*0.4124564+G*0.3575761+B*0.1804375;
-      let Y=R*0.2126729+G*0.7151522+B*0.0721750;
-      let Z=R*0.0193339+G*0.1191920+B*0.9503041;
-      X/=0.95047; Z/=1.08883;
-      const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116;
-      return [116*f(Y)-16, 500*(f(X)-f(Y)), 200*(f(Y)-f(Z))];
-    }
     return new Promise((resolve) => {
       if (!src) return resolve([]);
       const img = new Image();
@@ -3247,8 +3351,17 @@
     } catch {}
   }
   function applyGridMode() {
+    if (state.view === 'smart_canvas') return;
     const grid = document.getElementById('mainGrid');
     if (!grid) return;
+    if (state.view !== 'smart_lapian_detail') {
+      grid.style.display = '';
+      grid.style.height = '';
+      const shell = document.querySelector('.workspace-shell');
+      if (shell) { shell.style.overflow = ''; shell.style.height = ''; }
+      const wMain = document.querySelector('.workspace-main');
+      if (wMain) { wMain.style.height = ''; wMain.style.padding = ''; }
+    }
     const scale = parseFloat(localStorage.getItem('cardScale') || '1');
     const w = Math.round(240 * scale);
     grid.style.gridTemplateColumns = `repeat(auto-fill, ${w}px)`;
@@ -3258,7 +3371,7 @@
     const bar = document.getElementById('batchBar');
     if (!bar) return;
     const shell = document.querySelector('.workspace-shell');
-    const hiddenViews = ['skill_prompts','pdf_files','audio_library','projects'];
+    const hiddenViews = ['skill_prompts','pdf_files','audio_library','projects','smart_lapian','smart_lapian_detail','smart_canvas'];
     if (hiddenViews.includes(state.view)) {
       bar.style.display = 'none';
       if (shell) shell.style.paddingBottom = '0';
@@ -3419,8 +3532,8 @@
     };
     const metaRows = item.__type === 'project'
       ? `<dl class="inspector-meta">
-           <dt>${t('图片','Images')}</dt><dd>${(item.image_prompts||[]).filter(p=>!p.is_folder).length}</dd>
-           <dt>${t('视频','Videos')}</dt><dd>${(item.video_prompts||[]).filter(p=>!p.is_folder).length}</dd>
+           <dt>${t('图片','Images')}</dt><dd>${(item.image_prompts||[]).filter(p=>!p.is_folder).length + (item.materials||[]).filter(m=>m.type==='IMAGE').length}</dd>
+           <dt>${t('视频','Videos')}</dt><dd>${(item.video_prompts||[]).filter(p=>!p.is_folder).length + (item.materials||[]).filter(m=>m.type==='VIDEO').length}</dd>
            <dt>Skills</dt><dd>${(item.skill_prompts||[]).filter(p=>!p.is_folder).length}</dd>
            <dt>${t('创建时间','Created')}</dt><dd>${h(item.created_at || '-')}</dd>
          </dl>`
@@ -3692,6 +3805,20 @@
           row.innerHTML = '<span style="font-size:12px;color:var(--subtle)">暂时无法提取色卡</span>';
           return;
         }
+
+        // 自动静默存盘
+        const existingHexStr = (item.palette_cache || []).map(c => c.hex).join(',');
+        const currentHexStr = colors.map(c => c.hex).join(',');
+        if (existingHexStr !== currentHexStr) {
+          item.palette_cache = colors; // 内存立刻更新
+          postJson('/api/asset/palette', {
+            projectId: state.projectId,
+            category: item.__category,
+            itemId: item.id,
+            palette: colors
+          }).catch(err => console.warn("Failed silent palette save:", err));
+        }
+
         row.innerHTML = colors.map(({hex,pct}) =>
           `<div class="palette-chip" data-hex="${hex}" style="background:${hex}"><span class="chip-tip">${hex} (${pct}%)</span></div>`
         ).join('');
@@ -3751,6 +3878,9 @@
     if (!tags.includes(uiState.filterTag)) uiState.filterTag = 'all';
     modelSel.value = uiState.filterModel;
     tagSel.value = uiState.filterTag;
+    const colorSel = document.getElementById('filterColor');
+    colorSel.value = uiState.filterColor;
+
     if (state.view === 'image_prompts') uiState.filterType = 'image';
     if (state.view === 'video_prompts') uiState.filterType = 'video';
     if (state.view === 'skill_prompts') uiState.filterType = 'skill';
@@ -3758,10 +3888,13 @@
       uiState.filterType = 'all';
       uiState.filterModel = 'all';
       uiState.filterTag = 'all';
+      uiState.filterColor = 'all';
     }
     const isAudio = state.view === 'audio_library';
+    const isGraphic = state.view === 'image_prompts' || state.view === 'video_prompts' || state.view === 'all_assets';
     modelSel.style.display = isAudio ? 'none' : '';
     tagSel.style.display = isAudio ? 'none' : '';
+    colorSel.style.display = isGraphic && !isProjects ? '' : 'none';
     sortSel.style.display = isAudio ? 'none' : '';
     timeSel.style.display = 'none';
     typeSel.style.display = 'none';
@@ -3860,6 +3993,9 @@
     state.promptId = null;
     state.skillFolderId = null;
     state.folderFilter = null;
+    if (view === 'smart_canvas') {
+      state.canvasProjectId = null;
+    }
     if (view !== 'audio_library') {
       state.audioFolderId = null; state.audioSubPath = ''; _audioSelected.clear();
       if (_audioEl) { _audioEl.pause(); }
@@ -3899,11 +4035,17 @@
     const projName = document.getElementById('sidebarProjName');
     const projSub = document.getElementById('sidebarProjSub');
 
-    if (state.view === 'projects') {
+    if (state.view === 'projects' || state.view === 'smart_lapian' || state.view === 'smart_lapian_detail' || state.view === 'smart_canvas') {
       info.classList.remove('show');
       nav.innerHTML = `
-        <div class="nav-item active" data-view="projects">
+        <div class="nav-item ${state.view==='projects'?'active':''}" data-view="projects">
           <span class="nav-icon">🗂️</span><span class="nav-label">${t('所有项目','All Projects')}</span><span class="nav-badge"></span>
+        </div>
+        <div class="nav-item ${(state.view==='smart_lapian'||state.view==='smart_lapian_detail')?'active':''}" data-view="smart_lapian">
+          <span class="nav-icon">🎬</span><span class="nav-label">${t('智能拉片','Smart Shot')}</span><span class="nav-badge"></span>
+        </div>
+        <div class="nav-item ${state.view==='smart_canvas'?'active':''}" data-view="smart_canvas">
+          <span class="nav-icon">🎨</span><span class="nav-label">${t('生成画布','Canvas')}</span><span class="nav-badge"></span>
         </div>
       `;
     } else {
@@ -3970,11 +4112,13 @@
     }
 
     // Nav item clicks (navigate to view, clear folder filter)
+    const _topLevelViews = new Set(['projects','smart_lapian','smart_canvas']);
     nav.querySelectorAll('.nav-item[data-view]').forEach(el => {
       el.addEventListener('click', (e) => {
         if (e.target.closest('.nav-toggle')) return; // don't navigate when toggling
         state.folderFilter = null;
-        navigate(el.dataset.view, state.projectId);
+        const v = el.dataset.view;
+        navigate(v, _topLevelViews.has(v) ? null : state.projectId);
       });
     });
     // Toggle expand/collapse folder trees
@@ -4054,18 +4198,76 @@
   function renderPage() {
     const q = (document.getElementById('searchInput').value || '').toLowerCase();
     const contentEl = document.getElementById('content');
-    if (contentEl) contentEl.classList.toggle('view-projects', state.view === 'projects');
+    const isCanvas = state.view === 'smart_canvas' && state.canvasProjectId;
+
+    // Reset primary button display
+    const primBtn = document.getElementById('primaryBtn');
+    if (primBtn) primBtn.style.display = '';
+
+    // Show/hide canvas iframe shell vs normal workspace
+    const workShell = document.querySelector('.workspace-shell');
+    const canvasShell = document.getElementById('canvasShell');
+    if (workShell) workShell.style.display = isCanvas ? 'none' : '';
+    if (canvasShell) canvasShell.style.display = isCanvas ? 'flex' : 'none';
+    // Sync theme to canvas iframe
+    if (isCanvas) {
+      const iframe = document.getElementById('canvasIframe');
+      const targetSrc = `/canvas-bundle/index.html?projectId=${state.canvasProjectId}&_t=${state.canvasLoadTime}`;
+      if (iframe && (!iframe.src || !iframe.src.includes(`projectId=${state.canvasProjectId}`))) {
+        iframe.src = targetSrc;
+      }
+      try {
+        const isDark = document.body.classList.contains('dark') || document.body.classList.contains('dark2');
+        const theme = isDark ? 'dark' : 'light';
+        document.getElementById('canvasIframe')?.contentWindow?.postMessage({ type: 'PS_THEME', theme }, '*');
+      } catch(e) {}
+    }
+    if (isCanvas) {
+      const primBtn = document.getElementById('primaryBtn');
+      if (primBtn) {
+        primBtn.style.display = '';
+        primBtn.textContent = t('🎨 返回项目选择', '🎨 Back to Projects');
+        primBtn.onclick = () => {
+          state.canvasProjectId = null;
+          renderPage();
+        };
+      }
+      syncToolbarControls();
+      return;
+    }
+    if (contentEl) contentEl.classList.toggle('view-projects', state.view === 'projects' || state.view === 'smart_lapian' || state.view === 'smart_lapian_detail' || state.view === 'smart_canvas');
     if (contentEl) contentEl.classList.toggle('view-skills', state.view === 'skill_prompts');
     if (contentEl) contentEl.classList.toggle('view-skill-folder', state.view === 'skill_folder');
     if (contentEl) contentEl.classList.toggle('view-pdfs', state.view === 'pdf_files');
     if (contentEl) contentEl.classList.toggle('view-audio', state.view === 'audio_library');
     syncToolbarControls();
     applyGridMode();
+    const _isTopView = state.view === 'projects' || state.view === 'smart_lapian' || state.view === 'smart_lapian_detail' || state.view === 'smart_canvas';
     const _catBarEl = document.getElementById('catBar');
-    if (_catBarEl && state.view === 'projects') _catBarEl.style.display = 'none';
-    document.getElementById('exportProjectBtn').style.display = state.view === 'projects' ? 'none' : '';
-    document.getElementById('importProjectBtn').style.display = state.view === 'projects' ? '' : 'none';
-    if (state.view === 'projects') {
+    if (_catBarEl && _isTopView) _catBarEl.style.display = 'none';
+    document.getElementById('exportProjectBtn').style.display = _isTopView ? 'none' : '';
+    document.getElementById('importProjectBtn').style.display = _isTopView ? '' : 'none';
+    if (state.view === 'smart_lapian') {
+      document.getElementById('pageTitle').textContent = t('智能拉片助手','Smart Shot Analysis');
+      document.getElementById('pageSubtitle').textContent = t('拖入本地视频，进行秒级场景切片与逐镜头深度拉片分析','Drag & drop local videos for scene detection and deep cinematic analysis');
+      document.getElementById('primaryBtn').innerHTML = `<span style="font-size:13px">🎬</span> ` + t('新建拉片','New Shot');
+      document.getElementById('primaryBtn').onclick = () => openNewLapianModal();
+      renderLapianList(q);
+    } else if (state.view === 'smart_lapian_detail') {
+      document.getElementById('primaryBtn').textContent = t('← 返回列表','← Back to List');
+      document.getElementById('primaryBtn').onclick = () => { navigate('smart_lapian'); };
+      document.getElementById('catBar').style.display = 'none';
+      renderLapianDetail(state.lapianProjectId);
+    } else if (state.view === 'smart_canvas') {
+      document.getElementById('pageTitle').textContent = t('生成画布','Canvas');
+      document.getElementById('pageSubtitle').textContent = t('可视化节点式 Prompt 生成及视频工作流编辑器','Visual node-based Prompt generator and video workflow editor');
+      const primBtn = document.getElementById('primaryBtn');
+      if (primBtn) {
+        primBtn.innerHTML = `<span style="font-size:13px">🎨</span> ` + t('新建画布','New Canvas');
+        primBtn.onclick = () => openProjModal(null);
+      }
+      renderProjects(q);
+    } else if (state.view === 'projects') {
       document.getElementById('pageTitle').textContent = t('项目管理','Projects');
       document.getElementById('pageSubtitle').textContent = t('管理你的项目库与资产规模','Manage your projects and assets');
       document.getElementById('primaryBtn').textContent = t('新建项目','New Project');
@@ -4157,17 +4359,2349 @@
     applyLangStatic();
   }
 
+  // ── Smart Lapian Assistant (🎬 智能拉片助手) ───────────────────────────
+
+  function _showLapianModeModal(videoLabel) {
+    return new Promise(resolve => {
+      const pName = videoLabel || '视频';
+      const bd = document.createElement('div');
+      bd.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center';
+      bd.innerHTML = `
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;width:min(420px,92vw);box-shadow:var(--shadow-lg);overflow:hidden">
+            <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:15px;font-weight:700;color:var(--text)">🎬 智能拉片 — 选择分镜精度</span>
+              <button id="_lpModeCancel" style="border:none;background:none;cursor:pointer;font-size:16px;color:var(--subtle)">✕</button>
+            </div>
+            <div style="padding:16px 20px;font-size:12px;color:var(--subtle);border-bottom:1px solid var(--border)">视频：<b style="color:var(--text)">${h(pName)}</b></div>
+            <div style="padding:14px 20px 8px">
+              <div style="font-size:11px;font-weight:700;color:var(--subtle);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">检测算法</div>
+              <div style="display:flex;gap:8px">
+                ${[
+                  {id:'_lpAlgo0',icon:'📐',label:'传统算法',sub:'速度快，全平台',algo:'traditional'},
+                  {id:'_lpAlgo1',icon:'🔬',label:'TransNetV2',sub:'AI 模型，识别渐变更准',algo:'transnetv2',badge:'高精度'},
+                ].map((o,i)=>`<button id="${o.id}" data-algo="${o.algo}" class="_lpAlgoBtn" style="flex:1;border:2px solid ${i===0?'var(--primary)':'var(--border)'};background:${i===0?'var(--primary-bg,#eff6ff)':'var(--bg)'};border-radius:10px;padding:10px 12px;cursor:pointer;text-align:center;transition:all .15s">
+                  <div style="font-size:18px;margin-bottom:4px">${o.icon}</div>
+                  <div style="display:flex;align-items:center;justify-content:center;gap:5px">
+                    <span style="font-size:12px;font-weight:700;color:var(--text)">${o.label}</span>
+                    ${o.badge?`<span style="font-size:9px;background:#6366f1;color:#fff;padding:1px 4px;border-radius:3px;font-weight:600">${o.badge}</span>`:''}
+                  </div>
+                  <div style="font-size:10px;color:var(--subtle);margin-top:2px">${o.sub}</div>
+                </button>`).join('')}
+              </div>
+              <div style="display:flex;align-items:baseline;gap:8px;margin:14px 0 8px">
+                <span style="font-size:11px;font-weight:700;color:var(--subtle);text-transform:uppercase;letter-spacing:.5px">分镜灵敏度</span>
+                <span id="_lpSensHint" style="font-size:11px;color:var(--subtle)">— 控制切镜触发门槛，越低捕获越多镜头</span>
+              </div>
+              <div id="_lpSensSection">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                ${[
+                  {id:'_lpSens0',icon:'🐢',label:'慢节奏',sub:'文艺片 / 纪录片',thresh:'0.40'},
+                  {id:'_lpSens1',icon:'📷',label:'标准',sub:'剧情片 / 电视剧',thresh:'0.30'},
+                  {id:'_lpSens2',icon:'⚡',label:'快切',sub:'动作片 / 广告',thresh:'0.20'},
+                  {id:'_lpSens3',icon:'🔥',label:'极速',sub:'MV / 混剪',thresh:'0.12'},
+                  {id:'_lpSens4',icon:'🚫',label:'不拆分 / 手动',sub:'整片分析/完全自主',thresh:'1.0',mode:'manual'},
+                ].map((o,i)=>`<button id="${o.id}" data-thresh="${o.thresh}" data-manual-mode="${o.mode||''}" class="_lpSensBtn" style="border:2px solid ${i===1?'var(--primary)':'var(--border)'};background:${i===1?'var(--primary-bg,#eff6ff)':'var(--bg)'};border-radius:10px;padding:8px 10px;cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left;transition:all .15s">
+                  <span style="font-size:18px">${o.icon}</span>
+                  <div><div style="font-size:12px;font-weight:700;color:var(--text)">${o.label}</div><div style="font-size:10px;color:var(--subtle)">${o.sub}</div></div>
+                </button>`).join('')}
+              </div>
+              </div>
+            </div>
+            <div style="padding:12px 20px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+              <button id="_lpModeCancel2" style="border:1px solid var(--border);background:var(--bg);border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px;color:var(--subtle)">取消</button>
+              <button id="_lpModeConfirm" style="border:none;background:var(--primary);color:#fff;border-radius:8px;padding:8px 22px;cursor:pointer;font-size:13px;font-weight:600">开始分镜 →</button>
+            </div>
+          </div>`;
+      document.body.appendChild(bd);
+      const close = v => { document.body.removeChild(bd); resolve(v); };
+      const sensHint = bd.querySelector('#_lpSensHint');
+      const HINT_TRAD = '— 控制切镜触发门槛，越低捕获越多镜头';
+      const HINT_AI   = '— 控制 AI 置信度阈值，越低识别越多切点（含渐变过渡）';
+      bd.querySelectorAll('._lpAlgoBtn').forEach(btn => {
+        btn.onclick = () => {
+          bd.querySelectorAll('._lpAlgoBtn').forEach(b => { b.style.border='2px solid var(--border)'; b.style.background='var(--bg)'; });
+          btn.style.border='2px solid var(--primary)';
+          btn.style.background='var(--primary-bg,#eff6ff)';
+          sensHint.textContent = btn.dataset.algo === 'transnetv2' ? HINT_AI : HINT_TRAD;
+        };
+      });
+      bd.querySelectorAll('._lpSensBtn').forEach(btn => {
+        btn.onclick = () => {
+          bd.querySelectorAll('._lpSensBtn').forEach(b => { b.style.border='2px solid var(--border)'; b.style.background='var(--bg)'; });
+          btn.style.border='2px solid var(--primary)';
+          btn.style.background='var(--primary-bg,#eff6ff)';
+        };
+      });
+      bd.querySelector('#_lpModeConfirm').onclick = () => {
+        const algo = bd.querySelector('._lpAlgoBtn[style*="var(--primary)"]')?.dataset.algo || 'traditional';
+        const activeSensBtn = bd.querySelector('._lpSensBtn[style*="var(--primary)"]');
+        const thresh = activeSensBtn?.dataset.thresh || '0.30';
+        const isManual = activeSensBtn?.dataset.manualMode === 'manual';
+        const mode = isManual ? 'manual' : (algo === 'transnetv2' ? 'transnetv2' : (parseFloat(thresh) >= 0.25 ? 'standard' : 'fast'));
+        close({mode, thresh});
+      };
+      bd.querySelector('#_lpModeCancel').onclick  = () => close(null);
+      bd.querySelector('#_lpModeCancel2').onclick = () => close(null);
+      bd.onclick = e => { if (e.target === bd) close(null); };
+    });
+  }
+
+  async function resplitLapianProject(projId) {
+    const modeResult = await _showLapianModeModal('重新拆分');
+    if (!modeResult) return;
+    toast('🔄 正在重新拆分镜头...');
+    try {
+      const res = await postJson('/api/lapian/resplit', {
+        id: projId, mode: modeResult.mode, threshold: modeResult.thresh
+      });
+      if (res.ok) {
+        navigate('smart_lapian');
+        showLapianProgressModal(projId, '');
+      } else {
+        alert('重新拆分失败: ' + res.error);
+      }
+    } catch(err) { alert(err.message); }
+  }
+
+  // Progress modal for FFmpeg shot extraction phase
+  function showLapianProgressModal(projId, videoName) {
+    const CIRC = 2 * Math.PI * 42; // r=42 → ~264
+
+    const bd = document.createElement('div');
+    bd.id = '_lpProgressBackdrop';
+    bd.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center';
+
+    bd.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;width:min(360px,92vw);padding:28px 24px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;align-items:center;gap:0;text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--subtle);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${t('视频分镜处理中','Shot Extraction')}</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:20px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(videoName)}">${h(videoName)}</div>
+
+        <!-- SVG ring -->
+        <div style="position:relative;width:120px;height:120px;margin-bottom:16px">
+          <svg viewBox="0 0 100 100" width="120" height="120" style="transform:rotate(-90deg)">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border)" stroke-width="8"/>
+            <circle id="_lpRingFill" cx="50" cy="50" r="42" fill="none" stroke="var(--primary)" stroke-width="8"
+              stroke-linecap="round"
+              stroke-dasharray="${CIRC.toFixed(1)}"
+              stroke-dashoffset="${CIRC.toFixed(1)}"
+              style="transition:stroke-dashoffset .6s ease"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+            <div id="_lpRingPct" style="font-size:22px;font-weight:800;color:var(--text)">0%</div>
+          </div>
+        </div>
+
+        <!-- Status text -->
+        <div id="_lpProgStatus" style="font-size:12px;color:var(--subtle);min-height:18px;margin-bottom:20px">正在分析视频结构...</div>
+
+        <!-- Action buttons (hidden until done/fail) -->
+        <div id="_lpProgActions" style="display:none;flex-direction:column;gap:10px;width:100%">
+          <button id="_lpViewResultBtn" class="btn btn-primary" style="width:100%;height:38px;font-size:13px"></button>
+          <button id="_lpCloseAfterBtn" class="btn" style="width:100%;height:34px;font-size:12px">关闭</button>
+        </div>
+
+        <!-- Background run button (visible during processing) -->
+        <button id="_lpBgRunBtn" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--subtle);text-decoration:underline;margin-top:4px">${t('后台运行，去列表查看','Run in background')}</button>
+      </div>`;
+
+    document.body.appendChild(bd);
+
+    const ring    = bd.querySelector('#_lpRingFill');
+    const pctEl   = bd.querySelector('#_lpRingPct');
+    const statEl  = bd.querySelector('#_lpProgStatus');
+    const actions = bd.querySelector('#_lpProgActions');
+    const bgBtn   = bd.querySelector('#_lpBgRunBtn');
+    const viewBtn = bd.querySelector('#_lpViewResultBtn');
+    const closeBtn = bd.querySelector('#_lpCloseAfterBtn');
+
+    const statusLabels = {
+      pending:    '等待队列中...',
+      processing: '正在 FFmpeg 场景分析与关键帧提取...',
+      completed:  '✅ 分镜完成！',
+      failed:     '❌ 提取失败'
+    };
+
+    function setProgress(pct) {
+      const offset = CIRC * (1 - pct / 100);
+      ring.style.strokeDashoffset = offset.toFixed(1);
+      pctEl.textContent = pct + '%';
+    }
+
+    function close() {
+      clearInterval(pollTimer);
+      if (document.body.contains(bd)) document.body.removeChild(bd);
+    }
+
+    bgBtn.onclick = () => {
+      close();
+      navigate('smart_lapian');
+    };
+    closeBtn.onclick = close;
+    viewBtn.onclick  = () => {
+      close();
+      navigate('smart_lapian');
+    };
+
+    // Animate ring to 5% immediately to show activity
+    setTimeout(() => setProgress(5), 100);
+
+    let pollTimer = setInterval(async () => {
+      try {
+        const res = await fetch('/api/lapian/list').then(r => r.json());
+        if (!res.ok) return;
+        const proj = (res.projects || []).find(p => p.id === projId);
+        if (!proj) return;
+
+        const pct = proj.progress || 0;
+        setProgress(pct);
+        statEl.textContent = statusLabels[proj.status] || '处理中...';
+
+        if (proj.status === 'completed') {
+          clearInterval(pollTimer);
+          setProgress(100);
+          ring.style.stroke = '#22c55e';
+          statEl.textContent = `✅ ${t('分镜完成！','Extraction done!')} ${t('检测到','Detected')} ${proj.totalShots} ${t('个镜头','shots')}`;
+          bgBtn.style.display = 'none';
+          viewBtn.textContent = `🎬 ${t('查看拉片详情','View Shot Details')}`;
+          viewBtn.onclick = () => {
+            close();
+            state.lapianProjectId = projId;
+            navigate('smart_lapian_detail');
+          };
+          actions.style.display = 'flex';
+        } else if (proj.status === 'failed') {
+          clearInterval(pollTimer);
+          ring.style.stroke = '#ef4444';
+          const errMsg = proj.desc || t('分镜提取失败，请检查视频格式或 FFmpeg 是否安装。','Extraction failed. Check video format or FFmpeg.');
+          statEl.textContent = '❌ ' + errMsg;
+          statEl.title = errMsg;
+          statEl.style.cssText = 'font-size:12px;color:#ef4444;cursor:help;word-break:break-all;max-height:60px;overflow-y:auto';
+          bgBtn.style.display = 'none';
+          viewBtn.textContent = t('返回列表','Back to List');
+          viewBtn.onclick = () => { close(); navigate('smart_lapian'); };
+          actions.style.display = 'flex';
+        }
+      } catch (_) {}
+    }, 1500);
+  }
+
+  let _lapianPollTimer = null;
+  function startLapianListPolling() {
+    if (_lapianPollTimer) clearInterval(_lapianPollTimer);
+    _lapianPollTimer = setInterval(async () => {
+      if (state.view !== 'smart_lapian') {
+        clearInterval(_lapianPollTimer);
+        return;
+      }
+      try {
+        const res = await fetch('/api/lapian/list').then(r => r.json());
+        if (res.ok && res.projects) {
+          const hasProcessing = res.projects.some(p => p.status === 'processing' || p.status === 'pending');
+          if (!hasProcessing) clearInterval(_lapianPollTimer);
+          // Re-render only list with search intact
+          const q = (document.getElementById('searchInput').value || '').toLowerCase();
+          renderLapianList(q, res.projects);
+        }
+      } catch {}
+    }, 3000);
+  }
+
+  async function renderLapianList(q='', preloadedList=null) {
+    const grid = document.getElementById('mainGrid');
+    const empty = document.getElementById('emptyState');
+    
+    let list = preloadedList;
+    if (!list) {
+      try {
+        const res = await fetch('/api/lapian/list').then(r => r.json());
+        list = res.ok ? res.projects : [];
+      } catch {
+        list = [];
+      }
+    }
+
+    if (q) {
+      list = list.filter(p => (p.videoName||'').toLowerCase().includes(q) || (p.movieName||'').toLowerCase().includes(q));
+    }
+
+    const hasProcessing = list.some(p => p.status === 'processing' || p.status === 'pending');
+    if (hasProcessing && state.view === 'smart_lapian') {
+      startLapianListPolling();
+    }
+
+    if (!list.length) {
+      grid.innerHTML = ''; empty.style.display = 'flex';
+      empty.innerHTML = `
+        <div class="empty-icon">🎬</div>
+        <h3>${t('智能拉片助手','Smart Lapian Assistant')}</h3>
+        <p style="margin-bottom:12px;color:var(--subtle);max-width:380px;text-align:center">${t('一键拖入本地视频，自动提取分镜头、关键帧，AI逐镜头产出影视级提示词','Drag and drop local videos to auto-detect shots, extract keyframes, and generate cinematic AIGC prompts.')}</p>
+        <button class="btn btn-primary" onclick="openNewLapianModal()">${t('+ 新建拉片','+ New Shot')}</button>
+      `;
+      pickItem(null);
+      return;
+    }
+
+    empty.style.display = 'none';
+    grid.innerHTML = list.map(item => {
+      let badge = '';
+      if (item.status === 'processing') {
+        badge = `<div class="card-label card-label-ov" style="color:#ea580c!important;font-weight:800">${t('分镜中 ','Extracting ') + (item.progress || 0)}%</div>`;
+      } else if (item.status === 'failed') {
+        badge = `<div class="card-label card-label-ov" style="color:#dc2626!important;font-weight:800">${t('失败','Failed')}</div>`;
+      } else {
+        badge = `<div class="card-label card-label-ov label-video">${item.totalShots} ${t('个镜头','Shots')}</div>`;
+      }
+
+      const durMin = Math.floor(item.duration / 60);
+      const durSec = item.duration % 60;
+      const durStr = `${durMin}:${durSec.toString().padStart(2, '0')}`;
+
+      let cardMeta = ``;
+      if (item.status === 'failed') {
+        cardMeta = `<span style="color:#ef4444;font-size:11px;font-weight:700;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(item.desc || '未知原因')}">❌ ${h(item.desc || '分镜分析失败')}</span>`;
+      } else {
+        cardMeta = `
+          ${item.movieName ? `<span style="font-weight:700;color:var(--text)">${h(item.movieName)}</span> · ` : ''}
+          <span>${durStr}</span>`;
+      }
+
+      return `
+        <div class="card" data-lapian-id="${h(item.id)}" oncontextmenu="showLapianCtx(event,'${item.id}')">
+          <div class="card-img-wrap" style="aspect-ratio:16/9;height:auto">
+            ${item.cover 
+              ? `<img class="proj-cover-img" src="${h(item.cover)}" alt="" style="object-fit:cover" loading="lazy">`
+              : `<div class="proj-card-cover" style="--c1:#ef4444;--c2:#b91c1c;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-size:32px">🎬</div>`}
+            ${badge}
+          </div>
+          <div class="card-body">
+            <div class="proj-card-title">${h(item.videoName)}</div>
+            <div class="card-meta">
+              ${cardMeta}
+            </div>
+          </div>
+          <button class="card-del" data-del-lapian="${h(item.id)}">✕</button>
+        </div>`;
+    }).join('');
+
+    grid.querySelectorAll('.card[data-lapian-id]').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.card-del')) return;
+        const projId = card.dataset.lapianId;
+        const target = list.find(p => p.id === projId);
+        if (target && target.status === 'processing') {
+          toast(t('🎬 分镜处理中，请稍候...','🎬 Extracting shots, please wait...'));
+          return;
+        }
+        state.lapianProjectId = projId;
+        navigate('smart_lapian_detail');
+      });
+    });
+
+    grid.querySelectorAll('[data-del-lapian]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const lpId = btn.dataset.delLapian;
+        if (!confirm(t('确认删除这个拉片项目吗？','Are you sure you want to delete this shot project?'))) return;
+        const res = await postJson('/api/lapian/delete', {id: lpId});
+        if (res.ok) {
+          toast(t('✅ 删除成功','✅ Deleted'));
+          renderLapianList(q);
+        } else {
+          toast(t('❌ 删除失败','❌ Failed'));
+        }
+      });
+    });
+  }
+
+  window.showLapianCtx = function(e, id) {
+    e.preventDefault(); e.stopPropagation();
+    const m = document.getElementById('ctxMenu');
+    m.innerHTML = `
+      <div class="ctx-menu-item danger" onclick="deleteLapianDirect('${id}')">🗑️ ${t('删除项目','Delete Project')}</div>
+    `;
+    m.style.display = 'block';
+    m.style.left = Math.min(e.clientX, innerWidth - 180) + 'px';
+    m.style.top = Math.min(e.clientY, innerHeight - 80) + 'px';
+  };
+
+  window.deleteLapianDirect = async function(id) {
+    document.getElementById('ctxMenu').style.display = 'none';
+    if (!confirm(t('确认删除吗？','Are you sure?'))) return;
+    const res = await postJson('/api/lapian/delete', {id});
+    if (res.ok) { toast(t('✅ 删除成功','✅ Deleted')); renderPage(); }
+  };
+
+  window.openNewLapianModal = function() {
+    let localPath = '';
+    const html = `
+      <div class="modal-backdrop open" id="lapianModal" style="display:flex;align-items:center;justify-content:center;z-index:99999;backdrop-filter:blur(5px);background:rgba(0,0,0,0.4)">
+        <div class="modal" style="width:min(500px, 95vw);max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);border:1px solid var(--border);background:var(--surface);border-radius:12px;display:flex;flex-direction:column">
+          
+          <div class="modal-head" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <h2 style="font-size:16px;font-weight:700;margin:0;display:flex;align-items:center;gap:6px;color:var(--text)">🎬 ${t('新建智能拉片','New Smart Shot')}</h2>
+            <button class="modal-close" onclick="closeLapianModal()" style="border:none;background:none;cursor:pointer;font-size:16px;color:var(--subtle)">✕</button>
+          </div>
+          
+          <!-- Source Tabs -->
+          <div style="display:flex;border-bottom:1px solid var(--border);padding:0 20px;background:var(--bg-2)">
+            <button id="lpTabLocal" onclick="lpSwitchTab('local')" style="padding:10px 16px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--primary);border-bottom:2px solid var(--primary);margin-bottom:-1px">📁 本地文件</button>
+            <button id="lpTabUrl" onclick="lpSwitchTab('url')" style="padding:10px 16px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--subtle);border-bottom:2px solid transparent;margin-bottom:-1px">🌐 在线链接</button>
+          </div>
+
+          <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+            <!-- Drop Area (local tab) -->
+            <div id="lpLocalPane">
+            <div id="lpDropZone" style="border:2px dashed var(--border);border-radius:10px;padding:24px 16px;text-align:center;cursor:pointer;background:var(--bg-2);transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:6px">
+              <div style="font-size:28px">📥</div>
+              <div style="font-size:13px;font-weight:700;color:var(--text)" id="lpDropLabel">${t('拖入本地视频，或点击选择','Drag & Drop local video here, or click to choose')}</div>
+              <div style="font-size:11px;color:var(--subtle)">支持所有主流视频格式 (MP4, MOV, MKV, WEBM 等)</div>
+              <input type="file" id="lpFileInput" style="display:none" accept="video/*">
+            </div>
+            </div>
+            <!-- URL Pane (online) -->
+            <div id="lpUrlPane" style="display:none;flex-direction:column;gap:12px">
+              <div style="font-size:12px;color:var(--subtle);background:var(--bg-2);padding:8px 12px;border-radius:8px;line-height:1.6">
+                🌐 支持 YouTube、Bilibili、抖音等主流平台链接，后台使用 <code>yt-dlp</code> 下载后自动分镜。<br>
+                <span style="color:#ef4444">⚠ 需先运行: <code>pip install yt-dlp</code></span>
+              </div>
+              <input type="text" class="input" id="lpVideoUrl" placeholder="粘贴视频URL，如 https://www.youtube.com/watch?v=..." style="width:100%;box-sizing:border-box;height:36px;padding:0 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)">
+            </div>
+
+            <div class="field" style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:12px;font-weight:700;color:var(--text)">${t('片段名称','Shot Name')}</label>
+              <input type="text" class="input" id="lpVideoName" placeholder="${t('自动读取文件名','Auto-filled filename')}" style="width:100%;box-sizing:border-box;height:36px;padding:0 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)">
+            </div>
+
+            <div class="field" style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:12px;font-weight:700;color:var(--text)">${t('关联电影/作品名 (选填)','Movie/Artwork Name (Optional)')}</label>
+              <input type="text" class="input" id="lpMovieName" placeholder="例如：黑客帝国, TVC 概念样片" style="width:100%;box-sizing:border-box;height:36px;padding:0 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)">
+            </div>
+
+            <div class="field" style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <label style="font-size:12px;font-weight:700;color:var(--text)">${t('分镜灵敏度','Scene Sensitivity')}</label>
+                <span id="lpSensLabel" style="font-size:12px;font-weight:800;color:var(--primary)">标准 (0.30)</span>
+              </div>
+              <input type="range" id="lpSensSlider" min="1" max="5" step="1" value="2"
+                style="width:100%;accent-color:var(--primary);cursor:pointer">
+              <div style="display:flex;justify-content:space-between;margin-top:-4px">
+                <span style="font-size:10px;color:var(--subtle)">🐢 慢节奏<br><span style="color:var(--text-2)">0.40</span></span>
+                <span style="font-size:10px;color:var(--subtle);text-align:center">📷 标准<br><span style="color:var(--text-2)">0.30</span></span>
+                <span style="font-size:10px;color:var(--subtle);text-align:center">⚡ 快切<br><span style="color:var(--text-2)">0.20</span></span>
+                <span style="font-size:10px;color:var(--subtle);text-align:center">🔥 极速<br><span style="color:var(--text-2)">0.12</span></span>
+                <span style="font-size:10px;color:var(--subtle);text-align:right">🚫 不拆分<br><span style="color:var(--text-2)">手动</span></span>
+              </div>
+              <div id="lpSensDesc" style="font-size:11px;color:var(--subtle);background:var(--bg-2);padding:8px 12px;border-radius:8px;line-height:1.5">
+                适合剧情片、文艺片等慢节奏常规影视，切点精准，不误切。
+              </div>
+              <input type="hidden" name="lpMode" id="lpModeHidden" value="standard">
+            </div>
+          </div>
+
+          <div class="modal-foot" style="padding:14px 20px;border-top:1px solid var(--border);background:var(--bg-2);display:flex;justify-content:flex-end;gap:10px;border-bottom-left-radius:12px;border-bottom-right-radius:12px">
+            <button class="btn btn-secondary" onclick="closeLapianModal()">${t('取消','Cancel')}</button>
+            <button class="btn btn-primary" id="btnStartLapian" disabled>${t('开始智能分镜','Start Shot Extraction')}</button>
+          </div>
+
+        </div>
+      </div>
+    `;
+    
+    let el = document.getElementById('lapianModal');
+    if (el) el.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
+    
+    const zone = document.getElementById('lpDropZone');
+    const finput = document.getElementById('lpFileInput');
+    const startBtn = document.getElementById('btnStartLapian');
+    const nameInput = document.getElementById('lpVideoName');
+    
+    // Sensitivity slider
+    const sensLevels = [
+      { label: '🐢 慢节奏 (0.40)', thresh: '0.40', mode: 'standard',
+        desc: '适合长镜头、文艺片、纪录片。只有画面发生大幅度切换时才会切镜，镜头内的人物走动、摄像机轻微摇移都不会触发。最短镜头约 0.8 秒。' },
+      { label: '📷 标准 (0.30)',   thresh: '0.30', mode: 'standard',
+        desc: '适合剧情片、电视剧、商业影片。智能自适应调整，绝大多数视频选这档即可。误切率低，漏切率也低。最短镜头约 0.6 秒。' },
+      { label: '⚡ 快切 (0.20)',   thresh: '0.20', mode: 'fast',
+        desc: '适合动作片、追逐戏、快节奏 TVC 广告。会捕捉更多较短的画面切换，但在大幅度运动镜头中可能产生少量误切。最短镜头约 0.4 秒。' },
+      { label: '🔥 极速 (0.12)',   thresh: '0.12', mode: 'fast',
+        desc: '适合音乐 MV、节拍剪辑、混剪类视频。会尽可能抓住每一个画面变化，切点密度最高，建议只在快速剪辑素材上使用。最短镜头约 0.3 秒。' },
+      { label: '🚫 不拆分 / 手动 (1.0)', thresh: '1.0', mode: 'manual',
+        desc: '完全不自动拆分镜头，直接将一整段视频当作一整个大场景导入。导入后，您可以随时点击「轨道式手动微调」在任意位置自主分割与裁剪多段片段。' }
+    ];
+    const slider = document.getElementById('lpSensSlider');
+    const sensLabel = document.getElementById('lpSensLabel');
+    const sensDesc = document.getElementById('lpSensDesc');
+    const modeHidden = document.getElementById('lpModeHidden');
+    slider.oninput = () => {
+      const lv = sensLevels[parseInt(slider.value) - 1];
+      sensLabel.textContent = lv.label;
+      sensDesc.textContent = lv.desc;
+      modeHidden.value = lv.mode;
+      modeHidden.dataset.thresh = lv.thresh;
+    };
+    slider.oninput(); // init
+
+    // Tab switcher
+    let _lpSourceMode = 'local';
+    window.lpSwitchTab = (tab) => {
+      _lpSourceMode = tab;
+      document.getElementById('lpLocalPane').style.display = tab === 'local' ? '' : 'none';
+      document.getElementById('lpUrlPane').style.display   = tab === 'url'   ? 'flex' : 'none';
+      document.getElementById('lpTabLocal').style.cssText = tab === 'local'
+        ? 'padding:10px 16px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--primary);border-bottom:2px solid var(--primary);margin-bottom:-1px'
+        : 'padding:10px 16px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--subtle);border-bottom:2px solid transparent;margin-bottom:-1px';
+      document.getElementById('lpTabUrl').style.cssText = tab === 'url'
+        ? 'padding:10px 16px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--primary);border-bottom:2px solid var(--primary);margin-bottom:-1px'
+        : 'padding:10px 16px;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--subtle);border-bottom:2px solid transparent;margin-bottom:-1px';
+      // Enable start btn when URL is typed
+      if (tab === 'url') {
+        startBtn.removeAttribute('disabled');
+        document.getElementById('lpVideoUrl')?.addEventListener('input', (e) => {
+          e.target.value.trim() ? startBtn.removeAttribute('disabled') : startBtn.setAttribute('disabled','1');
+        });
+      }
+    };
+
+    zone.onclick = () => finput.click();
+    finput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) handleSelectedVideo(file);
+    };
+
+    // Drag-drop
+    zone.ondragover = (e) => { e.preventDefault(); zone.style.borderColor = 'var(--primary)'; };
+    zone.ondragleave = () => { zone.style.borderColor = 'var(--border)'; };
+    zone.ondrop = (e) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) handleSelectedVideo(file);
+    };
+
+    function handleSelectedVideo(file) {
+      // Access Electron file path if available
+      localPath = file.path || '';
+      if (!localPath) {
+        alert(t('无法获取视频本地路径，请确保在 Prompt Studio 桌面端运行','Cannot resolve local path. Please use Prompt Studio Desktop.'));
+        return;
+      }
+      document.getElementById('lpDropLabel').textContent = file.name;
+      zone.style.background = 'rgba(59,130,246,0.05)';
+      zone.style.borderColor = 'var(--primary)';
+      if (!nameInput.value.trim()) {
+        const dotIdx = file.name.lastIndexOf('.');
+        nameInput.value = dotIdx !== -1 ? file.name.substring(0, dotIdx) : file.name;
+      }
+      startBtn.removeAttribute('disabled');
+    }
+
+    startBtn.onclick = async () => {
+      const modeHid = document.getElementById('lpModeHidden');
+      const mode = modeHid.value;
+      const threshold = modeHid.dataset.thresh || '0.30';
+      startBtn.textContent = t('提交中...','Starting...');
+      startBtn.setAttribute('disabled', '1');
+      try {
+        let res;
+        if (_lpSourceMode === 'url') {
+          const urlVal = (document.getElementById('lpVideoUrl')?.value || '').trim();
+          if (!urlVal) { alert('请输入视频链接'); startBtn.textContent = '开始智能分镜'; startBtn.removeAttribute('disabled'); return; }
+          startBtn.textContent = '⏬ 下载中，请稍候...';
+          res = await postJson('/api/lapian/download-url', {
+            url: urlVal, videoName: nameInput.value.trim(),
+            movieName: document.getElementById('lpMovieName').value.trim(),
+            mode, threshold
+          });
+        } else {
+          res = await postJson('/api/lapian/create', {
+            videoPath: localPath,
+            videoName: nameInput.value.trim(),
+            movieName: document.getElementById('lpMovieName').value.trim(),
+            mode: mode,
+            threshold: threshold
+          });
+        }
+        if (res.ok) {
+          closeLapianModal();
+          navigate('smart_lapian');
+          showLapianProgressModal(res.projectId, nameInput.value.trim() || '视频片段');
+        } else {
+          if (res.ffmpeg_missing) {
+            closeLapianModal();
+            if (confirm('⚠️ 未检测到 FFmpeg\n\n智能拉片需要 FFmpeg 工具来切割视频帧。\n\n点击「确定」前往设置中心一键安装（约 50MB），安装后即可正常使用。')) {
+              navigate('settings');
+            }
+          } else {
+            alert(t('创建失败：','Failed to create: ') + res.error);
+            startBtn.textContent = t('开始智能分镜','Start Shot Extraction');
+            startBtn.removeAttribute('disabled');
+          }
+        }
+      } catch (err) {
+        alert(err.message);
+        startBtn.textContent = t('开始智能分镜','Start Shot Extraction');
+        startBtn.removeAttribute('disabled');
+      }
+    };
+  }
+
+  window.closeLapianModal = function() {
+    document.getElementById('lapianModal')?.remove();
+  };
+
+  // ── Smart Lapian Detail Workshop (高保真分镜交互面板) ─────────────────────
+  let _lapianDetailActiveShotId = null;
+  if (!state.lapianTab) state.lapianTab = 'flow'; // 'flow' (分镜拆解), 'prompts' (提示词库), 'frames' (关键帧墙)
+
+  async function renderLapianDetail(projId) {
+    const grid = document.getElementById('mainGrid');
+    const empty = document.getElementById('emptyState');
+    empty.style.display = 'none';
+
+    // Break out of global .grid template layout, making the workshop full-width
+    grid.style.display = 'block';
+    grid.style.gridTemplateColumns = 'none';
+    grid.style.height = '100%';
+    const shell = document.querySelector('.workspace-shell');
+    if (shell) { shell.style.overflow = 'hidden'; shell.style.height = '100%'; }
+    const wMain = document.querySelector('.workspace-main');
+    if (wMain) { wMain.style.height = '100%'; wMain.style.padding = '0'; }
+
+    grid.innerHTML = `<div style="padding:24px;color:var(--subtle);font-size:14px;text-align:center">${t('📂 正在读取镜头数据...','📂 Loading shot timeline...')}</div>`;
+
+    try {
+      const res = await fetch(`/api/lapian/detail?id=${projId}`).then(r => r.json());
+      if (!res.ok || !res.project) {
+        grid.innerHTML = `<div style="padding:24px;color:var(--text);font-size:14px;text-align:center">${t('❌ 项目不存在或读取失败','❌ Failed to load project')}</div>`;
+        return;
+      }
+      
+      const proj = res.project;
+      const shots = proj.shots || [];
+
+      if (!shots.length) {
+        grid.innerHTML = `<div style="padding:24px;color:var(--text);font-size:14px;text-align:center">${t('⏳ 分镜还没有完成，请刷新页面重试','⏳ Extracting shots in background, please refresh.')}</div>`;
+        return;
+      }
+
+      // Restore active shot or default to first
+      if (!_lapianDetailActiveShotId || !shots.some(s => s.id === _lapianDetailActiveShotId)) {
+        _lapianDetailActiveShotId = shots[0].id;
+      }
+
+      const completedShots = shots.filter(s => s.status === 'completed').length;
+      const progressPct = Math.round((completedShots / shots.length) * 100);
+
+      // Render ultra beautiful workshop layout
+      grid.innerHTML = `
+        <div style="display:grid;grid-template-columns:400px 1fr;gap:0;width:100%;height:100%;overflow:hidden;background:var(--bg);box-sizing:border-box;border-right:1px solid var(--border)">
+          
+          <!-- Left Panel: Video + Project Meta -->
+          <div style="display:flex;flex-direction:column;gap:16px;height:100%;overflow-y:auto;padding:16px 12px 16px 16px;box-sizing:border-box;border-right:1px solid var(--border)">
+            <!-- Local Video Player -->
+            <video id="lpVideoPlayer" src="/api/lapian/video?id=${h(projId)}" controls style="width:100%;aspect-ratio:16/9;border-radius:12px;background:#000;box-shadow:0 4px 16px rgba(0,0,0,0.2)"></video>
+            
+            <!-- Project Meta Details -->
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px">
+              <div>
+                <h2 style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px;word-break:break-all">${h(proj.videoName)}</h2>
+                ${proj.movieName ? `<div style="font-size:12px;color:var(--primary);font-weight:700">🎬 ${h(proj.movieName)}</div>` : ''}
+              </div>
+              
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px solid var(--border-soft);padding-top:12px">
+                <div>
+                  <div style="font-size:10px;color:var(--subtle);text-transform:uppercase">${t('视频时长','Duration')}</div>
+                  <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:2px">
+                    ${Math.floor(proj.duration / 60)}:${(proj.duration % 60).toString().padStart(2, '0')}
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:10px;color:var(--subtle);text-transform:uppercase">${t('分镜总数','Total Shots')}</div>
+                  <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:2px">${shots.length} ${t('个镜头','Shots')}</div>
+                </div>
+              </div>
+
+              <div style="border-top:1px solid var(--border-soft);padding-top:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px">
+                  <span style="color:var(--subtle)">${t('AI 分析进度','AI Analysis Progress')}</span>
+                  <span style="font-weight:700;color:var(--primary)">${completedShots}/${shots.length} (${progressPct}%)</span>
+                </div>
+                <div style="height:6px;background:var(--bg-2);border-radius:3px;overflow:hidden">
+                  <div style="height:100%;width:${progressPct}%;background:var(--primary);transition:width .4s ease"></div>
+                </div>
+              </div>
+
+              <div style="border-top:1px solid var(--border-soft);padding-top:12px;display:flex;flex-direction:column;gap:8px">
+                <button onclick="resplitLapianProject('${h(projId)}')" style="width:100%;border:1px dashed var(--border);background:var(--bg);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12px;color:var(--subtle);display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s" onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--subtle)'">
+                  🔄 ${t('重新拆分镜头','Re-detect Shots')}
+                </button>
+                <button onclick="openLapianTimelineEditor('${h(projId)}')" style="width:100%;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12px;color:var(--text);font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s" onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">
+                  ⏱️ ${t('轨道式手动微调','Manual Timeline Editor')}
+                </button>
+              </div>
+            </div>
+
+            <!-- Vertical Mini Carousel -->
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="font-size:11.5px;font-weight:800;color:var(--text);text-transform:uppercase;padding:0 4px">🎞️ ${t('镜头时间轴','Timeline')}</div>
+              <div style="display:flex;flex-direction:column;gap:8px" id="lpShotTimelineScroll">
+                ${shots.map(s => {
+                  const isActive = s.id === _lapianDetailActiveShotId;
+                  const border = isActive ? '2px solid var(--primary)' : '1px solid var(--border)';
+                  const bg = isActive ? 'var(--surface-2)' : 'var(--surface)';
+                  const pill = s.status === 'completed' 
+                    ? `<span style="font-size:9px;background:#22c55e;color:#fff;padding:1px 4px;border-radius:4px;font-weight:700">AI</span>`
+                    : `<span style="font-size:9px;background:var(--border);color:var(--subtle);padding:1px 4px;border-radius:4px">待拉</span>`;
+
+                  return `
+                    <div class="lp-shot-row" data-shot-id="${s.id}" data-start="${s.startTime}" style="display:flex;align-items:center;gap:12px;padding:6px 10px;border-radius:10px;border:${border};background:${bg};cursor:pointer;transition:all .15s;box-sizing:border-box">
+                      <img src="${s.img}" style="width:80px;aspect-ratio:16/9;object-fit:cover;border-radius:6px;background:#222;flex-shrink:0">
+                      <div style="flex:1;min-width:0">
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+                          <span style="font-size:12px;font-weight:800;color:var(--text)">#${s.index}</span>
+                          ${pill}
+                        </div>
+                        <div style="font-size:11px;color:var(--subtle)">⏱️ ${s.startTime} (${s.duration})</div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Panel: Workshop Tabbed Area -->
+          <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--surface);box-sizing:border-box">
+            <!-- Tabs Navigation -->
+            <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding:12px 20px;background:var(--bg-2);box-sizing:border-box">
+              <div style="display:flex;gap:6px">
+                <button class="btn ${state.lapianTab === 'flow' ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="setLapianTab('flow')" style="border-radius:20px;padding:4px 16px;font-size:12px;font-weight:700">🎬 ${t('分镜拆解','Shots Flow')}</button>
+                <button class="btn ${state.lapianTab === 'prompts' ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="setLapianTab('prompts')" style="border-radius:20px;padding:4px 16px;font-size:12px;font-weight:700">🔥 ${t('AIGC 提示词','AIGC Prompts')}</button>
+                <button class="btn ${state.lapianTab === 'frames' ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="setLapianTab('frames')" style="border-radius:20px;padding:4px 16px;font-size:12px;font-weight:700">🖼️ ${t('关键帧图墙','Frame Wall')}</button>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary btn-sm" id="btnExportLapianData" style="font-size:12px" onclick="showLapianExportMenu('${h(proj.id)}','${h(proj.videoName)}')">📦 ${t('导出 ▾','Export ▾')}</button>
+              </div>
+            </div>
+            
+            <!-- Dynamic Tab Content (Scrollable) -->
+            <div style="flex:1;overflow-y:auto;padding:24px;box-sizing:border-box" id="lpAnalysisDetailsCard">
+              <!-- Content gets rendered here -->
+            </div>
+          </div>
+
+        </div>
+      `;
+
+      // Interactive Linkages
+      const vPlayer = document.getElementById('lpVideoPlayer');
+
+      // T7: Keyboard shortcuts (active while in lapian detail view)
+      if (window._lpKeyHandler) document.removeEventListener('keydown', window._lpKeyHandler);
+      window._lpKeyHandler = (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (document.getElementById('_lpDetailModal') || document.getElementById('_lpChatModal')) return;
+        if (e.key === ' ') { e.preventDefault(); vPlayer ? (vPlayer.paused ? vPlayer.play() : vPlayer.pause()) : null; }
+        else if (e.key === 'j' || e.key === 'J') {
+          const cur = shots.findIndex(s => s.id === _lapianDetailActiveShotId);
+          if (cur > 0) { _lapianDetailActiveShotId = shots[cur-1].id; renderLapianWorkspaceRight(proj); document.querySelector(`.lp-shot-row[data-shot-id="${_lapianDetailActiveShotId}"]`)?.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+        } else if (e.key === 'l' || e.key === 'L') {
+          const cur = shots.findIndex(s => s.id === _lapianDetailActiveShotId);
+          if (cur < shots.length-1) { _lapianDetailActiveShotId = shots[cur+1].id; renderLapianWorkspaceRight(proj); document.querySelector(`.lp-shot-row[data-shot-id="${_lapianDetailActiveShotId}"]`)?.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+        } else if (e.key === 's' || e.key === 'S') {
+          const shot = shots.find(s => s.id === _lapianDetailActiveShotId);
+          if (shot && vPlayer) lpSplitShotAtCurrent(proj.id, shot.id, () => renderLapianDetail(proj.id));
+        } else if (e.ctrlKey && e.key === 'c') {
+          const shot = shots.find(s => s.id === _lapianDetailActiveShotId);
+          if (shot && shot.prompt) { navigator.clipboard.writeText(shot.prompt); toast('📋 提示词已复制！'); }
+        }
+      };
+      document.addEventListener('keydown', window._lpKeyHandler);
+
+      // Setup timeline item clicks
+      document.querySelectorAll('.lp-shot-row').forEach(row => {
+        row.onclick = () => {
+          const sId = row.dataset.shotId;
+          const startStr = row.dataset.start;
+          _lapianDetailActiveShotId = sId;
+
+          // Seek video player
+          if (startStr && vPlayer) {
+            const pts = startStr.split(':');
+            const sec = parseFloat(pts[0])*60 + parseFloat(pts[1]);
+            vPlayer.currentTime = sec;
+            vPlayer.play().catch(()=>{});
+          }
+
+          renderLapianWorkspaceRight(proj);
+          
+          // Update timeline visual borders
+          document.querySelectorAll('.lp-shot-row').forEach(r => {
+            const isMatch = r.dataset.shotId === sId;
+            r.style.border = isMatch ? '2px solid var(--primary)' : '1px solid var(--border)';
+            r.style.background = isMatch ? 'var(--surface-2)' : 'var(--surface)';
+          });
+        };
+      });
+
+      // Render dynamic right card
+      renderLapianWorkspaceRight(proj);
+
+      // Handle custom globally exposed switcher
+      window.setLapianTab = (tab) => {
+        state.lapianTab = tab;
+        renderLapianDetail(projId);
+      };
+
+    } catch (e) {
+      grid.innerHTML = `<div style="padding:24px;color:var(--text);font-size:14px;text-align:center">读取详情失败: ${e.message}</div>`;
+    }
+  }
+
+  // Unified Workshop Right Content Renderer
+  function renderLapianWorkspaceRight(proj) {
+    window._lpCurrentProj = proj;
+    const card = document.getElementById('lpAnalysisDetailsCard');
+    if (!card) return;
+
+    const shots = proj.shots || [];
+
+    // Render TAB 1: FLOW (分镜拆解)
+    if (state.lapianTab === 'flow') {
+      const shot = shots.find(s => s.id === _lapianDetailActiveShotId) || shots[0];
+      if (!shot) {
+        card.innerHTML = `<div class="hint">暂无镜头</div>`;
+        return;
+      }
+
+      const saveProjOptions = data.projects.map(p => `<option value="${h(p.id)}">${h(p.name)}</option>`).join('');
+
+      let bodyHtml = '';
+      if (shot.status !== 'completed') {
+        bodyHtml = `
+          <div id="_lpPendingWrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 0;text-align:center">
+            <div style="font-size:48px;margin-bottom:12px">🤖</div>
+            <h4 style="margin-bottom:8px;font-size:15px;color:var(--text)">${t('未拉片分析镜头','Shot Analysis Pending')}</h4>
+            <p style="color:var(--subtle);font-size:12px;max-width:320px;margin-bottom:16px">${t('利用多模态视觉大模型深度拆解并逆向生成AIGC影视级Midjourney/Sora中文视听描述与英文提示词。','Reverse engineer cinematic lighting, shots, structure, and generate high fidelity text-to-video prompts.')}</p>
+            <div style="display:flex;gap:8px;justify-content:center">
+              <button class="btn btn-primary lp-analyze-btn" data-mode="image" style="padding:8px 20px">📷 ${t('图片分析','Image Analysis')}</button>
+              <button class="btn btn-secondary lp-analyze-btn" data-mode="video" style="padding:8px 20px">🎬 ${t('视频分析','Video Analysis')}</button>
+            </div>
+          </div>
+        `;
+      } else {
+        // Flat bullet-item helper: "• 标签：内容"
+        const bullet = (label, val) => val
+          ? `<div style="display:flex;gap:0;font-size:13px;line-height:1.75;margin-bottom:2px"><span style="flex-shrink:0">•&nbsp;</span><span><strong>${label}：</strong>${h(val)}</span></div>`
+          : '';
+
+        // Flat section helper: "N、标题"
+        const fsec = (num, title, inner) => inner
+          ? `<div style="margin-top:16px">
+               <div style="font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:8px">${num}、${title}</div>
+               <div style="padding-left:4px;color:var(--text)">${inner}</div>
+             </div>`
+          : '';
+
+        bodyHtml = `
+          <div style="font-size:13px;color:var(--text);line-height:1.75">
+
+            <!-- 镜头描述 header -->
+            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">镜头描述</div>
+
+            <!-- Summary para -->
+            ${shot.summary ? `<div style="font-size:13px;line-height:1.8;color:var(--text);margin-bottom:4px">${h(shot.summary)}</div>` : ''}
+
+            <!-- 1. 镜头信息 -->
+            ${fsec('1','镜头信息',
+              bullet('景别', shot.shotScale) +
+              bullet('角度', shot.cameraAngle) +
+              bullet('运镜', shot.cameraMovement)
+            )}
+
+            <!-- 2. 画面构成 -->
+            ${(shot.sceneAndLayers||shot.compositionalRules||shot.composition) ? fsec('2','画面构成',
+              bullet('场景与主体', shot.sceneAndLayers||shot.composition) +
+              bullet('构图规则', shot.compositionalRules)) : ''}
+
+            <!-- 3. 色彩与光影 -->
+            ${(shot.colorAnalysis||shot.lighting||shot.colorAndLighting) ? fsec('3','色彩与光影',
+              bullet('色调', shot.colorAnalysis||shot.colorAndLighting) +
+              bullet('光效', shot.lighting)) : ''}
+
+            <!-- 4. 声音推断 -->
+            ${shot.soundInference ? fsec('4','声音推断',
+              `<div style="font-size:13px;line-height:1.8">${h(shot.soundInference)}</div>`) : ''}
+
+            <!-- 5. 视听综合 -->
+            ${shot.desc ? fsec('5','视听综合',
+              `<div style="font-size:13px;line-height:1.8">${h(shot.desc)}</div>`) : ''}
+
+            <!-- 6. 叙事功能 -->
+            ${shot.narrativeFunction ? fsec('6','叙事功能',
+              `<div style="font-size:13px;line-height:1.8">${h(shot.narrativeFunction)}</div>`) : ''}
+
+            <!-- 7. 创作意图 -->
+            ${shot.creativeIntent ? fsec('7','创作意图',
+              `<div style="font-size:13px;line-height:1.8">${h(shot.creativeIntent)}</div>`) : ''}
+
+            <!-- 8. 经验迁移 -->
+            ${shot.experienceTransfer ? fsec('8','经验迁移',
+              `<div style="font-size:13px;line-height:1.8">${h(shot.experienceTransfer)}</div>`) : ''}
+
+          </div>
+
+          <!-- AIGC Prompt -->
+          ${shot.prompt ? `
+          <div style="margin-top:20px;border:1px solid #fed7aa;background:#fff7ed;border-radius:8px;overflow:hidden">
+            <div style="padding:8px 14px;background:#ffedd5;border-bottom:1px solid #fed7aa;display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;font-weight:700;color:#ea580c">🔥 AIGC 英文提示词 (Sora / FLUX / MJ)</span>
+              <button class="btn" onclick="copyLpPrompt()" style="padding:2px 10px;font-size:11px;background:#ffedd5;border-color:#fddcb5;color:#9a3412">📋 复制</button>
+            </div>
+            <div style="padding:12px 14px;font-size:12.5px;color:#7c2d12;line-height:1.75;font-family:monospace;white-space:pre-wrap" id="lpAigcPromptText">${h(shot.prompt)}</div>
+          </div>` : ''}
+
+          <!-- Sync to assets -->
+          <div style="margin-top:20px;border-top:1px dashed var(--border);padding-top:14px">
+            <div style="font-size:11.5px;font-weight:700;color:var(--text);margin-bottom:10px">📁 ${t('一键联动存入提示词项目资产库','Sync Shot to Workspace Library')}</div>
+            <div style="display:flex;gap:10px;align-items:center">
+              <select class="input" id="lpTargetProjectSelect" style="flex:1;max-width:240px;height:32px;font-size:12px;padding:2px 6px">
+                ${saveProjOptions}
+              </select>
+              <button class="btn btn-primary" id="btnSaveToAssetLink" style="height:32px;padding:0 16px;font-size:12px">💾 ${t('一键同步存入','Sync Asset')}</button>
+            </div>
+          </div>
+        `;
+      }
+
+      card.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:16px">
+          <span style="font-size:20px;font-weight:800;color:var(--text)">#${shot.index}</span>
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+              <h3 style="font-size:15px;font-weight:700;color:var(--text);margin:0">${proj.videoName}</h3>
+              ${shot.status === 'completed' ? (shot.analysisMode === 'video'
+                ? '<span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:4px;font-weight:700">🎬 视频分析</span>'
+                : '<span style="font-size:10px;background:var(--bg-2);color:var(--subtle);padding:2px 7px;border-radius:4px;font-weight:700">📷 图片分析</span>'
+              ) : ''}
+            </div>
+            <div style="font-size:11.5px;color:var(--subtle)">⏱️ ${shot.startTime} - ${shot.endTime} (${shot.duration})</div>
+          </div>
+          <div style="display:flex;gap:5px;align-items:center">
+            ${shot.status === 'completed' ? `
+            <button class="btn btn-secondary btn-sm lp-analyze-btn" data-mode="image" style="font-size:11px">📷 重拉</button>
+            <button class="btn btn-secondary btn-sm lp-analyze-btn" data-mode="video" style="font-size:11px">🎬 重拉</button>` : ''}
+            <button class="btn btn-secondary btn-sm" onclick="lpSplitShotAtCurrent('${proj.id}','${shot.id}',()=>renderLapianDetail('${proj.id}'))" style="font-size:11px" title="在当前播放位置拆分">✂️</button>
+            <button class="btn btn-secondary btn-sm" onclick="openShotDetail(window._lpCurrentProj,'${shot.id}')" style="font-size:11px" title="详情弹窗">🔍</button>
+            <button class="btn btn-secondary btn-sm" onclick="openShotChat(window._lpCurrentProj,'${shot.id}')" style="font-size:11px" title="镜头问答">💬</button>
+            <button class="btn btn-secondary btn-sm" onclick="lpDeleteShot('${proj.id}','${shot.id}',()=>renderLapianDetail('${proj.id}'))" style="font-size:11px;color:#ef4444" title="删除镜头">🗑</button>
+          </div>
+        </div>
+        
+        <div style="margin-bottom:16px">
+          ${(() => {
+            const frames = (shot.imgs && shot.imgs.length) ? shot.imgs : (shot.img ? [shot.img] : []);
+            const frameHtml = frames.length === 1
+              ? `<div style="text-align:center"><img src="${frames[0]}" style="max-height:220px;max-width:100%;object-fit:contain;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);background:#111"></div>`
+              : `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px">
+              ${frames.map((f,i) => `<div class="lp-frame-thumb" data-frame-idx="${i}" style="flex-shrink:0;position:relative;cursor:pointer" title="点击用当前播放帧替换此帧">
+                <img src="${f}" style="height:120px;width:auto;object-fit:cover;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.2);background:#111;display:block">
+                <span style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,0.55);color:#fff;font-size:9px;padding:1px 5px;border-radius:3px">${i+1}</span>
+                <span class="lp-replace-hint" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.5);border-radius:6px;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700">🔄 替换</span>
+              </div>`).join('')}
+            </div>`;
+            return `${frameHtml}
+            <div style="display:flex;gap:6px;align-items:center;margin-top:8px;padding:7px 10px;background:var(--bg-2);border-radius:8px;border:1px dashed var(--border)">
+              <span style="font-size:11px;color:var(--subtle);flex:1">📍 当前播放位置截帧</span>
+              <button class="btn btn-secondary btn-sm" id="btnCaptureFrame_${shot.id}" style="font-size:11px" title="将视频当前帧追加为新关键帧">
+                📷 追加帧
+              </button>
+              <button class="btn btn-secondary btn-sm" id="btnCaptureReplace_${shot.id}" style="font-size:11px" title="用视频当前帧替换第1帧">
+                🔄 替换帧#1
+              </button>
+            </div>`;
+          })()}
+        </div>
+
+        ${bodyHtml}
+      `;
+
+      // Capture frame button handlers
+      const _captureFrameFromVideo = async (replaceIndex) => {
+        const vid = document.getElementById('lpVideoPlayer');
+        if (!vid || !vid.videoWidth) { toast('❌ 请先打开视频', 3000); return; }
+        const cvs = document.createElement('canvas');
+        cvs.width = vid.videoWidth; cvs.height = vid.videoHeight;
+        cvs.getContext('2d').drawImage(vid, 0, 0);
+        const b64 = cvs.toDataURL('image/jpeg', 0.92);
+        const btn = document.getElementById(replaceIndex === null ? `btnCaptureFrame_${shot.id}` : `btnCaptureReplace_${shot.id}`);
+        if (btn) { btn.disabled = true; btn.textContent = '截取中...'; }
+        try {
+          const r = await postJson('/api/lapian/shot/capture-frame', {
+            projectId: proj.id, shotId: shot.id,
+            frameData: b64,
+            replaceIndex: replaceIndex
+          });
+          if (r.ok) { toast('✅ 关键帧已保存'); renderLapianWorkspaceRight(proj); }
+          else { toast('❌ ' + r.error, 3000); if (btn) { btn.disabled = false; btn.textContent = replaceIndex === null ? '📷 追加帧' : '🔄 替换帧#1'; } }
+        } catch(e) { toast('❌ ' + e.message, 3000); if (btn) { btn.disabled = false; } }
+      };
+      document.getElementById(`btnCaptureFrame_${shot.id}`)?.addEventListener('click', () => _captureFrameFromVideo(null));
+      document.getElementById(`btnCaptureReplace_${shot.id}`)?.addEventListener('click', () => _captureFrameFromVideo(0));
+
+      // Per-frame hover overlay + click-to-replace
+      card.querySelectorAll('.lp-frame-thumb').forEach(el => {
+        const hint = el.querySelector('.lp-replace-hint');
+        el.addEventListener('mouseenter', () => { if(hint) hint.style.display='flex'; });
+        el.addEventListener('mouseleave', () => { if(hint) hint.style.display='none'; });
+        el.addEventListener('click', () => _captureFrameFromVideo(parseInt(el.dataset.frameIdx)));
+      });
+
+      // Setup actions — shared handler for all .lp-analyze-btn buttons
+      const runAnalysis = async (useVideo) => {
+        const allBtns = card.querySelectorAll('.lp-analyze-btn');
+        allBtns.forEach(b => b.setAttribute('disabled', '1'));
+
+        if (!document.getElementById('_lpAnimStyle')) {
+          const s = document.createElement('style');
+          s.id = '_lpAnimStyle';
+          s.textContent = `@keyframes _lpSpin{to{transform:rotate(360deg)}}@keyframes _lpPulse{0%,100%{opacity:.5}50%{opacity:1}}`;
+          document.head.appendChild(s);
+        }
+
+        const spinnerHtml = `
+          <div id="_lpShotSpinner" style="margin-top:16px;display:flex;flex-direction:column;align-items:center;gap:10px">
+            <div style="position:relative;width:56px;height:56px">
+              <svg viewBox="0 0 100 100" width="56" height="56" style="animation:_lpSpin 1.4s linear infinite;transform-origin:center">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border)" stroke-width="9"/>
+                <circle cx="50" cy="50" r="42" fill="none" stroke="var(--primary)" stroke-width="9"
+                  stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="200"
+                  style="transform:rotate(-90deg);transform-origin:50% 50%"/>
+              </svg>
+            </div>
+            <div style="font-size:12px;color:var(--subtle);animation:_lpPulse 1.5s ease-in-out infinite">${useVideo ? '🎬 视频模式 AI 深度分析中（含音轨）...' : '📷 图片模式 AI 分析中...'}</div>
+            <div style="font-size:11px;color:var(--subtle);opacity:.7">${t('约 10-30 秒，请耐心等候','~10-30s, please wait')}</div>
+          </div>`;
+
+        const pendingWrap = card.querySelector('#_lpPendingWrap');
+        if (pendingWrap) pendingWrap.insertAdjacentHTML('beforeend', spinnerHtml);
+
+        try {
+          const res = await postJson('/api/lapian/analyze-shot', { projectId: proj.id, shotId: shot.id, useVideo });
+          if (res.ok && res.analysis) {
+            toast(useVideo ? '✅ 视频分析完成！' : '✅ 图片分析完成！');
+            const fresh = await fetch(`/api/lapian/detail?id=${proj.id}`).then(r => r.json());
+            if (fresh.ok) renderLapianDetail(proj.id);
+          } else {
+            alert(t('分析失败：','AI analysis failed: ') + res.error);
+            renderLapianWorkspaceRight(proj);
+          }
+        } catch (err) {
+          alert(err.message);
+          renderLapianWorkspaceRight(proj);
+        }
+      };
+
+      card.querySelectorAll('.lp-analyze-btn').forEach(btn => {
+        btn.onclick = () => runAnalysis(btn.dataset.mode === 'video');
+      });
+
+      // Sync button listener
+      document.getElementById('btnSaveToAssetLink')?.addEventListener('click', async () => {
+        const targetProjId = document.getElementById('lpTargetProjectSelect').value;
+        if (!targetProjId) return;
+        try {
+          const res = await postJson('/api/asset/add', {
+            projectId: targetProjId,
+            title: `${proj.videoName} - #${shot.index}`,
+            type: 'prompt',
+            content: shot.prompt,
+            desc: shot.desc,
+            originUrl: proj.videoPath,
+            rawImg: shot.img
+          });
+          if (res.ok) toast(t('✅ 已同步存入资产库','✅ Saved to library'));
+          else toast(t('❌ 同步失败','❌ Save failed'), 3000);
+        } catch(err) { toast('❌ ' + err.message, 3000); }
+      });
+
+    // ── TAB 2: PROMPTS (all shots full analysis) ─────────────────────────
+    } else if (state.lapianTab === 'prompts') {
+      const vPlayer = document.getElementById('lpVideoPlayer');
+      // Inject search bar above scroll area
+      const searchBarId = '_lpSearchBar';
+      if (!document.getElementById(searchBarId)) {
+        const scrollPane = card.parentElement;
+        const bar = document.createElement('div');
+        bar.id = searchBarId;
+        bar.style.cssText = 'padding:10px 24px 0;flex-shrink:0;display:flex;gap:8px;align-items:center';
+        bar.innerHTML = `
+          <input id="_lpSearchInput" type="text" class="input" placeholder="🔍 搜索镜头（景别/运镜/色调/关键词...）" style="flex:1;height:32px;padding:0 12px;font-size:12px">
+          <select id="_lpSearchDim" class="input" style="height:32px;font-size:12px;padding:0 8px;min-width:90px">
+            <option value="">全部维度</option>
+            <option value="shotScale">景别</option>
+            <option value="cameraMovement">运镜</option>
+            <option value="cameraAngle">角度</option>
+            <option value="colorAnalysis">色彩</option>
+            <option value="lighting">光影</option>
+            <option value="sceneAndLayers">场景</option>
+            <option value="compositionalRules">构图</option>
+            <option value="soundInference">声音</option>
+            <option value="narrativeFunction">叙事</option>
+            <option value="prompt">提示词</option>
+          </select>
+        `;
+        scrollPane.insertBefore(bar, scrollPane.querySelector('#lpAnalysisDetailsCard'));
+        scrollPane.style.display = 'flex';
+        scrollPane.style.flexDirection = 'column';
+        scrollPane.style.overflow = 'hidden';
+        card.style.flex = '1';
+      }
+
+      const lpSec = t => { if(!t)return 0; const[ms,cs='0']=t.split('.'); const[m,s]=ms.split(':').map(Number); return m*60+s+parseInt(cs)/100; };
+      const fHtml = (s) => {
+        const frames = (s.imgs&&s.imgs.length)?s.imgs:(s.img?[s.img]:[]);
+        if(!frames.length) return '';
+        return `<div style="display:flex;gap:4px;height:120px;overflow:hidden">${frames.map(f=>`<img src="${f}" style="height:100%;width:auto;object-fit:cover;border-radius:5px;background:#111;flex-shrink:0">`).join('')}</div>`;
+      };
+
+      const bullet = (label, val) => val ? `<div style="display:flex;gap:0;font-size:12.5px;line-height:1.7;margin-bottom:2px"><span style="flex-shrink:0">•&nbsp;</span><span><strong>${label}：</strong>${h(val)}</span></div>` : '';
+      const fsec = (num, title, inner) => inner ? `<div style="margin-top:12px"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">${num}、${title}</div><div style="padding-left:4px">${inner}</div></div>` : '';
+
+      const shotsHtml = shots.map(s => {
+        const isDone = s.status === 'completed';
+        const analysisHtml = isDone ? `
+          <div style="font-size:13px;color:var(--text);line-height:1.75;margin-top:12px">
+            ${s.summary ? `<div style="font-size:13px;font-weight:700;color:var(--text);padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:8px">镜头描述</div><div style="font-size:12.5px;line-height:1.8;margin-bottom:4px">${h(s.summary)}</div>` : ''}
+            ${fsec('1','镜头信息', bullet('景别',s.shotScale)+bullet('角度',s.cameraAngle)+bullet('运镜',s.cameraMovement))}
+            ${(s.sceneAndLayers||s.compositionalRules||s.composition) ? fsec('2','画面构成',
+              bullet('场景与主体', s.sceneAndLayers||s.composition) +
+              bullet('构图规则', s.compositionalRules)
+            ) : ''}
+            ${(s.colorAnalysis||s.lighting||s.colorAndLighting) ? fsec('3','色彩与光影',
+              bullet('色调', s.colorAnalysis||s.colorAndLighting) +
+              bullet('光效', s.lighting)
+            ) : ''}
+            ${s.soundInference ? fsec('4','声音推断',`<div style="font-size:12.5px;line-height:1.8">${h(s.soundInference)}</div>`) : ''}
+            ${s.desc ? fsec('5','视听综合',`<div style="font-size:12.5px;line-height:1.8">${h(s.desc)}</div>`) : ''}
+            ${s.narrativeFunction ? fsec('6','叙事功能',`<div style="font-size:12.5px;line-height:1.8">${h(s.narrativeFunction)}</div>`) : ''}
+            ${s.creativeIntent ? fsec('7','创作意图',`<div style="font-size:12.5px;line-height:1.8">${h(s.creativeIntent)}</div>`) : ''}
+            ${s.experienceTransfer ? fsec('8','经验迁移',`<div style="font-size:12.5px;line-height:1.8">${h(s.experienceTransfer)}</div>`) : ''}
+          </div>` :
+          `<div style="margin-top:10px;padding:10px;background:var(--bg-2);border-radius:8px;text-align:center"><div style="font-size:11.5px;color:var(--subtle);margin-bottom:8px">未分析</div><div style="display:flex;gap:8px;justify-content:center"><button class="btn btn-primary btn-sm lp-analyze-btn2" data-mode="image" data-proj-id="${proj.id}" data-shot-id="${s.id}" style="font-size:11px">📷 图片分析</button><button class="btn btn-secondary btn-sm lp-analyze-btn2" data-mode="video" data-proj-id="${proj.id}" data-shot-id="${s.id}" style="font-size:11px">🎬 视频分析</button></div></div>`;
+
+        return `<div class="lp-shot-entry" data-shot-id="${s.id}" data-start-sec="${lpSec(s.startTime)}" data-end-sec="${lpSec(s.endTime)}" style="border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:14px 16px;scroll-margin-top:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:14px;font-weight:700;color:var(--text)">镜头${s.index}&nbsp;&nbsp;<span style="font-size:12px;font-weight:400;color:var(--subtle)">${s.startTime} - ${s.endTime}</span></div>
+            <span style="font-size:11.5px;color:var(--primary);cursor:pointer" onclick="openShotDetail(window._lpCurrentProj,'${s.id}')">详情/提示词→</span>
+          </div>
+          ${fHtml(s)}
+          ${isDone ? '<div style="font-size:11px;font-weight:700;color:var(--primary);margin-top:10px">AI 分析词</div>' : ''}
+          ${analysisHtml}
+        </div>`;
+      }).join('');
+
+      card.innerHTML = `<div id="_lpShotList" style="display:flex;flex-direction:column;gap:14px">${shotsHtml}</div>`;
+
+      // T31: Search/filter logic
+      const applySearch = () => {
+        const kw = (document.getElementById('_lpSearchInput')?.value || '').toLowerCase().trim();
+        const dim = document.getElementById('_lpSearchDim')?.value || '';
+        const allFields = ['summary','shotScale','cameraAngle','cameraMovement','sceneAndLayers',
+          'compositionalRules','colorAnalysis','lighting','soundInference','desc',
+          'narrativeFunction','creativeIntent','experienceTransfer','prompt'];
+        card.querySelectorAll('.lp-shot-entry').forEach(el => {
+          const sid = el.dataset.shotId;
+          const s = shots.find(x => x.id === sid);
+          if (!s) return;
+          if (!kw) { el.style.display = ''; return; }
+          const fields = dim ? [dim] : allFields;
+          const match = fields.some(f => (s[f] || '').toLowerCase().includes(kw));
+          el.style.display = match ? '' : 'none';
+        });
+      };
+      document.getElementById('_lpSearchInput')?.addEventListener('input', applySearch);
+      document.getElementById('_lpSearchDim')?.addEventListener('change', applySearch);
+
+      card.querySelectorAll('.lp-analyze-btn2').forEach(btn => {
+        btn.onclick = async () => {
+          btn.disabled = true; btn.textContent = '分析中...';
+          try {
+            const res = await postJson('/api/lapian/analyze-shot', { projectId: btn.dataset.projId, shotId: btn.dataset.shotId, useVideo: btn.dataset.mode==='video' });
+            if (res.ok) { const fresh = await fetch(`/api/lapian/detail?id=${proj.id}`).then(r=>r.json()); if(fresh.ok) renderLapianDetail(proj.id); }
+            else alert(res.error);
+          } catch(err) { alert(err.message); btn.disabled = false; }
+        };
+      });
+
+      if (vPlayer) {
+        if (vPlayer._lpPromptsSync) vPlayer.removeEventListener('timeupdate', vPlayer._lpPromptsSync);
+        vPlayer._lpPromptsSync = () => {
+          const ct = vPlayer.currentTime;
+          card.querySelectorAll('.lp-shot-entry').forEach(el => {
+            const s = parseFloat(el.dataset.startSec), e = parseFloat(el.dataset.endSec);
+            const active = ct >= s && ct < e;
+            el.style.border = active ? '2px solid var(--primary)' : '1px solid var(--border)';
+            if (active) el.scrollIntoView({behavior:'smooth',block:'nearest'});
+          });
+        };
+        vPlayer.addEventListener('timeupdate', vPlayer._lpPromptsSync);
+      }
+
+    // ── TAB 3: FRAMES (mosaic keyframes per shot) ─────────────────────────
+    } else if (state.lapianTab === 'frames') {
+      const vPlayer = document.getElementById('lpVideoPlayer');
+      const lpSec = t => { if(!t)return 0; const[ms,cs='0']=t.split('.'); const[m,s]=ms.split(':').map(Number); return m*60+s+parseInt(cs)/100; };
+
+      const fMosaic = (s) => {
+        const frames = (s.imgs&&s.imgs.length)?s.imgs:(s.img?[s.img]:[]);
+        if(!frames.length) return '<div style="height:100px;background:#111;border-radius:6px"></div>';
+        return `<div style="display:flex;gap:4px;height:120px;overflow:hidden">${frames.map(f=>`<img src="${f}" style="height:100%;width:auto;object-fit:cover;border-radius:5px;background:#111;flex-shrink:0">`).join('')}</div>`;
+      };
+
+      const frameRows = shots.map(s => `
+        <div class="lp-shot-entry" data-start-sec="${lpSec(s.startTime)}" data-end-sec="${lpSec(s.endTime)}" style="border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:12px 14px;scroll-margin-top:12px;cursor:pointer">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:13.5px;font-weight:700;color:var(--text)">镜头${s.index}&nbsp;&nbsp;<span style="font-size:11.5px;font-weight:400;color:var(--subtle)">${s.startTime} - ${s.endTime} (${s.duration})</span></div>
+            <span style="font-size:11.5px;color:var(--primary);cursor:pointer" onclick="event.stopPropagation();_lapianDetailActiveShotId='${s.id}';setLapianTab('flow')">详情/提示词→</span>
+          </div>
+          ${fMosaic(s)}
+        </div>`).join('');
+
+      card.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px">${frameRows}</div>`;
+
+      card.querySelectorAll('.lp-shot-entry').forEach(el => {
+        el.onclick = () => {
+          if (vPlayer) { vPlayer.currentTime = parseFloat(el.dataset.startSec); vPlayer.play().catch(()=>{}); }
+          card.querySelectorAll('.lp-shot-entry').forEach(e => e.style.border = '1px solid var(--border)');
+          el.style.border = '2px solid var(--primary)';
+        };
+      });
+
+      if (vPlayer) {
+        if (vPlayer._lpFramesSync) vPlayer.removeEventListener('timeupdate', vPlayer._lpFramesSync);
+        vPlayer._lpFramesSync = () => {
+          const ct = vPlayer.currentTime;
+          card.querySelectorAll('.lp-shot-entry').forEach(el => {
+            const s = parseFloat(el.dataset.startSec), e = parseFloat(el.dataset.endSec);
+            const active = ct >= s && ct < e;
+            el.style.border = active ? '2px solid var(--primary)' : '1px solid var(--border)';
+            if (active) el.scrollIntoView({behavior:'smooth',block:'nearest'});
+          });
+        };
+        vPlayer.addEventListener('timeupdate', vPlayer._lpFramesSync);
+      }
+    }
+
+    // Export button (all tabs)
+    document.getElementById('btnExportLapianData')?.addEventListener('click', () => {
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(proj, null, 2));
+      const a = document.createElement('a');
+      a.href = dataStr;
+      a.download = `${proj.videoName}_lapian_export.json`;
+      a.click();
+      toast('📦 结构化 JSON 数据已下载！');
+    });
+  }
+
+  window.copyLpPrompt = function() {
+    const text = document.getElementById('lpAigcPromptText')?.textContent || '';
+    navigator.clipboard.writeText(text);
+    toast(t('📋 影视级 AIGC 提示词已复制到剪贴板！','📋 Prompt copied!'));
+  };
+
+  // ── T14+T15: Shot Detail Modal ───────────────────────────────────────────
+  window.openShotDetail = function(proj, shotId) {
+    const shots = proj.shots || [];
+    let idx = shots.findIndex(s => s.id === shotId);
+    if (idx < 0) idx = 0;
+
+    function buildModal(currentIdx) {
+      const shot = shots[currentIdx];
+      if (!shot) return;
+
+      document.getElementById('_lpDetailModal')?.remove();
+
+      const frames = (shot.imgs && shot.imgs.length) ? shot.imgs : (shot.img ? [shot.img] : []);
+
+      const bullet = (label, val) => val
+        ? `<div style="display:flex;gap:0;font-size:13px;line-height:1.75;margin-bottom:3px"><span style="flex-shrink:0">•&nbsp;</span><span><strong>${label}：</strong>${h(val)}</span></div>`
+        : '';
+      const fsec = (num, title, inner) => inner
+        ? `<div style="margin-top:14px"><div style="font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:6px">${num}、${title}</div><div style="padding-left:4px">${inner}</div></div>`
+        : '';
+
+      const analysisHtml = shot.status === 'completed' ? `
+        ${shot.summary ? `<div style="font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">镜头摘要</div><div style="font-size:13px;line-height:1.8;color:var(--text);margin-bottom:12px">${h(shot.summary)}</div>` : ''}
+        ${fsec('1','镜头信息', bullet('景别',shot.shotScale)+bullet('角度',shot.cameraAngle)+bullet('运镜',shot.cameraMovement))}
+        ${(shot.sceneAndLayers||shot.compositionalRules) ? fsec('2','画面构成', bullet('场景与层次',shot.sceneAndLayers)+bullet('构图规则',shot.compositionalRules)) : ''}
+        ${(shot.colorAnalysis||shot.lighting) ? fsec('3','色彩与光影', bullet('色调',shot.colorAnalysis)+bullet('光影',shot.lighting)) : ''}
+        ${shot.soundInference ? fsec('4','声音推断',`<div style="font-size:13px;line-height:1.8">${h(shot.soundInference)}</div>`) : ''}
+        ${shot.desc ? fsec('5','视听综合',`<div style="font-size:13px;line-height:1.8">${h(shot.desc)}</div>`) : ''}
+        ${shot.narrativeFunction ? fsec('6','叙事功能',`<div style="font-size:13px;line-height:1.8">${h(shot.narrativeFunction)}</div>`) : ''}
+        ${shot.creativeIntent ? fsec('7','创作意图',`<div style="font-size:13px;line-height:1.8">${h(shot.creativeIntent)}</div>`) : ''}
+        ${shot.experienceTransfer ? fsec('8','经验迁移',`<div style="font-size:13px;line-height:1.8">${h(shot.experienceTransfer)}</div>`) : ''}
+        ${shot.prompt ? `<div style="margin-top:14px;border:1px solid #fed7aa;background:#fff7ed;border-radius:8px;overflow:hidden">
+          <div style="padding:7px 12px;background:#ffedd5;border-bottom:1px solid #fed7aa;display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:11.5px;font-weight:700;color:#ea580c">🔥 AIGC 英文提示词</span>
+            <button class="btn" id="_lpDetailCopyPrompt" style="padding:2px 10px;font-size:11px;background:#ffedd5;border-color:#fddcb5;color:#9a3412">📋 复制</button>
+          </div>
+          <div style="padding:10px 12px;font-size:12.5px;color:#7c2d12;line-height:1.75;font-family:monospace;white-space:pre-wrap" id="_lpDetailPromptText">${h(shot.prompt)}</div>
+        </div>` : ''}
+      ` : `<div style="text-align:center;padding:40px 0;color:var(--subtle);font-size:13px">⏳ 该镜头尚未 AI 分析</div>`;
+
+      const thumbsHtml = frames.length > 1
+        ? `<div style="display:flex;gap:6px;overflow-x:auto;padding:8px 0">
+            ${frames.map((f,i) => `<img src="${f}" onclick="document.getElementById('_lpDetailMainImg').src='${f}'" style="height:50px;width:auto;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;opacity:.8;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.8">`).join('')}
+          </div>` : '';
+
+      const parseToSec = (t) => {
+        if (!t) return 0;
+        const [ms,cs='0'] = String(t).split('.');
+        const [m,s] = ms.split(':').map(Number);
+        return (m||0)*60+(s||0)+parseInt(cs)/100;
+      };
+      const startSec = parseToSec(shot.startTime);
+      const endSec = parseToSec(shot.endTime);
+
+      const html = `
+      <div id="_lpDetailModal" style="position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);display:flex;flex-direction:column">
+        <!-- Top bar -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:14px;font-weight:800;color:var(--text)">${h(proj.videoName)} — 镜头 ${shot.index}</span>
+            <span style="font-size:12px;color:var(--subtle)">${shot.startTime} → ${shot.endTime} (${shot.duration})</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button class="btn btn-secondary btn-sm" id="_lpDetailPrev" ${currentIdx===0?'disabled':''} style="font-size:12px">← 上一个</button>
+            <button class="btn btn-secondary btn-sm" id="_lpDetailNext" ${currentIdx===shots.length-1?'disabled':''} style="font-size:12px">下一个 →</button>
+            <button class="btn btn-secondary btn-sm" id="_lpDetailLoop" style="font-size:12px">▶ 循环播放</button>
+            <button class="btn btn-secondary btn-sm" id="_lpDetailChat" style="font-size:12px">💬 镜头问答</button>
+            <button class="btn btn-secondary btn-sm" id="_lpDetailClose" style="font-size:12px">✕ 关闭</button>
+          </div>
+        </div>
+        <!-- Body -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;flex:1;overflow:hidden;gap:0">
+          <!-- Left: video + thumbnails -->
+          <div style="display:flex;flex-direction:column;padding:20px;gap:12px;background:var(--bg);border-right:1px solid var(--border);overflow-y:auto">
+            <video id="_lpDetailVideo" src="/api/lapian/video?id=${h(proj.id)}" controls style="width:100%;aspect-ratio:16/9;border-radius:10px;background:#000;box-shadow:0 2px 16px rgba(0,0,0,.3)"></video>
+            ${thumbsHtml}
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              ${shot.status==='completed'
+                ? `<button class="btn btn-secondary btn-sm lp-detail-reanalyze" data-mode="image" style="font-size:11px">📷 重拉(图片)</button>
+                   <button class="btn btn-secondary btn-sm lp-detail-reanalyze" data-mode="video" style="font-size:11px">🎬 重拉(视频)</button>`
+                : `<button class="btn btn-primary btn-sm lp-detail-reanalyze" data-mode="image" style="font-size:11px">📷 图片分析</button>
+                   <button class="btn btn-secondary btn-sm lp-detail-reanalyze" data-mode="video" style="font-size:11px">🎬 视频分析</button>`}
+              <button class="btn btn-secondary btn-sm" id="_lpDetailSplitBtn" style="font-size:11px">✂️ 拆分镜头</button>
+              <button class="btn btn-secondary btn-sm" id="_lpDetailDeleteBtn" style="font-size:11px;color:#ef4444;border-color:#ef4444">🗑 删除</button>
+            </div>
+            <!-- Edit description -->
+            <div>
+              <div style="font-size:11.5px;font-weight:700;color:var(--text);margin-bottom:4px">✏️ 镜头备注 (可编辑)</div>
+              <textarea id="_lpDetailDesc" rows="3" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px;resize:vertical">${h(shot.description || '')}</textarea>
+              <button class="btn btn-secondary" id="_lpDetailSaveDesc" style="margin-top:6px;font-size:11.5px;padding:4px 14px">💾 保存备注</button>
+            </div>
+          </div>
+          <!-- Right: analysis -->
+          <div style="overflow-y:auto;padding:24px;background:var(--surface)">
+            ${analysisHtml}
+          </div>
+        </div>
+      </div>`;
+
+      document.body.insertAdjacentHTML('beforeend', html);
+      const vid = document.getElementById('_lpDetailVideo');
+      if (vid) {
+        vid.currentTime = startSec;
+        vid.play().catch(()=>{});
+      }
+
+      // Loop playback
+      let _loopActive = false;
+      document.getElementById('_lpDetailLoop').onclick = () => {
+        _loopActive = !_loopActive;
+        document.getElementById('_lpDetailLoop').textContent = _loopActive ? '⏹ 停止循环' : '▶ 循环播放';
+        document.getElementById('_lpDetailLoop').style.background = _loopActive ? 'var(--primary)' : '';
+        document.getElementById('_lpDetailLoop').style.color = _loopActive ? '#fff' : '';
+        if (vid && _loopActive) { vid.currentTime = startSec; vid.play().catch(()=>{}); }
+      };
+      if (vid) {
+        vid.ontimeupdate = () => {
+          if (_loopActive && vid.currentTime >= endSec) { vid.currentTime = startSec; }
+        };
+      }
+
+      document.getElementById('_lpDetailClose').onclick = () => document.getElementById('_lpDetailModal')?.remove();
+      document.getElementById('_lpDetailPrev').onclick  = () => { document.getElementById('_lpDetailModal').remove(); buildModal(currentIdx - 1); };
+      document.getElementById('_lpDetailNext').onclick  = () => { document.getElementById('_lpDetailModal').remove(); buildModal(currentIdx + 1); };
+
+      document.getElementById('_lpDetailChat').onclick = () => openShotChat(proj, shot.id);
+
+      document.getElementById('_lpDetailCopyPrompt')?.addEventListener('click', () => {
+        navigator.clipboard.writeText(document.getElementById('_lpDetailPromptText')?.textContent || '');
+        toast('📋 提示词已复制！');
+      });
+
+      document.getElementById('_lpDetailSaveDesc')?.addEventListener('click', async () => {
+        const desc = document.getElementById('_lpDetailDesc').value;
+        const r = await postJson('/api/lapian/shot/update-desc', { projectId: proj.id, shotId: shot.id, description: desc });
+        if (r.ok) { toast('✅ 备注已保存'); shot.description = desc; }
+        else toast('❌ ' + r.error, 3000);
+      });
+
+      document.getElementById('_lpDetailDeleteBtn')?.addEventListener('click', async () => {
+        if (!confirm(`确认删除镜头 #${shot.index}？此操作不可撤销。`)) return;
+        const r = await postJson('/api/lapian/shot/delete', { projectId: proj.id, shotId: shot.id });
+        if (r.ok) {
+          toast('✅ 镜头已删除');
+          document.getElementById('_lpDetailModal').remove();
+          const fresh = await fetch(`/api/lapian/detail?id=${proj.id}`).then(r=>r.json());
+          if (fresh.ok) renderLapianDetail(proj.id);
+        } else toast('❌ ' + r.error, 3000);
+      });
+
+      document.getElementById('_lpDetailSplitBtn')?.addEventListener('click', () => {
+        if (!vid) return alert('请先打开视频');
+        const splitSec = vid.currentTime;
+        if (confirm(`在当前播放位置 ${splitSec.toFixed(2)}s 拆分镜头 #${shot.index}？`)) {
+          postJson('/api/lapian/shot/split', { projectId: proj.id, shotId: shot.id, splitSec }).then(async r => {
+            if (r.ok) {
+              toast('✅ 镜头已拆分');
+              document.getElementById('_lpDetailModal').remove();
+              const fresh = await fetch(`/api/lapian/detail?id=${proj.id}`).then(r=>r.json());
+              if (fresh.ok) renderLapianDetail(proj.id);
+            } else toast('❌ ' + r.error, 3000);
+          });
+        }
+      });
+
+      document.querySelectorAll('.lp-detail-reanalyze').forEach(btn => {
+        btn.onclick = async () => {
+          btn.disabled = true; btn.textContent = '分析中...';
+          const r = await postJson('/api/lapian/analyze-shot', { projectId: proj.id, shotId: shot.id, useVideo: btn.dataset.mode === 'video' });
+          if (r.ok) {
+            toast('✅ 分析完成');
+            document.getElementById('_lpDetailModal').remove();
+            const fresh = await fetch(`/api/lapian/detail?id=${proj.id}`).then(r=>r.json());
+            if (fresh.ok) renderLapianDetail(proj.id);
+          } else { toast('❌ ' + r.error, 3000); btn.disabled = false; btn.textContent = '重试'; }
+        };
+      });
+
+      // Keyboard nav
+      const _detailKeyHandler = (e) => {
+        if (e.key === 'ArrowLeft' && currentIdx > 0) {
+          document.getElementById('_lpDetailModal')?.remove();
+          document.removeEventListener('keydown', _detailKeyHandler);
+          buildModal(currentIdx - 1);
+        } else if (e.key === 'ArrowRight' && currentIdx < shots.length - 1) {
+          document.getElementById('_lpDetailModal')?.remove();
+          document.removeEventListener('keydown', _detailKeyHandler);
+          buildModal(currentIdx + 1);
+        } else if (e.key === 'Escape') {
+          document.getElementById('_lpDetailModal')?.remove();
+          document.removeEventListener('keydown', _detailKeyHandler);
+        }
+      };
+      document.addEventListener('keydown', _detailKeyHandler);
+    }
+
+    buildModal(idx);
+  };
+
+  // ── T21-T22: Shot Chat Modal ─────────────────────────────────────────────
+  window.openShotChat = function(proj, shotId) {
+    const shot = (proj.shots||[]).find(s => s.id === shotId);
+    if (!shot) return;
+    let chatHistory = [];
+
+    document.getElementById('_lpChatModal')?.remove();
+    const frames = (shot.imgs && shot.imgs.length) ? shot.imgs : (shot.img ? [shot.img] : []);
+    const thumbHtml = frames.slice(0,2).map(f => `<img src="${f}" style="height:36px;width:auto;object-fit:cover;border-radius:4px;background:#111">`).join('');
+
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="_lpChatModal" style="position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center">
+        <div style="width:min(600px,95vw);height:min(70vh,640px);background:var(--surface);border-radius:16px;border:1px solid var(--border);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;overflow:hidden">
+          <!-- Header -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg-2);flex-shrink:0">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:13.5px;font-weight:700;color:var(--text)">💬 镜头问答 — 镜头 #${shot.index}</span>
+              ${thumbHtml}
+            </div>
+            <button onclick="document.getElementById('_lpChatModal').remove()" style="border:none;background:none;cursor:pointer;color:var(--subtle);font-size:16px">✕</button>
+          </div>
+          <!-- Messages -->
+          <div id="_lpChatMsgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
+            <div style="text-align:center;font-size:12px;color:var(--subtle)">针对该镜头的关键帧和 AI 分析结果进行多轮问答</div>
+          </div>
+          <!-- Input -->
+          <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-2);display:flex;gap:8px;flex-shrink:0">
+            <input id="_lpChatInput" type="text" class="input" placeholder="提问，如：这个镜头为什么用冷色调？" style="flex:1;height:36px;padding:0 12px;font-size:13px">
+            <button class="btn btn-primary" id="_lpChatSend" style="height:36px;padding:0 16px;font-size:13px">发送</button>
+          </div>
+        </div>
+      </div>
+    `);
+
+    const msgsEl = document.getElementById('_lpChatMsgs');
+    const inputEl = document.getElementById('_lpChatInput');
+    const sendBtn = document.getElementById('_lpChatSend');
+
+    const addMsg = (role, content) => {
+      const isUser = role === 'user';
+      msgsEl.insertAdjacentHTML('beforeend', `
+        <div style="display:flex;justify-content:${isUser?'flex-end':'flex-start'}">
+          <div style="max-width:80%;padding:10px 14px;border-radius:${isUser?'12px 12px 2px 12px':'12px 12px 12px 2px'};background:${isUser?'var(--primary)':'var(--bg-2)'};color:${isUser?'#fff':'var(--text)'};font-size:13px;line-height:1.7;white-space:pre-wrap">${h(content)}</div>
+        </div>
+      `);
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    };
+
+    const send = async () => {
+      const msg = inputEl.value.trim();
+      if (!msg) return;
+      inputEl.value = '';
+      sendBtn.disabled = true;
+      addMsg('user', msg);
+      chatHistory.push({ role: 'user', content: msg });
+      msgsEl.insertAdjacentHTML('beforeend', `<div id="_lpChatTyping" style="color:var(--subtle);font-size:12px;font-style:italic">AI 分析中...</div>`);
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+      try {
+        const r = await postJson('/api/lapian/shot/chat', {
+          projectId: proj.id, shotId: shot.id,
+          message: msg, history: chatHistory.slice(0,-1)
+        });
+        document.getElementById('_lpChatTyping')?.remove();
+        if (r.ok) {
+          addMsg('assistant', r.reply);
+          chatHistory.push({ role: 'assistant', content: r.reply });
+        } else {
+          addMsg('assistant', '❌ ' + r.error);
+        }
+      } catch(e) {
+        document.getElementById('_lpChatTyping')?.remove();
+        addMsg('assistant', '❌ 请求失败：' + e.message);
+      }
+      sendBtn.disabled = false;
+      inputEl.focus();
+    };
+
+    sendBtn.onclick = send;
+    inputEl.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
+    inputEl.focus();
+  };
+
+  // ── T23+T26 shot editing helpers (used from flow tab) ───────────────────
+  window.lpDeleteShot = async function(projId, shotId, reloadFn) {
+    if (!confirm('确认删除该镜头？')) return;
+    const r = await postJson('/api/lapian/shot/delete', { projectId: projId, shotId });
+    if (r.ok) { toast('✅ 已删除'); reloadFn(); }
+    else toast('❌ ' + r.error, 3000);
+  };
+
+  // ── Advanced Visual Multi-Segment Timeline Editor Modal ──
+  window.openLapianTimelineEditor = async function(projId) {
+    toast('📂 ' + t('正在加载时间轴编辑器...','Loading timeline editor...'));
+    try {
+      const res = await fetch(`/api/lapian/detail?id=${projId}`).then(r => r.json());
+      if (!res.ok || !res.project) return alert('读取项目失败');
+      
+      const proj = res.project;
+      let editorShots = JSON.parse(JSON.stringify(proj.shots || [])); // Local deep copy
+      const frameCache = {}; // Cache for extracted video frame thumbnails
+      const exactFrameCache = {}; // Cache for millisecond-precise starting frames of shots
+      const duration = parseFloat(proj.duration) || 30.0; // fallback
+
+      // Helper functions for timing
+      function _parse(t) {
+        if (!t) return 0.0;
+        const parts = String(t).split(".");
+        const hms = parts[0].split(":");
+        const secs = floatSec(hms[hms.length - 1]);
+        const mins = hms.length >= 2 ? floatSec(hms[hms.length - 2]) : 0;
+        const cs = parts.length > 1 ? floatSec("0." + parts[1]) : 0;
+        return mins * 60 + secs + cs;
+      }
+      function floatSec(v) { return parseFloat(v) || 0; }
+
+      function _fmt(sec) {
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        const cs = Math.floor((sec - Math.floor(sec)) * 10);
+        return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${cs}`;
+      }
+
+      // Ensure contiguous time segments if needed, sort by start time
+      function sortAndCleanShots() {
+        editorShots.sort((a,b) => _parse(a.startTime) - _parse(b.startTime));
+        editorShots.forEach((s, idx) => { s.index = idx + 1; });
+      }
+      sortAndCleanShots();
+
+      // Selected shot state in timeline editor
+      let activeShotId = editorShots[0]?.id || null;
+
+      // Create editor modal container
+      const modal = document.createElement('div');
+      modal.id = 'lpTimelineEditorModal';
+      modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box';
+      
+      // Inject Modal HTML structure
+      modal.innerHTML = `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;width:1000px;max-width:96vw;height:90vh;max-height:850px;box-shadow:var(--shadow-xl);display:flex;flex-direction:column;overflow:hidden">
+          
+          <!-- Header -->
+          <div style="padding:16px 24px;border-bottom:1px solid var(--border);background:var(--bg-2);display:flex;align-items:center;justify-content:space-between;shrink:0">
+            <div>
+              <h1 style="font-size:16px;font-weight:800;color:var(--text);margin:0">🎬 ${t('轨道式多段片段微调','Visual Multi-Segment Timeline Editor')}</h1>
+              <div style="font-size:11px;color:var(--subtle);margin-top:2px;word-break:break-all" id="lpEdMetaTitle">${h(proj.videoName)} · <span id="lpEdRangeHeader">00:00.0 - 00:00.0</span></div>
+            </div>
+            <button id="lpEdCloseBtn" style="border:none;background:var(--bg-2);cursor:pointer;font-size:20px;color:var(--subtle);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='var(--bg-2)'">✕</button>
+          </div>
+
+          <!-- Body: Video Display Area -->
+          <div style="flex:1;background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
+            <video id="lpEdVideo" src="/api/lapian/video?id=${h(projId)}" controls style="max-height:100%;max-width:100%;aspect-ratio:16/9"></video>
+            <div style="position:absolute;top:16px;right:24px;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);padding:6px 12px;border-radius:6px;font-size:12px;font-family:monospace;color:#fff;pointer-events:none" id="lpEdVideoTime">0.00 / 0.00s</div>
+          </div>
+
+          <!-- Footer Area: Controls, Track, Handlers and Red-marked Shot list -->
+          <div style="padding:20px 24px;background:var(--surface);border-top:1px solid var(--border);display:flex;flex-direction:column;gap:18px;shrink:0">
+            
+            <!-- Timeline details and Split/Delete tool -->
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <span style="font-size:14px;font-weight:800;color:var(--text)">📼 ${t('分镜片段轨道','Segment Track')}</span>
+                <span id="lpEdSelectedStatus" style="font-size:12px;color:var(--primary);font-weight:700;margin-left:12px"></span>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary btn-sm" id="lpEdBtnSplit" style="font-size:11px" title="在视频播放器当前时间处剪开选中片段">✂️ ${t('播放点分割片段','Split Segment')}</button>
+                <button class="btn btn-secondary btn-sm" id="lpEdBtnAdd" style="font-size:11px">➕ ${t('新增片段','Add Segment')}</button>
+              </div>
+            </div>
+
+            <!-- Double Handler Filmstrip Track -->
+            <div style="position:relative;height:56px;background:#111;border-radius:10px;border:1px solid var(--border);box-sizing:border-box" id="lpEdTrackContainer">
+              <!-- Visual background frames -->
+              <div id="lpEdTrackFilmstrip" style="position:absolute;inset:0;display:flex;opacity:1;pointer-events:none;overflow:hidden;border-radius:9px"></div>
+
+              <!-- Segment Bars (Timeline Clips) -->
+              <div id="lpEdSegmentBars" style="position:absolute;inset:0;display:flex;box-sizing:border-box;overflow:visible"></div>
+            </div>
+
+            <!-- Hand-drawn Red Box Redefined: Horizontal Shots List Area (Red-bordered style) -->
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="font-size:11px;font-weight:800;color:var(--subtle);text-transform:uppercase;letter-spacing:.3px">${t('已切分镜头列表 (点击高亮/左右滑动删除)','Shots List (Click to select, drag/hover delete)')}</div>
+              <div id="lpEdShotBoxes" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;width:100%"></div>
+            </div>
+
+            <!-- Footer Action Buttons -->
+            <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border-soft);padding-top:14px">
+              <div style="font-size:11px;color:var(--subtle)">💡 ${t('拖拽片段左右白色粗手柄精准裁剪，邻接片段会自动智能吸附，绝不留黑。','Drag segment thick handles to trim. Adjacent pieces auto snap to keep contiguous.')}</div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary" id="lpEdBtnCancel" style="padding:6px 18px">${t('取消','Cancel')}</button>
+                <button class="btn btn-primary" id="lpEdBtnSave" style="padding:6px 24px;font-weight:800">💾 ${t('保存时间轴微调','Save Timeline')}</button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      const edVideo = document.getElementById('lpEdVideo');
+      const timeIndicator = document.getElementById('lpEdVideoTime');
+      const trackContainer = document.getElementById('lpEdTrackContainer');
+      const segmentBars = document.getElementById('lpEdSegmentBars');
+      const shotBoxes = document.getElementById('lpEdShotBoxes');
+      const rangeHeader = document.getElementById('lpEdRangeHeader');
+      const selectedStatus = document.getElementById('lpEdSelectedStatus');
+
+      // Async fetch and populate real video frames for timeline track
+      extractVideoFrames(edVideo.src);
+
+      // Video loading metadata
+      edVideo.onloadedmetadata = () => {
+        timeIndicator.textContent = `0.00 / ${duration.toFixed(2)}s`;
+      };
+      edVideo.ontimeupdate = () => {
+        timeIndicator.textContent = `${edVideo.currentTime.toFixed(2)} / ${duration.toFixed(2)}s`;
+      };
+
+      // Drag tracking logic
+      let dragMode = null; // 'left_handle', 'right_handle', 'bar_body'
+      let dragStartClientX = 0;
+      let dragStartLeftPct = 0;
+      let dragStartWidthPct = 0;
+      let dragShotId = null;
+
+      // Instantly capture from main video player during manual seek/drag for zero-latency feedback
+      edVideo.onseeked = () => {
+        if (dragShotId && (dragMode === 'left_handle' || dragMode === 'bar_body')) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 160;
+          canvas.height = 90;
+          const ctx = canvas.getContext('2d');
+          try {
+            ctx.drawImage(edVideo, 0, 0, canvas.width, canvas.height);
+            exactFrameCache[dragShotId] = canvas.toDataURL('image/jpeg', 0.85);
+            renderShotBoxes(); // Refresh bottom card thumbnail immediately!
+          } catch (e) {
+            console.error("Live seeked capture failed:", e);
+          }
+        }
+      };
+
+      // Render dynamic linear filmstrip background (true chronological video stream track)
+      function renderTrackFilmstrip() {
+        const filmstrip = document.getElementById('lpEdTrackFilmstrip');
+        if (!filmstrip) return;
+        
+        const frameCount = 18; // visually dense and professional
+        let html = '';
+        for (let i = 0; i < frameCount; i++) {
+          const t = (i / frameCount) * duration;
+          // Chronological fallback to shot thumbnails if real frame not extracted yet
+          const shot = editorShots.find(s => {
+            const start = _parse(s.startTime);
+            const end = _parse(s.endTime);
+            return t >= start && t <= end;
+          }) || editorShots[0] || { img: '' };
+
+          const imgSrc = frameCache[i] || shot?.img || '';
+          html += `<img src="${imgSrc}" style="height:100%; width:calc(100% / ${frameCount}); object-fit:cover; flex-shrink:0; border-right:1px solid rgba(0,0,0,0.3)">`;
+        }
+        filmstrip.innerHTML = html;
+      }
+
+      // Background offline extractor to get REAL chronological video frames
+      function extractVideoFrames(videoSrc) {
+        const frameCount = 18;
+        let frameIndex = 0;
+        
+        const offlineVideo = document.createElement('video');
+        offlineVideo.src = videoSrc;
+        offlineVideo.muted = true;
+        offlineVideo.playsInline = true;
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = 160;
+        canvas.height = 90;
+        const ctx = canvas.getContext('2d');
+        
+        offlineVideo.onloadeddata = () => {
+          seekNext();
+        };
+        offlineVideo.onseeked = () => {
+          try {
+            ctx.drawImage(offlineVideo, 0, 0, canvas.width, canvas.height);
+            frameCache[frameIndex] = canvas.toDataURL('image/jpeg', 0.65);
+            renderTrackFilmstrip(); // Dynamic update as each frame finishes extraction
+          } catch (e) {
+            console.error("Frame capture error:", e);
+          }
+          frameIndex++;
+          seekNext();
+        };
+        offlineVideo.onerror = (e) => {
+          console.error("Offline video failed to load for frame extraction:", e);
+        };
+        
+        function seekNext() {
+          if (frameIndex < frameCount) {
+            const t = (frameIndex / frameCount) * duration;
+            offlineVideo.currentTime = t;
+          } else {
+            offlineVideo.remove();
+          }
+        }
+      }
+
+      // Render Segment Bars inside visual track
+      function renderSegments() {
+        renderTrackFilmstrip(); // Automatically redraw background filmstrip (with cache priority)
+        segmentBars.innerHTML = '';
+        
+        editorShots.forEach(s => {
+          const start = _parse(s.startTime);
+          const end = _parse(s.endTime);
+          
+          const leftPct = (start / duration) * 100;
+          const widthPct = ((end - start) / duration) * 100;
+          const isActive = s.id === activeShotId;
+
+          const bar = document.createElement('div');
+          bar.className = 'lp-ed-bar';
+          bar.dataset.id = s.id;
+
+          bar.style.cssText = `
+            position:absolute;
+            top:0;
+            bottom:0;
+            left:${leftPct}%;
+            width:${widthPct}%;
+            background:${isActive ? 'transparent' : 'rgba(0, 0, 0, 0.65)'};
+            border:${isActive ? '3px solid #7c3aed' : 'none'};
+            border-right:${isActive ? '3px solid #7c3aed' : '2px solid #111'};
+            box-shadow:${isActive ? '0 0 16px rgba(124, 58, 237, 0.65)' : 'none'};
+            border-radius:${isActive ? '8px' : '4px'};
+            cursor:pointer;
+            box-sizing:border-box;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            overflow:visible;
+            z-index:${isActive ? '10' : '1'};
+          `;
+          
+          // Labels inside bar
+          bar.innerHTML = isActive ? `
+            <div style="pointer-events:none;font-size:11px;font-weight:900;color:#fff;background:#7c3aed;padding:2px 10px;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.35);user-select:none">
+              #${s.index}
+            </div>
+          ` : `
+            <div style="pointer-events:none;font-size:10px;font-weight:700;color:rgba(255,255,255,0.3)">#${s.index}</div>
+          `;
+
+          // Add Handles to selected bar (styled to match ref perfectly)
+          if (isActive) {
+            // Left Handle
+            const leftH = document.createElement('div');
+            leftH.className = 'lp-ed-handle left-h';
+            leftH.style.cssText = `
+              position:absolute;
+              left:-6px;
+              top:2px;
+              bottom:2px;
+              width:12px;
+              background:#fff;
+              border:2.5px solid #7c3aed;
+              border-radius:6px;
+              cursor:ew-resize;
+              box-shadow:0 2px 5px rgba(0,0,0,0.4);
+              z-index:20;
+            `;
+            bar.appendChild(leftH);
+
+            // Right Handle
+            const rightH = document.createElement('div');
+            rightH.className = 'lp-ed-handle right-h';
+            rightH.style.cssText = `
+              position:absolute;
+              right:-6px;
+              top:2px;
+              bottom:2px;
+              width:12px;
+              background:#fff;
+              border:2.5px solid #7c3aed;
+              border-radius:6px;
+              cursor:ew-resize;
+              box-shadow:0 2px 5px rgba(0,0,0,0.4);
+              z-index:20;
+            `;
+            bar.appendChild(rightH);
+          }
+
+          segmentBars.appendChild(bar);
+        });
+
+        // Update range indicators
+        const activeS = editorShots.find(s => s.id === activeShotId);
+        if (activeS) {
+          rangeHeader.textContent = `${activeS.startTime} - ${activeS.endTime} (${activeS.duration})`;
+          selectedStatus.textContent = `${t('已选择分镜','Selected Shot')} #${activeS.index}`;
+        } else {
+          rangeHeader.textContent = `—`;
+          selectedStatus.textContent = ``;
+        }
+      }
+
+      // High-precision on-demand frame capture for specific time to exactFrameCache
+      function captureExactFrame(shotId, time) {
+        if (!edVideo || !edVideo.src) return;
+        const captureVideo = document.createElement('video');
+        captureVideo.src = edVideo.src;
+        captureVideo.muted = true;
+        captureVideo.playsInline = true;
+        captureVideo.currentTime = time;
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = 160;
+        canvas.height = 90;
+        const ctx = canvas.getContext('2d');
+        
+        captureVideo.onseeked = () => {
+          try {
+            ctx.drawImage(captureVideo, 0, 0, canvas.width, canvas.height);
+            exactFrameCache[shotId] = canvas.toDataURL('image/jpeg', 0.85);
+            renderShotBoxes(); // Refresh bottom card thumbnail immediately!
+          } catch (e) {
+            console.error("Exact frame capture error:", e);
+          }
+          captureVideo.remove();
+        };
+        captureVideo.onerror = () => captureVideo.remove();
+      }
+
+      // Render the bottom Shot list Red-bordered boxes (Your explicit layout)
+      function renderShotBoxes() {
+        shotBoxes.innerHTML = '';
+        editorShots.forEach(s => {
+          const isActive = s.id === activeShotId;
+          const boxBorder = isActive ? '2.5px solid #7c3aed' : '1.5px solid #ef4444'; // Red-bordered frames as requested
+          const boxBg = isActive ? 'rgba(124, 58, 237, 0.08)' : 'var(--surface)';
+
+          const box = document.createElement('div');
+          box.style.cssText = `
+            flex-shrink:0;
+            width:130px;
+            aspect-ratio:1.2;
+            border:${boxBorder};
+            background:${boxBg};
+            border-radius:10px;
+            overflow:hidden;
+            cursor:pointer;
+            position:relative;
+            display:flex;
+            flex-direction:column;
+            transition:all .15s;
+            box-sizing:border-box;
+          `;
+
+          box.onclick = () => {
+            activeShotId = s.id;
+            const startSec = _parse(s.startTime);
+            edVideo.currentTime = startSec;
+            renderSegments();
+            renderShotBoxes();
+          };
+
+          const t = _parse(s.startTime);
+          const i = Math.min(17, Math.max(0, Math.round((t / duration) * 18)));
+          const displayImg = exactFrameCache[s.id] || frameCache[i] || s.img;
+
+          box.innerHTML = `
+            <div style="flex:1;position:relative;background:#222">
+              <img src="${displayImg}" style="width:100%;height:100%;object-fit:cover">
+              <div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,0.7);padding:2px 6px;border-radius:4px;font-size:9px;font-weight:800;color:#fff">#${s.index}</div>
+              
+              <!-- Red corner Delete Cross -->
+              <button class="lp-ed-del-box" style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(239,68,68,0.9);color:#fff;border:none;cursor:pointer;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.2);line-height:1">✕</button>
+            </div>
+            <div style="padding:4px 8px;font-size:10px;background:var(--bg-2);border-top:1px solid var(--border-soft);display:flex;justify-content:space-between;align-items:center;color:var(--text)">
+              <span style="font-weight:700">${s.startTime.split(':')[1] || s.startTime}</span>
+              <span style="color:var(--subtle)">${s.duration}</span>
+            </div>
+          `;
+
+          // Bind delete action
+          box.querySelector('.lp-ed-del-box').onclick = (e) => {
+            e.stopPropagation();
+            if (editorShots.length <= 1) return alert('请至少保留一个镜头片段');
+            
+            const dIndex = editorShots.findIndex(x => x.id === s.id);
+            if (dIndex !== -1) {
+              const prev = editorShots[dIndex - 1];
+              const nextShot = editorShots[dIndex + 1];
+              
+              // Keep contiguity by extending adjacent shot
+              if (prev) {
+                prev.endTime = s.endTime; // Extend previous shot to cover deleted range
+                prev.duration = `${(_parse(prev.endTime) - _parse(prev.startTime)).toFixed(1)}s`;
+              } else if (nextShot) {
+                nextShot.startTime = s.startTime; // Extend next shot backwards
+                nextShot.duration = `${(_parse(nextShot.endTime) - _parse(nextShot.startTime)).toFixed(1)}s`;
+              }
+
+              editorShots.splice(dIndex, 1);
+              sortAndCleanShots();
+
+              // If nextShot was extended backwards, capture its new start frame
+              if (nextShot) {
+                captureExactFrame(nextShot.id, _parse(nextShot.startTime));
+              }
+              
+              // Fallback active shot selection
+              if (activeShotId === s.id) {
+                activeShotId = editorShots[Math.max(0, dIndex - 1)]?.id || null;
+              }
+              
+              renderSegments();
+              renderShotBoxes();
+            }
+          };
+
+          shotBoxes.appendChild(box);
+        });
+      }
+
+      // Mount base renderer
+      renderSegments();
+      renderShotBoxes();
+
+      // Capture exact precision first frames for all shots initially
+      editorShots.forEach(s => {
+        captureExactFrame(s.id, _parse(s.startTime));
+      });
+
+      // Mouse drag handlers on the timeline track (Handle coordinate dragging)
+      trackContainer.addEventListener('mousedown', (e) => {
+        const hLeft = e.target.classList.contains('left-h');
+        const hRight = e.target.classList.contains('right-h');
+        const isBar = e.target.closest('.lp-ed-bar');
+
+        if (hLeft || hRight || isBar) {
+          e.preventDefault();
+          const targetId = isBar ? e.target.closest('.lp-ed-bar').dataset.id : activeShotId;
+          activeShotId = targetId;
+          
+          dragShotId = targetId;
+          const s = editorShots.find(x => x.id === dragShotId);
+          if (!s) return;
+
+          const containerRect = trackContainer.getBoundingClientRect();
+          const barStart = _parse(s.startTime);
+          const barEnd = _parse(s.endTime);
+
+          dragStartClientX = e.clientX;
+          dragStartLeftPct = (barStart / duration) * 100;
+          dragStartWidthPct = ((barEnd - barStart) / duration) * 100;
+
+          if (hLeft) dragMode = 'left_handle';
+          else if (hRight) dragMode = 'right_handle';
+          else dragMode = 'bar_body';
+
+          renderSegments();
+          renderShotBoxes();
+
+          // Jump video to correspond position
+          edVideo.currentTime = hLeft ? barStart : (hRight ? barEnd : barStart);
+        }
+      });
+
+      // Global window mousemove / mouseup listeners
+      const onMouseMove = (e) => {
+        if (!dragMode || !dragShotId) return;
+        const containerRect = trackContainer.getBoundingClientRect();
+        const deltaX = e.clientX - dragStartClientX;
+        const deltaPct = (deltaX / containerRect.width) * 100;
+
+        const s = editorShots.find(x => x.id === dragShotId);
+        if (!s) return;
+
+        const sIdx = editorShots.findIndex(x => x.id === dragShotId);
+        const prevS = editorShots[sIdx - 1];
+        const nextS = editorShots[sIdx + 1];
+
+        const minVal = prevS ? _parse(prevS.startTime) + 0.1 : 0;
+        const maxVal = nextS ? _parse(nextS.endTime) - 0.1 : duration;
+
+        if (dragMode === 'left_handle') {
+          // Adjust Start
+          let targetPct = dragStartLeftPct + deltaPct;
+          let targetSec = (targetPct / 100) * duration;
+          targetSec = Math.max(minVal, Math.min(targetSec, _parse(s.endTime) - 0.15));
+
+          s.startTime = _fmt(targetSec);
+          s.duration = `${(_parse(s.endTime) - targetSec).toFixed(1)}s`;
+
+          // Keep Contiguous: stretch/shrink adjacent previous shot
+          if (prevS) {
+            prevS.endTime = s.startTime;
+            prevS.duration = `${(_parse(prevS.endTime) - _parse(prevS.startTime)).toFixed(1)}s`;
+          }
+
+          edVideo.currentTime = targetSec;
+
+        } else if (dragMode === 'right_handle') {
+          // Adjust End
+          let targetPct = (dragStartLeftPct + dragStartWidthPct) + deltaPct;
+          let targetSec = (targetPct / 100) * duration;
+          targetSec = Math.max(_parse(s.startTime) + 0.15, Math.min(targetSec, maxVal));
+
+          s.endTime = _fmt(targetSec);
+          s.duration = `${(targetSec - _parse(s.startTime)).toFixed(1)}s`;
+
+          // Keep Contiguous: stretch/shrink adjacent next shot
+          if (nextS) {
+            nextS.startTime = s.endTime;
+            nextS.duration = `${(_parse(nextS.endTime) - _parse(nextS.startTime)).toFixed(1)}s`;
+          }
+
+          edVideo.currentTime = targetSec;
+
+        } else if (dragMode === 'bar_body') {
+          // Slide whole segment
+          let targetLeftPct = dragStartLeftPct + deltaPct;
+          let targetStartSec = (targetLeftPct / 100) * duration;
+          let currentDur = _parse(s.endTime) - _parse(s.startTime);
+          let targetEndSec = targetStartSec + currentDur;
+
+          // Constraints
+          if (targetStartSec < minVal) {
+            targetStartSec = minVal;
+            targetEndSec = targetStartSec + currentDur;
+          }
+          if (targetEndSec > maxVal) {
+            targetEndSec = maxVal;
+            targetStartSec = targetEndSec - currentDur;
+          }
+
+          s.startTime = _fmt(targetStartSec);
+          s.endTime = _fmt(targetEndSec);
+
+          if (prevS) {
+            prevS.endTime = s.startTime;
+            prevS.duration = `${(_parse(prevS.endTime) - _parse(prevS.startTime)).toFixed(1)}s`;
+          }
+          if (nextS) {
+            nextS.startTime = s.endTime;
+            nextS.duration = `${(_parse(nextS.endTime) - _parse(nextS.startTime)).toFixed(1)}s`;
+          }
+
+          edVideo.currentTime = targetStartSec;
+        }
+
+        renderSegments();
+        // Debounce update text in boxes to save performance
+        const cardBox = document.querySelector(`.lp-shot-row[data-shot-id="${s.id}"]`);
+        renderShotBoxes();
+      };
+
+      const onMouseUp = () => {
+        if (dragShotId) {
+          // Drag has ended, let's capture exact precision first frames for the modified shots in the background!
+          const s = editorShots.find(x => x.id === dragShotId);
+          if (s) {
+            captureExactFrame(s.id, _parse(s.startTime));
+          }
+          const sIdx = editorShots.findIndex(x => x.id === dragShotId);
+          const prevS = editorShots[sIdx - 1];
+          const nextS = editorShots[sIdx + 1];
+          if (prevS) captureExactFrame(prevS.id, _parse(prevS.startTime));
+          if (nextS) captureExactFrame(nextS.id, _parse(nextS.startTime));
+        }
+        dragMode = null;
+        dragShotId = null;
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+
+      // Header Cancel / Exit handlers
+      const cleanListeners = () => {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+        modal.remove();
+      };
+
+      document.getElementById('lpEdCloseBtn').onclick = cleanListeners;
+      document.getElementById('lpEdBtnCancel').onclick = cleanListeners;
+
+      // Split button logic inside modal
+      document.getElementById('lpEdBtnSplit').onclick = () => {
+        const splitSec = edVideo.currentTime;
+        const currentShot = editorShots.find(s => s.id === activeShotId);
+        if (!currentShot) return alert('请先选择一个想要分割的分镜');
+
+        const sStart = _parse(currentShot.startTime);
+        const sEnd = _parse(currentShot.endTime);
+
+        if (splitSec <= sStart + 0.2 || splitSec >= sEnd - 0.2) {
+          return alert(`当前播放位置距离分镜边界过近，无法拆分。`);
+        }
+
+        // Split current shot into two contiguous pieces
+        const newIdA = `s_split_${Math.random().toString(36).substr(2, 6)}`;
+        const newIdB = `s_split_${Math.random().toString(36).substr(2, 6)}`;
+
+        const shotA = JSON.parse(JSON.stringify(currentShot));
+        shotA.id = newIdA;
+        shotA.endTime = _fmt(splitSec);
+        shotA.duration = `${(splitSec - sStart).toFixed(1)}s`;
+
+        const shotB = {
+          id: newIdB,
+          index: currentShot.index + 1,
+          startTime: _fmt(splitSec),
+          endTime: currentShot.endTime,
+          duration: `${(sEnd - splitSec).toFixed(1)}s`,
+          img: currentShot.img,
+          imgs: currentShot.imgs || [currentShot.img],
+          summary: "",
+          desc: "",
+          prompt: "",
+          status: "pending"
+        };
+
+        const currentIdx = editorShots.findIndex(x => x.id === activeShotId);
+        editorShots[currentIdx] = shotA;
+        editorShots.splice(currentIdx + 1, 0, shotB);
+
+        sortAndCleanShots();
+        activeShotId = shotA.id; // select split part
+
+        // Capture precision start frames for both split segments
+        captureExactFrame(shotA.id, sStart);
+        captureExactFrame(shotB.id, splitSec);
+
+        toast('✂️ ' + t('已成功切分片段','Segment Split successfully'));
+        renderSegments();
+        renderShotBoxes();
+      };
+
+      // Add segment button logic
+      document.getElementById('lpEdBtnAdd').onclick = () => {
+        // Appends a new 5-second segment at the end of duration (constraining total duration)
+        const lastShot = editorShots[editorShots.length - 1];
+        let lastEnd = lastShot ? _parse(lastShot.endTime) : 0.0;
+        if (lastEnd >= duration - 0.2) {
+          return alert('时间轴轨道已满，无法在尾部新增片段');
+        }
+
+        const newEndSec = Math.min(lastEnd + 5.0, duration);
+        const newId = `s_add_${Math.random().toString(36).substr(2,6)}`;
+        const newShot = {
+          id: newId,
+          index: editorShots.length + 1,
+          startTime: _fmt(lastEnd),
+          endTime: _fmt(newEndSec),
+          duration: `${(newEndSec - lastEnd).toFixed(1)}s`,
+          img: lastShot ? lastShot.img : "",
+          imgs: lastShot ? (lastShot.imgs || [lastShot.img]) : [],
+          summary: "",
+          desc: "",
+          prompt: "",
+          status: "pending"
+        };
+
+        editorShots.push(newShot);
+        sortAndCleanShots();
+        activeShotId = newId;
+
+        // Capture precision start frame for the newly added segment
+        captureExactFrame(newShot.id, lastEnd);
+
+        toast('➕ ' + t('已新增时间轴片段','Added custom segment'));
+        renderSegments();
+        renderShotBoxes();
+      };
+
+      // Save / Submit to backend API
+      document.getElementById('lpEdBtnSave').onclick = async () => {
+        const saveBtn = document.getElementById('lpEdBtnSave');
+        saveBtn.disabled = true;
+        saveBtn.textContent = '⏳ ' + t('保存中，请稍候...','Saving, please wait...');
+
+        // Synchronize real-time segment starting frame from cache to s.img database record
+        editorShots.forEach(s => {
+          if (exactFrameCache[s.id]) {
+            s.img = exactFrameCache[s.id];
+          } else {
+            const tVal = _parse(s.startTime);
+            const idx = Math.min(17, Math.max(0, Math.round((tVal / duration) * 18)));
+            if (frameCache[idx]) {
+              s.img = frameCache[idx];
+            }
+          }
+        });
+
+        try {
+          const r = await postJson('/api/lapian/project/update-all-shots', {
+            projectId: projId,
+            shots: editorShots
+          });
+
+          if (r.ok) {
+            toast('✅ ' + t('时间轴已保存并静默截取了最新缩略图！','Timeline updated successfully!'));
+            cleanListeners();
+            // Full refresh the lapian detail page view
+            renderLapianDetail(projId);
+          } else {
+            alert('保存失败: ' + r.error);
+            saveBtn.disabled = false;
+            saveBtn.textContent = '💾 ' + t('保存时间轴微调','Save Timeline');
+          }
+        } catch(err) {
+          alert('异常: ' + err.message);
+          saveBtn.disabled = false;
+          saveBtn.textContent = '💾 ' + t('保存时间轴微调','Save Timeline');
+        }
+      };
+
+    } catch (e) {
+      toast('❌ ' + e.message, 3000);
+    }
+  };
+
+  window.lpSplitShotAtCurrent = async function(projId, shotId, reloadFn) {
+    const vid = document.getElementById('lpVideoPlayer');
+    if (!vid) return alert('请先打开视频播放器');
+    const splitSec = vid.currentTime;
+    if (!confirm(`在播放位置 ${splitSec.toFixed(2)}s 拆分该镜头？`)) return;
+    const r = await postJson('/api/lapian/shot/split', { projectId: projId, shotId, splitSec });
+    if (r.ok) { toast('✅ 已拆分'); reloadFn(); }
+    else toast('❌ ' + r.error, 3000);
+  };
+
+  // ── T28: Export dropdown ─────────────────────────────────────────────────
+  window.showLapianExportMenu = function(projId, videoName) {
+    document.getElementById('_lpExportMenu')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="_lpExportMenu" style="position:fixed;inset:0;z-index:99998" onclick="document.getElementById('_lpExportMenu').remove()">
+        <div style="position:absolute;top:${document.getElementById('btnExportLapianData')?.getBoundingClientRect().bottom+4||60}px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);overflow:hidden;min-width:160px" onclick="event.stopPropagation()">
+          <div style="padding:6px 0">
+            ${[['json','📦 JSON 数据'],['csv','📊 CSV 表格'],['md','📄 Markdown 报告'],['image','🖼️ 图片长图']].map(([fmt,label]) => `
+              <button onclick="lpExportAs('${projId}','${fmt}');document.getElementById('_lpExportMenu').remove()" style="display:block;width:100%;text-align:left;padding:9px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--bg-2)'" onmouseout="this.style.background='none'">${label}</button>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `);
+  };
+
+  window.lpExportAs = async function(projId, fmt) {
+    try {
+      const resp = await fetch('/api/lapian/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: projId, fmt })
+      });
+      if (!resp.ok) { const j = await resp.json(); toast('❌ ' + j.error, 3000); return; }
+      const blob = await resp.blob();
+      const cd = resp.headers.get('Content-Disposition') || '';
+      const fnMatch = cd.match(/filename="([^"]+)"/);
+      const filename = fnMatch ? fnMatch[1] : `lapian_export.${fmt}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+      toast(`📦 ${filename} 已下载`);
+    } catch(e) { toast('❌ ' + e.message, 3000); }
+  };
+
   // ── Projects ───────────────────────────────────────────────────────────
   function renderProjects(q='') {
     const grid = document.getElementById('mainGrid');
     const empty = document.getElementById('emptyState');
     let projs = data.projects;
+
+    // Filter projects based on standard vs canvas projects
+    if (state.view === 'smart_canvas') {
+      projs = projs.filter(p => p.is_canvas === true);
+    }
+
     if (q) projs = projs.filter(p => p.name.toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q));
     projs = sortByUi(projs);
 
     if (!projs.length) {
       grid.innerHTML = ''; empty.style.display = 'flex';
-      empty.innerHTML = `<div class="empty-icon">📂</div><h3>${t('还没有项目','No projects yet')}</h3><p>${t('点击右上角「新建项目」开始创作','Click “New Project” to get started')}</p>`;
+      if (state.view === 'smart_canvas') {
+        empty.innerHTML = `<div class="empty-icon">🎨</div><h3>${t('还没有画布项目','No canvas projects yet')}</h3><p>${t('点击右上角「新建画布」开始创作','Click “New Canvas” to get started')}</p>`;
+      } else {
+        empty.innerHTML = `<div class="empty-icon">📂</div><h3>${t('还没有项目','No projects yet')}</h3><p>${t('点击右上角「新建项目」开始创作','Click “New Project” to get started')}</p>`;
+      }
       pickItem(null);
       return;
     }
@@ -4185,6 +6719,10 @@
           const s = (p.gallery||[])[0] || p.image;
           if (s) return s;
         }
+        // Fallback to canvas materials for canvas projects
+        for (const m of (proj.materials||[])) {
+          if (m.type === 'IMAGE' && m.url) return m.url;
+        }
         return null;
       })();
       return `
@@ -4193,7 +6731,9 @@
             ${coverImg
               ? `<img class="proj-cover-img" src="${h(coverImg)}" alt="" loading="lazy">`
               : `<div class="proj-card-cover" style="--c1:${g[0]};--c2:${g[1]}">${GRADIENT_EMOJIS[proj.colorIdx||0]}</div>`}
-            <div class="card-label card-label-ov label-project">${t('项目','Project')}</div>
+            ${proj.is_canvas
+              ? `<div class="card-label card-label-ov label-canvas">${t('画布','Canvas')}</div>`
+              : `<div class="card-label card-label-ov label-project">${t('项目','Project')}</div>`}
           </div>
           <div class="card-body">
             <div class="proj-card-title">${h(proj.name)}</div>
@@ -4213,7 +6753,14 @@
     grid.querySelectorAll('.card[data-proj-id]').forEach(card => {
       card.addEventListener('click', (e) => {
         if (e.target.closest('.card-del')) return;
-        navigate('image_prompts', card.dataset.projId);
+        const targetProjId = card.dataset.projId;
+        if (state.view === 'smart_canvas') {
+          state.canvasProjectId = targetProjId;
+          state.canvasLoadTime = Date.now();
+          renderPage();
+        } else {
+          navigate('image_prompts', targetProjId);
+        }
       });
     });
     grid.querySelectorAll('[data-del-proj]').forEach(btn => {
@@ -4447,6 +6994,28 @@
       if (uiState.filterType !== 'all') prompts = prompts.filter(p => p.__type === uiState.filterType);
       if (uiState.filterModel !== 'all') prompts = prompts.filter(p => (p.model || '') === uiState.filterModel);
       if (uiState.filterTag !== 'all') prompts = prompts.filter(p => Array.isArray(p.tags) && p.tags.includes(uiState.filterTag));
+      
+      // 🎨 物理感知色差 L*a*b* 筛选过滤
+      if (uiState.filterColor && uiState.filterColor !== 'all') {
+        const targetLab = COLOR_TARGETS[uiState.filterColor];
+        if (targetLab) {
+          prompts = prompts.filter(p => {
+            if (p.is_folder) return false;
+            const colors = p.palette_cache || p.__palette || [];
+            if (!colors.length) return false;
+            let matchedPct = 0;
+            for (const c of colors) {
+              const lab = hexToLab(c.hex);
+              const diff = deltaE(lab, targetLab);
+              if (diff <= 35) {
+                matchedPct += c.pct;
+              }
+            }
+            return matchedPct >= 10;
+          });
+        }
+      }
+
       prompts = applySmartFolderFilter(prompts);
     }
     if (q) prompts = prompts.filter(p => (p.title||'').toLowerCase().includes(q) || (p.prompt||'').toLowerCase().includes(q));
@@ -5586,7 +8155,18 @@
       const proj = getProject(editingProjId);
       proj.name = name; proj.description = document.getElementById('pDesc').value.trim(); proj.colorIdx = ci;
     } else {
-      data.projects.unshift({ id:uid(), name, description:document.getElementById('pDesc').value.trim(), colorIdx:ci, created_at:new Date().toISOString(), image_prompts:[], video_prompts:[], skill_prompts:[] });
+      const isCanvas = state.view === 'smart_canvas';
+      data.projects.unshift({ 
+        id:uid(), 
+        name, 
+        description:document.getElementById('pDesc').value.trim(), 
+        colorIdx:ci, 
+        created_at:new Date().toISOString(), 
+        is_canvas: isCanvas,
+        image_prompts:[], 
+        video_prompts:[], 
+        skill_prompts:[] 
+      });
     }
     const ok = await saveData(data);
     if (!ok) return;
@@ -5605,6 +8185,15 @@
     document.getElementById('dsVideoModel').value = desktopSettings.videoModel || '';
     document.getElementById('dsVideoUploadTimeoutSec').value = desktopSettings.videoUploadTimeoutSec || '240';
     document.getElementById('dsVideoUploadRetries').value = desktopSettings.videoUploadRetries || '1';
+    document.getElementById('dsLapianApiBase').value = desktopSettings.lapianApiBase || '';
+    document.getElementById('dsLapianApiKey').value = desktopSettings.lapianApiKey || '';
+    document.getElementById('dsLapianModel').value = desktopSettings.lapianModel || '';
+    document.getElementById('dsLapianVideoApiBase').value = desktopSettings.lapianVideoApiBase || '';
+    document.getElementById('dsLapianVideoApiKey').value = desktopSettings.lapianVideoApiKey || '';
+    document.getElementById('dsLapianVideoModel').value = desktopSettings.lapianVideoModel || '';
+    document.getElementById('dsLapianCustomPromptImage').value = desktopSettings.lapianCustomPromptImage || '';
+    document.getElementById('dsLapianCustomPromptVideo').value = desktopSettings.lapianCustomPromptVideo || '';
+    document.getElementById('dsLapianAigcPromptInstruction').value = desktopSettings.lapianAigcPromptInstruction || '';
     document.getElementById('dsImageInstruction').value = desktopSettings.imageReverseInstruction || '';
     document.getElementById('dsVideoInstruction').value = desktopSettings.videoReverseInstruction || '';
     document.getElementById('dsLlmApiBase').value = desktopSettings.llmApiBase || '';
@@ -5676,7 +8265,27 @@
     document.body.classList.toggle('dark', isDark);
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
     _syncThemeIcons(isDark);
+    // Real-time sync theme to canvas iframe when toggled
+    try {
+      const theme = isDark ? 'dark' : 'light';
+      document.getElementById('canvasIframe')?.contentWindow?.postMessage({ type: 'PS_THEME', theme }, '*');
+    } catch (e) {}
   };
+
+  // Listen for the iframe's request for the active theme
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'PS_GET_THEME') {
+      const isDark = document.body.classList.contains('dark') || document.body.classList.contains('dark2');
+      const theme = isDark ? 'dark' : 'light';
+      document.getElementById('canvasIframe')?.contentWindow?.postMessage({ type: 'PS_THEME', theme }, '*');
+    }
+    if (e.data?.type === 'CANVAS_RENAMED') {
+      reloadData().then(() => {
+        renderSidebar();
+        renderPage();
+      });
+    }
+  });
 
   document.getElementById('langBtnCN').onclick = () => {
     _lang = 'cn'; localStorage.setItem('ps_lang', 'cn');
@@ -5733,11 +8342,22 @@
         videoModel: document.getElementById('dsVideoModel').value.trim(),
         videoUploadTimeoutSec: document.getElementById('dsVideoUploadTimeoutSec').value.trim() || '240',
         videoUploadRetries: document.getElementById('dsVideoUploadRetries').value.trim() || '1',
+        lapianApiBase: document.getElementById('dsLapianApiBase').value.trim().replace(/\/$/, ''),
+        lapianApiKey: document.getElementById('dsLapianApiKey').value.trim(),
+        lapianModel: document.getElementById('dsLapianModel').value.trim(),
+        lapianVideoApiBase: document.getElementById('dsLapianVideoApiBase').value.trim().replace(/\/$/, ''),
+        lapianVideoApiKey: document.getElementById('dsLapianVideoApiKey').value.trim(),
+        lapianVideoModel: document.getElementById('dsLapianVideoModel').value.trim(),
+        lapianCustomPromptImage: document.getElementById('dsLapianCustomPromptImage').value.trim(),
+        lapianCustomPromptVideo: document.getElementById('dsLapianCustomPromptVideo').value.trim(),
+        lapianAigcPromptInstruction: document.getElementById('dsLapianAigcPromptInstruction').value.trim(),
         imageReverseInstruction: document.getElementById('dsImageInstruction').value.trim(),
         videoReverseInstruction: document.getElementById('dsVideoInstruction').value.trim(),
         llmApiBase: document.getElementById('dsLlmApiBase').value.trim().replace(/\/$/, ''),
         llmApiKey: document.getElementById('dsLlmApiKey').value.trim(),
         llmModel: document.getElementById('dsLlmModel').value.trim(),
+        jimengDefaultModel: desktopSettings.jimengDefaultModel || 'seedance-2-fast-cli',
+        jimengDeviceCode: desktopSettings.jimengDeviceCode || '',
         promptPresets: Array.isArray(desktopSettings.promptPresets) ? desktopSettings.promptPresets : [],
       });
       closeDesktopSettings();
@@ -5750,12 +8370,17 @@
     }
   };
   async function testApiConnection(type) {
-    const idMap = { image: ['dsImageApiBase','dsImageApiKey','dsImageModel'], video: ['dsVideoApiBase','dsVideoApiKey','dsVideoModel'], llm: ['dsLlmApiBase','dsLlmApiKey','dsLlmModel'] };
+    const idMap = {
+      image: ['dsImageApiBase','dsImageApiKey','dsImageModel'],
+      video: ['dsVideoApiBase','dsVideoApiKey','dsVideoModel'],
+      lapian: ['dsLapianApiBase','dsLapianApiKey','dsLapianModel'],
+      llm: ['dsLlmApiBase','dsLlmApiKey','dsLlmModel']
+    };
     const [baseId, keyId, modelId] = idMap[type] || idMap.image;
     const apiBase = document.getElementById(baseId).value.trim().replace(/\/$/, '');
     const apiKey  = document.getElementById(keyId).value.trim();
     const model   = document.getElementById(modelId).value.trim();
-    const btnId = type === 'image' ? 'testImageApiBtn' : type === 'video' ? 'testVideoApiBtn' : 'testLlmApiBtn';
+    const btnId = type === 'image' ? 'testImageApiBtn' : type === 'video' ? 'testVideoApiBtn' : type === 'lapian' ? 'testLapianApiBtn' : 'testLlmApiBtn';
     const btn = document.getElementById(btnId);
     if (!apiBase || !apiKey) { toast(t('⚠️ 请先填写 API Base 和 API Key','⚠️ Please enter API Base and API Key')); return; }
     const orig = btn.textContent; btn.disabled = true; btn.textContent = t('测试中…','Testing…');
@@ -5783,6 +8408,7 @@
   }
   document.getElementById('testImageApiBtn').addEventListener('click', () => testApiConnection('image'));
   document.getElementById('testVideoApiBtn').addEventListener('click', () => testApiConnection('video'));
+  document.getElementById('testLapianApiBtn').addEventListener('click', () => testApiConnection('lapian'));
   document.getElementById('testLlmApiBtn').addEventListener('click', () => testApiConnection('llm'));
 
   document.getElementById('desktopCleanupMedia').onclick = async () => {
@@ -6142,6 +8768,85 @@
     }
   });
 
+  // ── FFmpeg panel ─────────────────────────────────────────────────────────
+  let _ffmpegPollTimer = null;
+
+  async function checkFfmpegStatus() {
+    const dot  = document.getElementById('ffmpegStatusDot');
+    const txt  = document.getElementById('ffmpegStatusText');
+    const btn  = document.getElementById('ffmpegInstallBtn');
+    if (!dot) return;
+    try {
+      const res = await fetch('/api/ffmpeg-status').then(r => r.json());
+      if (res.ok) {
+        dot.style.background = '#22c55e';
+        txt.textContent = '✅ FFmpeg 已就绪：' + res.path;
+        txt.style.color = '#16a34a';
+        if (btn) btn.style.display = 'none';
+      } else {
+        dot.style.background = '#ef4444';
+        txt.textContent = '❌ 未检测到 FFmpeg，请点击右侧按钮安装';
+        txt.style.color = '#ef4444';
+        if (btn) btn.style.display = '';
+      }
+    } catch (_) {
+      dot.style.background = 'var(--border)';
+      txt.textContent = '无法连接后端服务';
+    }
+  }
+
+  async function installFfmpeg() {
+    const btn     = document.getElementById('ffmpegInstallBtn');
+    const prog    = document.getElementById('ffmpegInstallProgress');
+    const bar     = document.getElementById('ffmpegProgressBar');
+    const progTxt = document.getElementById('ffmpegProgressText');
+    const dot     = document.getElementById('ffmpegStatusDot');
+    const txt     = document.getElementById('ffmpegStatusText');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = '安装中...';
+    if (prog) prog.style.display = '';
+    await fetch('/api/install-ffmpeg', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'}).catch(() => {});
+    clearInterval(_ffmpegPollTimer);
+    _ffmpegPollTimer = setInterval(async () => {
+      try {
+        const res = await fetch('/api/ffmpeg-status').then(r => r.json());
+        const st = res.install || {};
+        const pct = st.percent || 0;
+        if (bar) bar.style.width = pct + '%';
+        if (progTxt) {
+          if (st.status === 'downloading') progTxt.textContent = `正在下载 FFmpeg... ${pct}%`;
+          else if (st.status === 'extracting') progTxt.textContent = `正在解压... ${pct}%`;
+          else if (st.status === 'done' || res.ok) progTxt.textContent = '✅ 安装完成！';
+          else if (st.status === 'error') progTxt.textContent = '❌ 安装失败：' + (st.error || '未知错误');
+        }
+        if (res.ok || st.status === 'done') {
+          clearInterval(_ffmpegPollTimer);
+          if (dot) dot.style.background = '#22c55e';
+          if (txt) { txt.textContent = '✅ FFmpeg 已就绪：' + res.path; txt.style.color = '#16a34a'; }
+          if (btn) { btn.style.display = 'none'; btn.disabled = false; }
+          setTimeout(() => { if (prog) prog.style.display = 'none'; }, 2000);
+        } else if (st.status === 'error') {
+          clearInterval(_ffmpegPollTimer);
+          if (btn) { btn.textContent = '⬇️ 重试安装'; btn.disabled = false; }
+        }
+      } catch (_) {}
+    }, 1500);
+  }
+
+  document.getElementById('ffmpegReCheckBtn')?.addEventListener('click', checkFfmpegStatus);
+  document.getElementById('ffmpegInstallBtn')?.addEventListener('click', installFfmpeg);
+
+  // Auto-check when tools tab becomes visible
+  document.querySelectorAll('[data-sec="tools"]').forEach(el => {
+    el.addEventListener('click', () => setTimeout(checkFfmpegStatus, 100));
+  });
+  // Also check immediately if panel is already visible
+  if (document.getElementById('settingsSec-tools')?.style.display !== 'none') {
+    checkFfmpegStatus();
+  }
+  // ── end FFmpeg panel ─────────────────────────────────────────────────────
+
   async function refreshSnapshotList() {
     const box = document.getElementById('opsSnapshotList');
     box.innerHTML = '<div class="hint">加载中…</div>';
@@ -6335,6 +9040,9 @@
     document.getElementById('pmReanalyzeWrap').style.display = hasMedia ? '' : 'none';
     document.getElementById('pmReanalyzeResult').style.display = 'none';
     document.getElementById('pmReanalyzeDetails').removeAttribute('open');
+    if (hasMedia) {
+      raInitInputs();
+    }
     // Mode-specific prompt fields
     const modeFields = [
       ['pmOutfitWrap','pmOutfitPrompt','outfit_prompt'],
@@ -6942,19 +9650,30 @@
 
   // Load / save API config from desktop settings
   function raLoadCfg() {
+    const isVid = pmType === 'video';
     return {
-      apiKey: desktopSettings.imageApiKey || '',
-      apiBase: desktopSettings.imageApiBase || '',
-      model: desktopSettings.imageModel || '',
+      apiKey: (isVid ? desktopSettings.videoApiKey : desktopSettings.imageApiKey) || '',
+      apiBase: (isVid ? desktopSettings.videoApiBase : desktopSettings.imageApiBase) || '',
+      model: (isVid ? desktopSettings.videoModel : desktopSettings.imageModel) || '',
     };
   }
   async function raSaveCfg(cfg) {
-    await saveDesktopSettings({
-      ...desktopSettings,
-      imageApiKey: cfg.apiKey,
-      imageApiBase: cfg.apiBase,
-      imageModel: cfg.model,
-    });
+    const isVid = pmType === 'video';
+    if (isVid) {
+      await saveDesktopSettings({
+        ...desktopSettings,
+        videoApiKey: cfg.apiKey,
+        videoApiBase: cfg.apiBase,
+        videoModel: cfg.model,
+      });
+    } else {
+      await saveDesktopSettings({
+        ...desktopSettings,
+        imageApiKey: cfg.apiKey,
+        imageApiBase: cfg.apiBase,
+        imageModel: cfg.model,
+      });
+    }
   }
   function raInitInputs() {
     const cfg = raLoadCfg();
@@ -6978,15 +9697,58 @@
   document.getElementById('pmReanalyzeBtn').addEventListener('click', async () => {
     const proj = getProject(state.projectId);
     const key  = pmType === 'image' ? 'image_prompts' : 'video_prompts';
-    const item = (proj?.[key]||[]).find(p => p.id === pmEditId);
-    if (!item) return;
-    const mediaPath = item.image || item.video;
-    const mediaUrl  = mediaPath.startsWith('/uploads/') ? mediaPath : `/uploads/${mediaPath}`;
-    const mediaType = item.video ? 'video' : 'image';
+    const item = pmEditId ? (proj?.[key]||[]).find(p => p.id === pmEditId) : null;
+    
+    let mediaUrl = '';
+    let mediaType = pmType === 'video' ? 'video' : 'image';
+
+    if (item) {
+      const mediaPath = item.image || item.video;
+      mediaUrl = mediaPath;
+    } else {
+      // Unsaved / New prompt
+      const projName = proj?.name || 'default';
+      if (pmType === 'image') {
+        const src = pmDisplaySrc || pmImgDataUrl;
+        if (src && src.startsWith('data:')) {
+          const name = (pmImgFile?.name) || 'temp_analyze.jpg';
+          toast('⏳ 正在上传临时图片以供 AI 分析…');
+          const uploadedPath = await uploadImage(src, name, projName);
+          if (!uploadedPath) { toast('❌ 临时图片上传失败，无法分析'); return; }
+          // Sync to unsaved states so save is skipped/cached
+          if (src === pmImgDataUrl) pmImgDataUrl = uploadedPath;
+          if (src === pmDisplaySrc) pmDisplaySrc = uploadedPath;
+          pmImgFile = null;
+          mediaUrl = uploadedPath;
+        } else if (src) {
+          mediaUrl = src;
+        }
+      } else if (pmType === 'video') {
+        if (pmVideoFile) {
+          toast('⏳ 正在上传临时视频以供 AI 分析…');
+          const uploadedPath = await uploadVideo(pmVideoFile, projName);
+          if (!uploadedPath) { toast('❌ 临时视频上传失败，无法分析'); return; }
+          pmVideoPath = uploadedPath;
+          pmVideoFile = null;
+          mediaUrl = uploadedPath;
+        } else if (pmVideoPath) {
+          mediaUrl = pmVideoPath;
+        }
+      }
+    }
+
+    if (!mediaUrl) {
+      toast('⚠️ 请先上传或粘贴图片/视频素材');
+      return;
+    }
+
+    const finalMediaUrl = mediaUrl.startsWith('/uploads/') ? mediaUrl : `/uploads/${mediaUrl}`;
+
     const cfg = mediaType === 'video'
       ? { apiKey: desktopSettings.videoApiKey, apiBase: desktopSettings.videoApiBase, model: desktopSettings.videoModel }
       : { apiKey: desktopSettings.imageApiKey, apiBase: desktopSettings.imageApiBase, model: desktopSettings.imageModel };
     if (!cfg.apiKey) { toast('⚠️ 请先在右上角「设置」里填写 API Key'); return; }
+    
     const btn = document.getElementById('pmReanalyzeBtn');
     btn.disabled = true; btn.textContent = '⏳ 分析中…';
     
@@ -6999,7 +9761,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url: mediaUrl, mediaType,
+          url: finalMediaUrl, mediaType,
           apiKey:  cfg.apiKey,
           apiBase: cfg.apiBase || 'https://api.openai.com/v1',
           model:   cfg.model   || 'gpt-4o',
@@ -7437,6 +10199,10 @@
     uiState.filterTag = e.target.value;
     renderPage();
   });
+  document.getElementById('filterColor').addEventListener('change', (e) => {
+    uiState.filterColor = e.target.value;
+    renderPage();
+  });
   document.getElementById('filterType').addEventListener('change', (e) => {
     uiState.filterType = e.target.value;
     renderPage();
@@ -7603,6 +10369,7 @@
     const overlay = document.getElementById('dropOverlay');
 
     document.addEventListener('dragenter', (e) => {
+      if (state.view === 'smart_canvas') return;
       // Only react to external file drags, not internal card drag-outs
       if (!e.dataTransfer?.types?.includes('Files')) return;
       if (e.dataTransfer?.types?.includes('text/plain') && !e.dataTransfer?.types?.includes('text/uri-list')) return;
@@ -7616,15 +10383,18 @@
       overlay.classList.add('active');
     });
     document.addEventListener('dragleave', () => {
+      if (state.view === 'smart_canvas') return;
       dragCounter--;
       if (dragCounter <= 0) { dragCounter = 0; overlay.style.display = 'none'; overlay.classList.remove('active'); }
     });
     document.addEventListener('dragover', (e) => {
+      if (state.view === 'smart_canvas') return;
       if (!e.dataTransfer?.types?.includes('Files')) return;
       e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
     });
 
     document.addEventListener('drop', async (e) => {
+      if (state.view === 'smart_canvas') return;
       e.preventDefault();
       dragCounter = 0; overlay.style.display = 'none'; overlay.classList.remove('active');
       // If a modal is open the drop was handled internally (e.g. textarea), skip global handling
@@ -7831,6 +10601,7 @@
     m.innerHTML = [
       multiCount > 1 ? `<div class="ctx-menu-label">已选 ${multiCount} 项</div><div class="ctx-menu-sep"></div>` : '',
       multiCount <= 1 ? `<div class="ctx-menu-item" data-act="open">${isPdf ? '📄 打开预览' : '✏️ 编辑'}</div>` : '',
+      (multiCount <= 1 && type === 'video' && item.video) ? `<div class="ctx-menu-item" data-act="start-lapian" style="font-weight:700;color:var(--primary)">🎬 智能拉片分析</div><div class="ctx-menu-sep"></div>` : '',
       `<div class="ctx-menu-item" data-act="star">${starLabel}</div>`,
       `<div class="ctx-menu-sep"></div>`,
       (() => {
@@ -7896,6 +10667,54 @@
     if (!_ctxItem) return;
     const proj = getProject(state.projectId);
     if (!proj) return;
+
+    if (act === 'start-lapian') {
+      if (!_ctxItem.video) return;
+      const pName = _ctxItem.title || '视频片段';
+
+      // Show mini mode-picker modal
+      const modeResult = await _showLapianModeModal(pName);
+      if (false) { // dead code block kept for structure
+        const bd = document.createElement('div');
+        bd.style.cssText = '';
+        bd.innerHTML = `
+          <div style="">
+            <div style="">
+              <span></span>
+              <button id="_lpModeCancel"></button>
+            </div>
+            <div style="">视频：<b style="">${h(pName)}</b></div>
+          </div>`;
+      } // end dead code
+
+      if (!modeResult) return;
+
+      toast('🎬 正在创建拉片项目并提取分镜...');
+      try {
+        const res = await postJson('/api/lapian/create', {
+          videoAssetUrl: _ctxItem.video,
+          videoName: pName,
+          movieName: proj.name || '',
+          mode: modeResult.mode,
+          threshold: modeResult.thresh
+        });
+        if (res.ok) {
+          navigate('smart_lapian');
+          showLapianProgressModal(res.projectId, pName);
+        } else {
+          if (res.ffmpeg_missing) {
+            if (confirm('⚠️ 未检测到 FFmpeg\n\n智能拉片需要 FFmpeg 工具来切割视频帧。\n\n点击「确定」前往设置中心一键安装（约 50MB），安装后即可正常使用。')) {
+              navigate('settings');
+            }
+          } else {
+            alert('创建失败: ' + res.error);
+          }
+        }
+      } catch(err) {
+        alert(err.message);
+      }
+      return;
+    }
 
     // 'open' always acts on the single right-clicked item only
     if (act === 'open') {
@@ -8562,3 +11381,12 @@
 </div>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
