@@ -32,7 +32,18 @@ fs.mkdirSync(STAGE, { recursive: true });
 
 // 1. desktop/ — everything except build artifacts
 // 'prompt-studio-server' = PyInstaller build cache inside build/
-const SKIP_DESKTOP = new Set(['node_modules', 'dist', 'server-dist', 'server-build', 'prompt-studio-server', '.cache', '__pycache__']);
+const SKIP_DESKTOP = new Set([
+  'node_modules', 'dist', 'server-dist', 'server-build', 'prompt-studio-server',
+  '.cache', '__pycache__',
+  'bin',         // dreamina.exe — closed-source 3rd-party CLI, download from official release separately
+  '.context',    // dev reference files
+  // canvas-bundle MUST be included: index.html loads it as an iframe for the canvas feature
+  'vendor',      // minified vendor JS — only used by legacy canvas.html; download via setup-canvas-vendor.js
+  // transnetv2.onnx MUST be included: lapian_manager.py raises FileNotFoundError without it
+  'uploads',     // user data
+  'snapshots',   // user data
+  'exports',     // user data
+]);
 console.log('Copying desktop source...');
 copyDir(DESKTOP, path.join(STAGE, 'desktop'), SKIP_DESKTOP);
 

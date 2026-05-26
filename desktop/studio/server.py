@@ -217,6 +217,8 @@ DEFAULT_DESKTOP_SETTINGS = {
     "videoUploadRetries": "1",
     "imageReverseInstruction": "",
     "videoReverseInstruction": "",
+    "runwareApiKey": "",
+    "canvasModelConfigs": "",
     "promptPresets": [],
 }
 
@@ -860,6 +862,90 @@ def _format_art_brief(obj):
     return "\n".join(lines).strip()
 
 
+# ── Per-job SSE registry ─────────────────────────────────────────────────────
+_jobs_lock = threading.Lock()
+_jobs = {}        # job_id -> {"status": str, "result": dict|None, "error": str|None}
+_job_queues = {}  # job_id -> queue.Queue
+
+def _job_create(job_id):
+    with _jobs_lock:
+        q = queue.Queue()
+        _jobs[job_id] = {"status": "running", "result": None, "error": None}
+        _job_queues[job_id] = q
+    return q
+
+def _job_succeed(job_id, result):
+    with _jobs_lock:
+        if job_id in _jobs:
+            _jobs[job_id]["status"] = "succeeded"
+            _jobs[job_id]["result"] = result
+        if job_id in _job_queues:
+            _job_queues[job_id].put({"status": "SUCCEEDED", **result})
+
+def _job_fail(job_id, error):
+    with _jobs_lock:
+        if job_id in _jobs:
+            _jobs[job_id]["status"] = "failed"
+            _jobs[job_id]["error"] = error
+        if job_id in _job_queues:
+            _job_queues[job_id].put({"status": "FAILED", "error": error})
+
+
+# ── Runware image enhancement ─────────────────────────────────────────────────
+RUNWARE_API_URL = "https://api.runware.ai/v1"
+
+_ENHANCE_MODEL_MAP = {
+    "Standard V2":       "topazlabs:standard-v2@2",
+    "High Fidelity V2":  "topazlabs:high-fidelity-v2@2",
+    "Low Resolution V2": "topazlabs:low-resolution-v2@2",
+    "CG Art & Game Art": "topazlabs:cg-art@2",
+}
+
+def _runware_enhance_sync(api_key, input_image, enhance_model, upscale_factor):
+    task_uuid = str(uuid.uuid4())
+    runware_model = _ENHANCE_MODEL_MAP.get(enhance_model, "topazlabs:standard-v2@2")
+    task = {
+        "taskType": "imageEnhancement",
+        "taskUUID": task_uuid,
+        "model": runware_model,
+        "inputImage": input_image,
+        "upscaleFactor": int(upscale_factor),
+        "outputType": ["URL"],
+        "outputFormat": "PNG",
+        "includeCost": True,
+    }
+    req = urllib.request.Request(
+        RUNWARE_API_URL,
+        data=json.dumps([task]).encode(),
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=180) as resp:
+        resp_data = json.loads(resp.read().decode())
+    errors = resp_data.get("errors") or []
+    if errors:
+        msg = errors[0].get("message") if isinstance(errors[0], dict) else str(errors[0])
+        raise Exception(f"Runware error: {msg}")
+    items = resp_data.get("data") or []
+    if not items or not items[0].get("imageURL"):
+        raise Exception(f"Runware returned no imageURL: {resp_data}")
+    item = items[0]
+    return {"url": item["imageURL"], "width": item.get("width"), "height": item.get("height")}
+
+
+def _save_image_local(img_bytes, stem, project_id, subfolder):
+    proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", project_id)[:40] if project_id else subfolder
+    save_dir = UPLOAD_DIR / proj_folder / subfolder
+    save_dir.mkdir(parents=True, exist_ok=True)
+    out_path = save_dir / f"{stem}.png"
+    counter = 1
+    while out_path.exists():
+        out_path = save_dir / f"{stem}_{counter}.png"
+        counter += 1
+    out_path.write_bytes(img_bytes)
+    return f"/uploads/{proj_folder}/{subfolder}/{out_path.name}"
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=str(BASE_DIR), **kw)
@@ -935,6 +1021,8 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_smart_folder_preview(query)
         elif path == "/api/events":
             self._handle_sse()
+        elif path == "/api/generate/text/pricing":
+            return self._json_resp({"pricing": {}})
         elif path == "/api/ffmpeg-status":
             ff = find_ffmpeg()
             self._json_resp({"ok": bool(ff), "path": ff or "", "install": _ffmpeg_install})
@@ -999,6 +1087,9 @@ class Handler(SimpleHTTPRequestHandler):
             self._serve_upload(path)
         elif path.startswith("/exports/"):
             self._serve_export(path)
+        elif path.startswith("/api/jobs/") and path.endswith("/sse"):
+            job_id = path[len("/api/jobs/"):-len("/sse")]
+            self._handle_job_sse(job_id)
         else:
             super().do_GET()
 
@@ -1413,6 +1504,30 @@ class Handler(SimpleHTTPRequestHandler):
             self._handle_jimeng_cli_generate_video(body)
         elif path == "/api/jimeng-cli/query":
             self._handle_jimeng_cli_query(body)
+        elif path == "/api/generate/enhance":
+            self._handle_enhance(body)
+        elif path == "/api/generate/video":
+            self._handle_generate_video(body)
+        elif path == "/api/generate/video-edit":
+            self._handle_generate_video(body)
+        elif path == "/api/generate/text":
+            self._handle_generate_text(body)
+        elif path == "/api/generate/rembg":
+            self._handle_rembg(body)
+        elif path == "/api/generate/image":
+            self._handle_generate_image(body)
+        elif path == "/api/generate/image-edit":
+            image_data = str(body.get("image_data") or "")
+            if image_data:
+                existing = list(body.get("reference_images") or [])
+                body["reference_images"] = [image_data] + existing
+            self._handle_generate_image(body)
+        elif path == "/api/generate/audio":
+            self._handle_generate_audio(body)
+        elif path == "/api/generate/enhance-video":
+            self._handle_enhance_video(body)
+        elif path == "/api/generate/outpaint":
+            self._handle_outpaint(body)
         else:
             self._err(404, "Not found")
 
@@ -3879,6 +3994,886 @@ class Handler(SimpleHTTPRequestHandler):
             self._err(500, "所有公网图床上传均失败（Catbox / Telegraph / sm.ms / freeimage.host），可能因网络原因无法连接。请配置 S3 存储或使用公网图片链接。")
         except Exception as e:
             self._err(500, f"Upload error: {e}")
+
+    def _handle_generate_video(self, body):
+        cfg = _load_settings()
+        model_id = str(body.get("model_id") or "").strip()
+        prompt = str(body.get("prompt") or "").strip()
+        aspect_ratio = str(body.get("aspect_ratio") or "16:9")
+        duration_s = int(body.get("duration_s") or 5)
+        generate_audio = body.get("generate_audio", True)
+        resolution = str(body.get("resolution") or "720p")
+        node_id = str(body.get("node_id") or "")
+        project_id = str(body.get("project_id") or "")
+        video_ref_mode = str(body.get("video_ref_mode") or "imageRef")
+        start_image_url = str(body.get("start_image_url") or "")
+        end_image_url = str(body.get("end_image_url") or "")
+        element_images = list(body.get("element_images") or [])
+        ref_video_urls = list(body.get("ref_video_urls") or [])
+        ref_audio_urls = list(body.get("ref_audio_urls") or [])
+        # video-edit specific
+        video_url = str(body.get("video_url") or "")
+        image_urls = list(body.get("image_urls") or [])
+        if not model_id:
+            return self._err(400, "model_id is required")
+        api_base = ""
+        api_key = ""
+        canvas_cfgs_raw = str(cfg.get("canvasModelConfigs") or "").strip()
+        if canvas_cfgs_raw:
+            try:
+                for mc in json.loads(canvas_cfgs_raw).values():
+                    if mc.get("modelName") == model_id:
+                        api_base = str(mc.get("apiBase") or "").strip().rstrip("/")
+                        api_key = str(mc.get("apiKey") or "").strip()
+                        break
+            except Exception:
+                pass
+        if not api_key:
+            return self._err(400, f"视频模型 \"{model_id}\" 的 API Key 未配置，请在画布 API 设置中配置对应视频模型的 API Key")
+
+        def _resolve_img(url):
+            if not url:
+                return url
+            if url.startswith("/uploads/"):
+                rel = url[len("/uploads/"):]
+                p = UPLOAD_DIR / rel
+                if p.exists():
+                    ext = p.suffix.lower().lstrip(".")
+                    mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}.get(ext, "image/jpeg")
+                    return f"data:{mime};base64,{base64.b64encode(p.read_bytes()).decode()}"
+            return url
+
+        def _download_save_video(remote_url):
+            req2 = urllib.request.Request(remote_url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req2, timeout=300) as r:
+                vid_bytes = r.read()
+            stem = f"vid_{node_id or uuid.uuid4().hex[:8]}"
+            proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", project_id)[:40] if project_id else "video"
+            save_dir = UPLOAD_DIR / proj_folder / "generated_video"
+            save_dir.mkdir(parents=True, exist_ok=True)
+            out_path = save_dir / f"{stem}.mp4"
+            counter = 1
+            while out_path.exists():
+                out_path = save_dir / f"{stem}_{counter}.mp4"
+                counter += 1
+            out_path.write_bytes(vid_bytes)
+            return f"/uploads/{proj_folder}/generated_video/{out_path.name}"
+
+        def _poll_kie(task_id):
+            poll_interval = 8
+            max_attempts = 450
+            consecutive_errors = 0
+            for attempt in range(1, max_attempts + 1):
+                time.sleep(poll_interval)
+                try:
+                    pr = urllib.request.Request(
+                        f"{api_base}/api/v1/jobs/recordInfo?taskId={task_id}",
+                        headers={"Authorization": f"Bearer {api_key}"})
+                    with urllib.request.urlopen(pr, timeout=30) as r:
+                        pd = json.loads(r.read().decode())
+                    record = pd.get("data") or {}
+                    raw_state = str(record.get("state") or "unknown").lower()
+                    video_url_result = ""
+                    result_json = record.get("resultJson")
+                    if result_json:
+                        try:
+                            rj = json.loads(result_json) if isinstance(result_json, str) else result_json
+                            urls = rj.get("resultUrls") or rj.get("result_urls") or []
+                            video_url_result = (urls[0] if urls else rj.get("video_url") or rj.get("url") or "")
+                        except Exception:
+                            pass
+                    if raw_state in ("success", "succeeded", "completed"):
+                        if not video_url_result:
+                            raise Exception("KIE task succeeded but no video URL in resultJson")
+                        return video_url_result
+                    if raw_state not in ("waiting", "running", "processing", "queued", "pending"):
+                        fail_msg = record.get("failMsg") or record.get("failReason") or raw_state
+                        raise Exception(f"KIE task failed: {fail_msg}")
+                    consecutive_errors = 0
+                except Exception as e:
+                    msg = str(e)
+                    if "task failed" in msg or "task succeeded" in msg:
+                        raise
+                    consecutive_errors += 1
+                    if consecutive_errors >= 10:
+                        raise Exception(f"KIE poll failed 10 consecutive times: {msg}")
+            raise Exception("KIE video task timed out")
+
+        def _poll_t8star_v3(task_id):
+            poll_interval = 10
+            max_attempts = 360
+            consecutive_errors = 0
+            for attempt in range(1, max_attempts + 1):
+                time.sleep(poll_interval)
+                try:
+                    pr = urllib.request.Request(
+                        f"{api_base}/seedance/v3/contents/generations/tasks/{task_id}",
+                        headers={"Authorization": f"Bearer {api_key}"})
+                    with urllib.request.urlopen(pr, timeout=30) as r:
+                        pd = json.loads(r.read().decode())
+                    raw_status = str(pd.get("status") or "unknown").lower()
+                    video_url_result = pd.get("content", {}).get("video_url") or pd.get("data", {}).get("video_url") or pd.get("video_url") or ""
+                    if raw_status in ("succeeded", "completed", "success"):
+                        if not video_url_result:
+                            raise Exception("T8Star task succeeded but no video_url")
+                        return video_url_result
+                    if raw_status in ("failed", "error", "expired", "cancelled"):
+                        err_msg = pd.get("error", {}).get("message") or pd.get("error_message") or raw_status
+                        raise Exception(f"T8Star task failed: {err_msg}")
+                    consecutive_errors = 0
+                except Exception as e:
+                    msg = str(e)
+                    if "task failed" in msg or "task succeeded" in msg:
+                        raise
+                    consecutive_errors += 1
+                    if consecutive_errors >= 10:
+                        raise Exception(f"T8Star poll failed 10 consecutive times: {msg}")
+            raise Exception("T8Star video task timed out")
+
+        def _poll_t8star_v2(task_id):
+            poll_interval = 10
+            max_attempts = 360
+            consecutive_errors = 0
+            for attempt in range(1, max_attempts + 1):
+                time.sleep(poll_interval)
+                try:
+                    pr = urllib.request.Request(
+                        f"{api_base}/v2/videos/generations/{task_id}",
+                        headers={"Authorization": f"Bearer {api_key}"})
+                    with urllib.request.urlopen(pr, timeout=30) as r:
+                        pd = json.loads(r.read().decode())
+                    raw_status = str(pd.get("status") or "unknown").upper()
+                    video_url_result = pd.get("data", {}).get("output") or pd.get("video", {}).get("url") or pd.get("output") or pd.get("url") or ""
+                    if raw_status in ("SUCCESS", "DONE", "SUCCEEDED", "COMPLETED"):
+                        if not video_url_result:
+                            raise Exception("T8Star v2 task succeeded but no video URL")
+                        return video_url_result
+                    if raw_status in ("FAILURE", "FAILED", "ERROR", "EXPIRED", "CANCELLED"):
+                        fail_reason = pd.get("fail_reason") or pd.get("error") or raw_status
+                        raise Exception(f"T8Star v2 task failed: {fail_reason}")
+                    consecutive_errors = 0
+                except Exception as e:
+                    msg = str(e)
+                    if "task failed" in msg or "task succeeded" in msg:
+                        raise
+                    consecutive_errors += 1
+                    if consecutive_errors >= 10:
+                        raise Exception(f"T8Star v2 poll failed 10 consecutive times: {msg}")
+            raise Exception("T8Star v2 video task timed out")
+
+        job_id = str(uuid.uuid4())
+        _job_create(job_id)
+
+        def _run():
+            try:
+                headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+                remote_video_url = ""
+
+                if "kie.ai" in api_base:
+                    # ── KIE.ai API ──
+                    has_images = bool(start_image_url or element_images or image_urls)
+                    KIE_MODEL_MAP = {
+                        "grok-video": "grok-imagine/image-to-video" if has_images else "grok-imagine/text-to-video",
+                        "wan-2.7-video": "wan2.7-i2v" if start_image_url else "wan2.7-t2v",
+                        "kling-video": "kling/image-to-video" if has_images else "kling/text-to-video",
+                    }
+                    kie_model = KIE_MODEL_MAP.get(model_id, model_id)
+                    inp: dict = {
+                        "prompt": prompt,
+                        "aspect_ratio": aspect_ratio,
+                        "duration": str(duration_s),
+                        "resolution": resolution,
+                        "mode": "normal",
+                    }
+                    if start_image_url:
+                        inp["first_frame_url"] = _resolve_img(start_image_url)
+                    if end_image_url:
+                        inp["last_frame_url"] = _resolve_img(end_image_url)
+                    if element_images:
+                        inp["reference_image_urls"] = [_resolve_img(u) for u in element_images[:9]]
+                    if image_urls:
+                        inp["image_urls"] = [_resolve_img(u) for u in image_urls[:7]]
+                    if ref_video_urls:
+                        inp["reference_video_urls"] = ref_video_urls
+                    if ref_audio_urls:
+                        inp["reference_audio_urls"] = ref_audio_urls
+                    if video_url:
+                        inp["video_url"] = video_url
+                    task_body = {"model": kie_model, "input": inp}
+                    req = urllib.request.Request(f"{api_base}/api/v1/jobs/createTask",
+                        data=json.dumps(task_body).encode(), headers=headers, method="POST")
+                    with urllib.request.urlopen(req, timeout=60) as r:
+                        rd = json.loads(r.read().decode())
+                    task_id = (rd.get("data") or {}).get("taskId") or (rd.get("data") or {}).get("recordId")
+                    if not task_id:
+                        raise Exception(f"KIE create task: no taskId in response: {str(rd)[:500]}")
+                    print(f"[video] KIE task created id={task_id} model={kie_model}")
+                    remote_video_url = _poll_kie(task_id)
+
+                elif model_id in ("seedance-2", "seedance-2-fast"):
+                    # ── T8Star Seedance v3 API ──
+                    MODEL_MAP = {
+                        "seedance-2": "doubao-seedance-2-0-260128",
+                        "seedance-2-fast": "doubao-seedance-2-0-fast-260128",
+                    }
+                    t8_model = MODEL_MAP.get(model_id, "doubao-seedance-2-0-260128")
+                    VALID_RATIOS = {"16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "9:21", "adaptive"}
+                    VALID_DURS = set(range(4, 16))
+                    VALID_RES = {"480p", "720p", "1080p", "native1080p"}
+                    eff_ratio = aspect_ratio if aspect_ratio in VALID_RATIOS else "16:9"
+                    eff_dur = duration_s if duration_s in VALID_DURS else 5
+                    eff_res = resolution if resolution in VALID_RES else "720p"
+                    if eff_res == "1080p":
+                        eff_res = "native1080p"
+                    content = [{"type": "text", "text": prompt}]
+                    if start_image_url:
+                        content.append({"type": "image_url", "image_url": {"url": _resolve_img(start_image_url)}, "role": "first_frame"})
+                    if end_image_url:
+                        content.append({"type": "image_url", "image_url": {"url": _resolve_img(end_image_url)}, "role": "last_frame"})
+                    for img in element_images[:9]:
+                        content.append({"type": "image_url", "image_url": {"url": _resolve_img(img)}})
+                    for vid in ref_video_urls[:4]:
+                        content.append({"type": "video_url", "video_url": {"url": vid}})
+                    for aud in ref_audio_urls[:2]:
+                        content.append({"type": "audio_url", "audio_url": {"url": aud}})
+                    task_body = {
+                        "model": t8_model, "content": content,
+                        "ratio": eff_ratio, "duration": eff_dur,
+                        "resolution": eff_res, "generate_audio": bool(generate_audio),
+                        "watermark": False,
+                    }
+                    req = urllib.request.Request(f"{api_base}/seedance/v3/contents/generations/tasks",
+                        data=json.dumps(task_body).encode(), headers=headers, method="POST")
+                    with urllib.request.urlopen(req, timeout=120) as r:
+                        rd = json.loads(r.read().decode())
+                    task_id = rd.get("id") or (rd.get("data") or {}).get("task_id") or (rd.get("data") or {}).get("id")
+                    if not task_id:
+                        raise Exception(f"T8Star Seedance create task: no task_id: {str(rd)[:500]}")
+                    print(f"[video] T8Star Seedance task created id={task_id} model={t8_model}")
+                    remote_video_url = _poll_t8star_v3(task_id)
+
+                else:
+                    # ── T8Star v2 generic (grok-video, kling-video, etc.) ──
+                    GROK_VALID_RATIOS = {"16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"}
+                    GROK_VALID_DURS = [5, 10, 15]
+                    eff_ratio = aspect_ratio if aspect_ratio in GROK_VALID_RATIOS else "16:9"
+                    eff_dur = min(GROK_VALID_DURS, key=lambda x: abs(x - duration_s))
+                    eff_res = resolution if resolution in {"480p", "720p", "1080p"} else "720p"
+                    MODEL_MAP_V2 = {
+                        "grok-video": "grok-video-3",
+                        "kling-video": "kling-video",
+                    }
+                    t8_model = MODEL_MAP_V2.get(model_id, model_id)
+                    task_body: dict = {
+                        "model": t8_model, "prompt": prompt,
+                        "ratio": eff_ratio, "duration": eff_dur, "resolution": eff_res,
+                    }
+                    imgs = element_images or image_urls
+                    if imgs:
+                        task_body["images"] = [_resolve_img(u) for u in imgs[:7]]
+                    if start_image_url:
+                        task_body["start_image"] = _resolve_img(start_image_url)
+                    if video_url:
+                        task_body["video_url"] = video_url
+                    req = urllib.request.Request(f"{api_base}/v2/videos/generations",
+                        data=json.dumps(task_body).encode(), headers=headers, method="POST")
+                    with urllib.request.urlopen(req, timeout=60) as r:
+                        rd = json.loads(r.read().decode())
+                    task_id = rd.get("task_id") or rd.get("id") or (rd.get("data") or {}).get("task_id")
+                    if not task_id:
+                        raise Exception(f"T8Star v2 create task: no task_id: {str(rd)[:500]}")
+                    print(f"[video] T8Star v2 task created id={task_id} model={t8_model}")
+                    remote_video_url = _poll_t8star_v2(task_id)
+
+                if not remote_video_url:
+                    raise Exception("No video URL returned from API")
+                local_url = _download_save_video(remote_video_url)
+                _job_succeed(job_id, {
+                    "videoUrl": local_url,
+                    "originalVideoUrl": local_url,
+                    "thumbnailUrl": None,
+                })
+            except urllib.error.HTTPError as e:
+                try:
+                    msg = json.loads(e.read().decode()).get("message") or f"HTTP {e.code}"
+                except Exception:
+                    msg = f"HTTP {e.code}"
+                print(f"[video] job {job_id} HTTP error: {msg}")
+                _job_fail(job_id, msg)
+            except Exception as e:
+                print(f"[video] job {job_id} failed: {e}")
+                _job_fail(job_id, str(e))
+
+        threading.Thread(target=_run, daemon=True).start()
+        self._json_resp({"jobId": job_id})
+
+    def _handle_generate_text(self, body):
+        cfg = _load_settings()
+        model_id = str(body.get("model") or body.get("model_id") or "").strip()
+        prompt = str(body.get("prompt") or "").strip()
+        if not model_id:
+            return self._err(400, "model is required")
+        if not prompt:
+            return self._err(400, "prompt is required")
+        api_base = ""
+        api_key = ""
+        model_name = model_id
+        canvas_cfgs_raw = str(cfg.get("canvasModelConfigs") or "").strip()
+        if canvas_cfgs_raw:
+            try:
+                canvas_cfgs = json.loads(canvas_cfgs_raw)
+                for mc in canvas_cfgs.values():
+                    if mc.get("modelName") == model_id:
+                        api_base = str(mc.get("apiBase") or "").strip()
+                        api_key = str(mc.get("apiKey") or "").strip()
+                        model_name = str(mc.get("modelName") or model_id)
+                        break
+            except Exception:
+                pass
+        if not api_key:
+            api_base = str(cfg.get("llmApiBase") or "https://api.openai.com/v1").strip()
+            api_key = str(cfg.get("llmApiKey") or "").strip()
+            model_name = str(cfg.get("llmModel") or model_id).strip()
+        if not api_key:
+            return self._err(400, "文本模型 API Key 未配置，请在画布 API 设置中配置对应模型的 API Key")
+        api_base = api_base.rstrip("/")
+        if api_base.endswith("/v1"):
+            url = api_base + "/chat/completions"
+        elif api_base.endswith("/v1beta"):
+            url = api_base + "/openai/chat/completions"
+        else:
+            url = api_base + "/v1/chat/completions"
+        messages = [{"role": "user", "content": prompt}]
+        req_body = {"model": model_name, "messages": messages, "stream": True,
+                    "temperature": 0.7, "max_tokens": 4096}
+        req = urllib.request.Request(
+            url, data=json.dumps(req_body).encode(),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+            method="POST",
+        )
+        try:
+            resp = urllib.request.urlopen(req, timeout=120)
+        except urllib.error.HTTPError as e:
+            try:
+                err_json = json.loads(e.read().decode())
+                msg = str(err_json.get("error", {}).get("message", "") or err_json)
+            except Exception:
+                msg = f"HTTP {e.code}"
+            return self._err(e.code, f"LLM API 错误: {msg}")
+        except Exception as e:
+            return self._err(500, f"LLM 请求失败: {e}")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Accel-Buffering", "no")
+        self._cors_headers()
+        self.end_headers()
+        try:
+            buf = b""
+            while True:
+                chunk = resp.read(256)
+                if not chunk:
+                    break
+                buf += chunk
+                while b"\n" in buf:
+                    line_bytes, buf = buf.split(b"\n", 1)
+                    line_str = line_bytes.decode("utf-8", errors="replace").rstrip("\r")
+                    if not line_str.startswith("data: "):
+                        continue
+                    payload = line_str[6:]
+                    if payload == "[DONE]":
+                        self.wfile.write(b"data: [DONE]\n\n")
+                        self.wfile.flush()
+                        break
+                    try:
+                        d = json.loads(payload)
+                        text = (d.get("choices") or [{}])[0].get("delta", {}).get("content") or ""
+                        if text:
+                            out = json.dumps({"text": text}, ensure_ascii=False)
+                            self.wfile.write(f"data: {out}\n\n".encode())
+                            self.wfile.flush()
+                    except Exception:
+                        pass
+        except Exception as e:
+            print(f"[generate/text] stream error: {e}")
+        finally:
+            resp.close()
+
+    def _handle_rembg(self, body):
+        image_url = str(body.get("image_url") or "").strip()
+        if not image_url:
+            return self._err(400, "image_url is required")
+        node_id = str(body.get("node_id") or "")
+        project_id = str(body.get("project_id") or "")
+        rembg_model_name = str(body.get("rembg_model") or "General Use (Light)")
+        output_mask = bool(body.get("output_mask", False))
+        # Resolve image bytes
+        if image_url.startswith("/") and not image_url.startswith("//"):
+            rel = image_url.lstrip("/")
+            local_path = (DATA_DIR / rel).resolve()
+            if not local_path.exists():
+                local_path = (BASE_DIR / rel).resolve()
+            if not local_path.exists():
+                return self._err(400, f"Image not found: {image_url}")
+            img_bytes_in = local_path.read_bytes()
+        else:
+            try:
+                req = urllib.request.Request(image_url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    img_bytes_in = r.read()
+            except Exception as e:
+                return self._err(400, f"Failed to fetch image: {e}")
+        job_id = str(uuid.uuid4())
+        _job_create(job_id)
+        def _run():
+            try:
+                try:
+                    from rembg import remove, new_session
+                    from PIL import Image as PILImage
+                    import io as _io
+                except ImportError:
+                    _job_fail(job_id, "rembg 未安装，请运行: pip install rembg[gpu] 或 pip install rembg")
+                    return
+                MODEL_MAP = {
+                    "General Use (Light)": "u2netp",
+                    "General Use (Light 2K)": "u2netp",
+                    "General Use (Heavy)": "isnet-general-use",
+                    "Matting": "u2net",
+                    "Portrait": "u2net_human_seg",
+                }
+                session_name = MODEL_MAP.get(rembg_model_name, "u2netp")
+                session = new_session(session_name)
+                pil_in = PILImage.open(_io.BytesIO(img_bytes_in))
+                pil_out = remove(pil_in, session=session, only_mask=output_mask)
+                buf = _io.BytesIO()
+                pil_out.save(buf, format="PNG")
+                img_bytes_out = buf.getvalue()
+                stem = f"rembg_{node_id or uuid.uuid4().hex[:8]}"
+                local_url = _save_image_local(img_bytes_out, stem, project_id, "rembg")
+                w, h = pil_out.size
+                _job_succeed(job_id, {"url": local_url, "thumbnailUrl": local_url, "originalUrl": local_url, "width": w, "height": h})
+            except Exception as e:
+                print(f"[rembg] job {job_id} failed: {e}")
+                _job_fail(job_id, str(e))
+        threading.Thread(target=_run, daemon=True).start()
+        self._json_resp({"jobId": job_id})
+
+    def _handle_generate_image(self, body):
+        cfg = _load_settings()
+        model_id = str(body.get("model_id") or "")
+        api_base = ""
+        api_key = ""
+        use_model = model_id or "dall-e-3"
+        canvas_cfgs_raw = str(cfg.get("canvasModelConfigs") or "").strip()
+        if canvas_cfgs_raw and model_id:
+            try:
+                for mc in json.loads(canvas_cfgs_raw).values():
+                    if mc.get("modelName") == model_id:
+                        api_base = str(mc.get("apiBase") or "").strip().rstrip("/")
+                        api_key = str(mc.get("apiKey") or "").strip()
+                        use_model = str(mc.get("modelName") or model_id)
+                        break
+            except Exception:
+                pass
+        if not api_key:
+            api_base = str(cfg.get("imageApiBase") or "https://api.openai.com/v1").rstrip("/")
+            api_key = str(cfg.get("imageApiKey") or "").strip()
+            cfg_model = str(cfg.get("imageModel") or "").strip()
+            use_model = cfg_model or model_id or "dall-e-3"
+        if not api_key:
+            return self._err(400, "图像生成 API Key 未配置，请在画布 API 设置中配置对应图像模型的 API Key")
+        prompt = str(body.get("prompt") or "").strip()
+        if not prompt:
+            return self._err(400, "prompt is required")
+        aspect_ratio = str(body.get("aspect_ratio") or "1:1")
+        node_id = str(body.get("node_id") or "")
+        project_id = str(body.get("project_id") or "")
+        reference_images = list(body.get("reference_images") or [])
+        SIZE_MAP = {"1:1": "1024x1024", "16:9": "1792x1024", "9:16": "1024x1792",
+                   "4:3": "1024x768", "3:4": "768x1024", "3:2": "1024x682", "2:3": "682x1024"}
+        size = SIZE_MAP.get(aspect_ratio, "1024x1024")
+        job_id = str(uuid.uuid4())
+        _job_create(job_id)
+        def _run():
+            try:
+                req_body: dict = {"model": use_model, "prompt": prompt, "n": 1,
+                                  "size": size, "response_format": "url"}
+                if reference_images:
+                    req_body["image_url"] = reference_images[0]
+                img_url = (api_base + "/images/generations") if api_base.endswith("/v1") else (api_base + "/v1/images/generations")
+                req = urllib.request.Request(
+                    img_url,
+                    data=json.dumps(req_body).encode(),
+                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=120) as resp:
+                    resp_data = json.loads(resp.read().decode())
+                if resp_data.get("error"):
+                    err = resp_data["error"]
+                    raise Exception(str(err.get("message", err)) if isinstance(err, dict) else str(err))
+                items = resp_data.get("data") or []
+                if not items:
+                    raise Exception(f"API returned no data: {resp_data}")
+                item = items[0]
+                img_src_url = item.get("url")
+                b64 = item.get("b64_json")
+                if img_src_url:
+                    req2 = urllib.request.Request(img_src_url, headers={"User-Agent": "Mozilla/5.0"})
+                    with urllib.request.urlopen(req2, timeout=120) as r:
+                        img_bytes = r.read()
+                elif b64:
+                    img_bytes = base64.b64decode(b64)
+                else:
+                    raise Exception("No url or b64_json in API response")
+                try:
+                    from PIL import Image as PILImage
+                    import io as _io
+                    with PILImage.open(_io.BytesIO(img_bytes)) as pil_img:
+                        w, h = pil_img.size
+                        buf = _io.BytesIO()
+                        pil_img.save(buf, format="PNG")
+                        img_bytes = buf.getvalue()
+                except Exception:
+                    w, h = None, None
+                stem = f"gen_{node_id or uuid.uuid4().hex[:8]}"
+                local_url = _save_image_local(img_bytes, stem, project_id, "generated")
+                _job_succeed(job_id, {"url": local_url, "thumbnailUrl": local_url, "originalUrl": local_url,
+                                      "width": w, "height": h, "aspect_ratio": aspect_ratio})
+            except Exception as e:
+                print(f"[generate/image] job {job_id} failed: {e}")
+                _job_fail(job_id, str(e))
+        threading.Thread(target=_run, daemon=True).start()
+        self._json_resp({"jobId": job_id})
+
+    def _handle_generate_audio(self, body):
+        cfg = _load_settings()
+        text = str(body.get("text") or "").strip()
+        voice = str(body.get("voice") or "21m00Tcm4TlvDq8ikWAM").strip()
+        node_id = str(body.get("node_id") or "")
+        project_id = str(body.get("project_id") or "")
+        stability = float(body.get("stability") or 0.5)
+        speed = float(body.get("speed") or 1.0)
+        if not text:
+            return self._err(400, "text is required")
+        api_key = ""
+        canvas_cfgs_raw = str(cfg.get("canvasModelConfigs") or "").strip()
+        if canvas_cfgs_raw:
+            try:
+                mc = json.loads(canvas_cfgs_raw).get("elevenlabs_audio") or {}
+                api_key = str(mc.get("apiKey") or "").strip()
+            except Exception:
+                pass
+        if not api_key:
+            return self._err(400, "ElevenLabs API Key 未配置，请在画布 API 设置 → 音频生成 (ElevenLabs) 中填写 API Key")
+        job_id = str(uuid.uuid4())
+        _job_create(job_id)
+        ELABS_MODEL_MAP = {
+            "elevenlabs/text-to-dialogue-v3": "eleven_flash_v2_5",
+            "elevenlabs/multilingual-v2": "eleven_multilingual_v2",
+            "elevenlabs/turbo-v2-5": "eleven_turbo_v2_5",
+        }
+        model_id_raw = str(body.get("model_id") or "elevenlabs/text-to-dialogue-v3")
+        elabs_model = ELABS_MODEL_MAP.get(model_id_raw, "eleven_flash_v2_5")
+        def _run():
+            try:
+                req_body = {
+                    "text": text,
+                    "model_id": elabs_model,
+                    "voice_settings": {"stability": stability, "similarity_boost": 0.75, "speed": speed},
+                }
+                req = urllib.request.Request(
+                    f"https://api.elevenlabs.io/v1/text-to-speech/{voice}",
+                    data=json.dumps(req_body).encode(),
+                    headers={"Content-Type": "application/json", "xi-api-key": api_key},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    audio_bytes = resp.read()
+                stem = f"audio_{node_id or uuid.uuid4().hex[:8]}"
+                proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", project_id)[:40] if project_id else "audio"
+                save_dir = UPLOAD_DIR / proj_folder / "audio"
+                save_dir.mkdir(parents=True, exist_ok=True)
+                out_path = save_dir / f"{stem}.mp3"
+                counter = 1
+                while out_path.exists():
+                    out_path = save_dir / f"{stem}_{counter}.mp3"
+                    counter += 1
+                out_path.write_bytes(audio_bytes)
+                audio_url = f"/uploads/{proj_folder}/audio/{out_path.name}"
+                _job_succeed(job_id, {"audioUrl": audio_url, "status": "SUCCEEDED"})
+            except urllib.error.HTTPError as e:
+                try:
+                    msg = json.loads(e.read().decode()).get("detail", {}).get("message", f"HTTP {e.code}")
+                except Exception:
+                    msg = f"ElevenLabs HTTP {e.code}"
+                print(f"[audio] job {job_id} failed: {msg}")
+                _job_fail(job_id, str(msg))
+            except Exception as e:
+                print(f"[audio] job {job_id} failed: {e}")
+                _job_fail(job_id, str(e))
+        threading.Thread(target=_run, daemon=True).start()
+        self._json_resp({"jobId": job_id})
+
+    def _handle_enhance_video(self, body):
+        cfg = _load_settings()
+        api_key = str(cfg.get("runwareApiKey") or "").strip() or os.environ.get("RUNWARE_API_KEY", "")
+        if not api_key:
+            return self._err(400, "Runware API Key 未配置，视频增强需要 Runware API Key，请在画布 API 设置 → 图像增强中配置")
+        video_url = str(body.get("video_url") or "").strip()
+        if not video_url:
+            return self._err(400, "video_url is required")
+        if video_url.startswith("/") and not video_url.startswith("//"):
+            return self._err(400, "视频增强需要公网可访问的视频 URL，本地视频请先通过菜单 \"上传到公网\" 获取外链")
+        node_id = str(body.get("node_id") or "")
+        project_id = str(body.get("project_id") or "")
+        enhance_model_name = str(body.get("enhance_model") or "Starlight Precise 2.5")
+        upscale_factor = float(body.get("upscale_factor") or 2)
+        target_fps = body.get("target_fps")
+        source_w = int(body.get("source_width") or 0)
+        source_h = int(body.get("source_height") or 0)
+        RUNWARE_VIDEO_MODELS = {
+            "Starlight Precise 2.5": "topazlabs:starlight-precise@2.5",
+            "Starlight Smooth 2.5": "topazlabs:starlight-smooth@2.5",
+            "ByteDance Upscaler": "bytedance:50@1",
+        }
+        runware_model = RUNWARE_VIDEO_MODELS.get(enhance_model_name, "topazlabs:starlight-precise@2.5")
+        new_w = int(source_w * upscale_factor) if source_w else None
+        new_h = int(source_h * upscale_factor) if source_h else None
+        job_id = str(uuid.uuid4())
+        _job_create(job_id)
+        def _run():
+            try:
+                task_uuid = str(uuid.uuid4())
+                task: dict = {
+                    "taskType": "upscale", "taskUUID": task_uuid,
+                    "model": runware_model,
+                    "inputs": {"video": video_url},
+                    "outputFormat": "MP4",
+                    "includeCost": True,
+                    "deliveryMethod": "async",
+                }
+                if new_w: task["width"] = new_w
+                if new_h: task["height"] = new_h
+                if target_fps: task["fps"] = int(target_fps)
+                headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+                req = urllib.request.Request(RUNWARE_API_URL, data=json.dumps([task]).encode(), headers=headers, method="POST")
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    sd = json.loads(r.read().decode())
+                if sd.get("errors"):
+                    raise Exception(f"Runware submit error: {sd['errors']}")
+                print(f"[enhance-video] job {job_id} submitted to Runware, polling...")
+                max_ms = 60 * 60 * 1000
+                poll_ms = 10
+                started = time.time()
+                while (time.time() - started) * 1000 < max_ms:
+                    time.sleep(poll_ms)
+                    poll_req = urllib.request.Request(
+                        RUNWARE_API_URL, headers=headers, method="POST",
+                        data=json.dumps([{"taskType": "getResponse", "taskUUID": task_uuid}]).encode())
+                    with urllib.request.urlopen(poll_req, timeout=30) as pr:
+                        pd = json.loads(pr.read().decode())
+                    item = (pd.get("data") or [{}])[0]
+                    if item.get("videoURL"):
+                        remote_url = item["videoURL"]
+                        req2 = urllib.request.Request(remote_url, headers={"User-Agent": "Mozilla/5.0"})
+                        with urllib.request.urlopen(req2, timeout=300) as r:
+                            vid_bytes = r.read()
+                        stem = f"evid_{node_id or uuid.uuid4().hex[:8]}"
+                        proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", project_id)[:40] if project_id else "enhanced"
+                        save_dir = UPLOAD_DIR / proj_folder / "enhanced_video"
+                        save_dir.mkdir(parents=True, exist_ok=True)
+                        out_path = save_dir / f"{stem}.mp4"
+                        counter = 1
+                        while out_path.exists():
+                            out_path = save_dir / f"{stem}_{counter}.mp4"
+                            counter += 1
+                        out_path.write_bytes(vid_bytes)
+                        local_url = f"/uploads/{proj_folder}/enhanced_video/{out_path.name}"
+                        _job_succeed(job_id, {"videoUrl": local_url, "originalVideoUrl": local_url,
+                                              "width": new_w, "height": new_h})
+                        return
+                    if item.get("status") == "failed":
+                        raise Exception(f"Runware task failed: {item}")
+                    errs = pd.get("errors") or []
+                    fatal = [e for e in errs if e.get("code") not in ("taskNotFound", "taskStillProcessing")]
+                    if fatal:
+                        raise Exception(f"Runware poll error: {fatal}")
+                    poll_ms = min(poll_ms * 2, 30)
+                raise Exception("Runware video enhance timed out (60 min)")
+            except Exception as e:
+                print(f"[enhance-video] job {job_id} failed: {e}")
+                _job_fail(job_id, str(e))
+        threading.Thread(target=_run, daemon=True).start()
+        self._json_resp({"jobId": job_id})
+
+    def _handle_outpaint(self, body):
+        cfg = _load_settings()
+        image_url = str(body.get("image_url") or "").strip()
+        if not image_url:
+            return self._err(400, "image_url is required")
+        outpaint_model = str(body.get("outpaint_model") or "outpaint-v2")
+        prompt = str(body.get("prompt") or "")
+        node_id = str(body.get("node_id") or "")
+        project_id = str(body.get("project_id") or "")
+        expand_top = int(body.get("expand_top") or 0)
+        expand_right = int(body.get("expand_right") or 0)
+        expand_bottom = int(body.get("expand_bottom") or 0)
+        expand_left = int(body.get("expand_left") or 0)
+        if outpaint_model == "outpaint-v2":
+            api_key = str(cfg.get("runwareApiKey") or "").strip() or os.environ.get("RUNWARE_API_KEY", "")
+            if not api_key:
+                return self._err(400, "Runware API Key 未配置，扩图 (outpaint-v2) 需要 Runware API Key，请在画布 API 设置 → 图像增强中配置")
+            input_image = image_url
+            if image_url.startswith("/") and not image_url.startswith("//"):
+                rel = image_url.lstrip("/")
+                lp = (DATA_DIR / rel).resolve()
+                if not lp.exists():
+                    lp = (BASE_DIR / rel).resolve()
+                if not lp.exists():
+                    return self._err(400, f"Image not found: {image_url}")
+                mime = mimetypes.guess_type(str(lp))[0] or "image/png"
+                input_image = f"data:{mime};base64,{base64.b64encode(lp.read_bytes()).decode()}"
+            job_id = str(uuid.uuid4())
+            _job_create(job_id)
+            def _run_rw():
+                try:
+                    task = {"taskType": "imageOutpaint", "taskUUID": str(uuid.uuid4()),
+                            "inputImage": input_image,
+                            "topPx": expand_top, "rightPx": expand_right,
+                            "bottomPx": expand_bottom, "leftPx": expand_left,
+                            "outputType": ["URL"], "outputFormat": "PNG", "includeCost": True}
+                    if prompt:
+                        task["prompt"] = prompt
+                    req = urllib.request.Request(
+                        RUNWARE_API_URL, data=json.dumps([task]).encode(),
+                        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+                        method="POST")
+                    with urllib.request.urlopen(req, timeout=180) as resp:
+                        rd = json.loads(resp.read().decode())
+                    errors = rd.get("errors") or []
+                    if errors:
+                        msg = errors[0].get("message") if isinstance(errors[0], dict) else str(errors[0])
+                        raise Exception(f"Runware error: {msg}")
+                    items = rd.get("data") or []
+                    if not items or not items[0].get("imageURL"):
+                        raise Exception(f"Runware outpaint: no imageURL in response")
+                    remote_url = items[0]["imageURL"]
+                    req2 = urllib.request.Request(remote_url, headers={"User-Agent": "Mozilla/5.0"})
+                    with urllib.request.urlopen(req2, timeout=120) as r:
+                        img_bytes = r.read()
+                    stem = f"outpaint_{node_id or uuid.uuid4().hex[:8]}"
+                    local_url = _save_image_local(img_bytes, stem, project_id, "outpaint")
+                    _job_succeed(job_id, {"url": local_url, "thumbnailUrl": local_url, "originalUrl": local_url,
+                                          "width": items[0].get("width"), "height": items[0].get("height")})
+                except Exception as e:
+                    print(f"[outpaint] job {job_id} failed: {e}")
+                    _job_fail(job_id, str(e))
+            threading.Thread(target=_run_rw, daemon=True).start()
+            self._json_resp({"jobId": job_id})
+        else:
+            # nano-banana-pro or any other: route to generic image generation
+            enhanced_body = dict(body)
+            if not enhanced_body.get("prompt"):
+                enhanced_body["prompt"] = "高质量自然延伸图像"
+            enhanced_body["reference_images"] = [image_url]
+            self._handle_generate_image(enhanced_body)
+
+    def _handle_job_sse(self, job_id):
+        with _jobs_lock:
+            job = _jobs.get(job_id)
+            q = _job_queues.get(job_id)
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self._cors_headers()
+        self.end_headers()
+        def _send(payload):
+            line = "data: " + json.dumps(payload, ensure_ascii=False) + "\n\n"
+            self.wfile.write(line.encode())
+            self.wfile.flush()
+        if not job:
+            _send({"status": "FAILED", "error": "job_not_found"})
+            return
+        if job["status"] == "succeeded" and job["result"]:
+            _send({"status": "SUCCEEDED", **job["result"]})
+            return
+        if job["status"] == "failed":
+            _send({"status": "FAILED", "error": job.get("error", "Unknown error")})
+            return
+        if q is None:
+            _send({"status": "FAILED", "error": "no_queue"})
+            return
+        try:
+            while True:
+                try:
+                    event = q.get(timeout=30)
+                    _send(event)
+                    break
+                except queue.Empty:
+                    self.wfile.write(b": keepalive\n\n")
+                    self.wfile.flush()
+        except Exception:
+            pass
+
+    def _handle_enhance(self, body):
+        cfg = _load_settings()
+        api_key = str(cfg.get("runwareApiKey") or "").strip()
+        if not api_key:
+            api_key = os.environ.get("RUNWARE_API_KEY", "")
+        if not api_key:
+            return self._err(400, "Runware API Key 未配置，请在画布 API 设置 → 图像增强 中填写 Runware API Key")
+        image_url = str(body.get("image_url") or "").strip()
+        if not image_url:
+            return self._err(400, "image_url is required")
+        enhance_model = str(body.get("enhance_model") or "Standard V2")
+        upscale_factor = max(1, min(4, int(body.get("upscale_factor") or 2)))
+        node_id = str(body.get("node_id") or "")
+        project_id = str(body.get("project_id") or "")
+        # Resolve local path → base64 (Runware cannot reach localhost)
+        input_image = image_url
+        if image_url.startswith("/") and not image_url.startswith("//"):
+            rel = image_url.lstrip("/")
+            local_path = (DATA_DIR / rel).resolve()
+            if not local_path.exists():
+                local_path = (BASE_DIR / rel).resolve()
+            if not local_path.exists():
+                return self._err(400, f"Local image not found: {image_url}")
+            mime = mimetypes.guess_type(str(local_path))[0] or "image/png"
+            raw = local_path.read_bytes()
+            input_image = f"data:{mime};base64,{base64.b64encode(raw).decode()}"
+        job_id = str(uuid.uuid4())
+        _job_create(job_id)
+        def _run():
+            try:
+                result = _runware_enhance_sync(api_key, input_image, enhance_model, upscale_factor)
+                remote_url = result["url"]
+                try:
+                    req = urllib.request.Request(remote_url, headers={"User-Agent": "Mozilla/5.0"})
+                    with urllib.request.urlopen(req, timeout=120) as r:
+                        img_data = r.read()
+                    stem = f"enhanced_{node_id or uuid.uuid4().hex[:8]}"
+                    proj_folder = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", project_id)[:40] if project_id else "enhanced"
+                    save_dir = UPLOAD_DIR / proj_folder / "enhanced"
+                    save_dir.mkdir(parents=True, exist_ok=True)
+                    out_path = save_dir / f"{stem}.png"
+                    counter = 1
+                    while out_path.exists():
+                        out_path = save_dir / f"{stem}_{counter}.png"
+                        counter += 1
+                    out_path.write_bytes(img_data)
+                    local_url = f"/uploads/{proj_folder}/enhanced/{out_path.name}"
+                    _job_succeed(job_id, {"url": local_url, "thumbnailUrl": local_url, "originalUrl": local_url,
+                                          "width": result.get("width"), "height": result.get("height")})
+                except Exception:
+                    _job_succeed(job_id, {"url": remote_url, "thumbnailUrl": remote_url, "originalUrl": remote_url,
+                                          "width": result.get("width"), "height": result.get("height")})
+            except Exception as e:
+                print(f"[enhance] job {job_id} failed: {e}")
+                _job_fail(job_id, str(e))
+        threading.Thread(target=_run, daemon=True).start()
+        self._json_resp({"jobId": job_id})
 
     def _cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")

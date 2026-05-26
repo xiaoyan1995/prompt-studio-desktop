@@ -42,6 +42,10 @@
         "to": "studio"
       },
       {
+        "from": "bin",
+        "to": "bin"
+      },
+      {
         "from": "../prompt_studio_icon.ico",
         "to": "prompt_studio_icon.ico"
       },

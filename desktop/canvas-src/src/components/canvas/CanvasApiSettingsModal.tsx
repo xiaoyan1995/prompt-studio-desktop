@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { X, Settings, Music, Loader2, Save } from "lucide-react";
+import { X, Settings, Music, Loader2, Save, Sparkles } from "lucide-react";
 import { showToast } from "@/components/ui/GlobalToast";
 import {
   GeminiIcon,
@@ -143,7 +143,7 @@ function getModelIcon(id: ModelKey) {
 }
 
 export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<ModelKey>("gemini_2_5_flash");
+  const [activeTab, setActiveTab] = useState<ModelKey | "runware">("gemini_2_5_flash");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [autoUploadUrls, setAutoUploadUrls] = useState<boolean>(true);
@@ -163,6 +163,7 @@ export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModal
   const jimengPollBusyRef = useRef(false);
 
   const [form, setForm] = useState<Record<ModelKey, ModelConfig>>(DEFAULT_CONFIGS);
+  const [runwareApiKey, setRunwareApiKey] = useState("");
 
   const jimengStatusClass =
     jimengStatusTone === "success"
@@ -429,6 +430,7 @@ export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModal
         const modelRaw = String(settings.jimengDefaultModel || "seedance-2-fast-cli").trim();
         setJimengDefaultModel(modelRaw === "seedance-2-cli" ? "seedance-2-cli" : "seedance-2-fast-cli");
         setJimengDeviceCode(String(settings.jimengDeviceCode || ""));
+        setRunwareApiKey(String(settings.runwareApiKey || ""));
       } catch (err) {
         console.warn("Failed to load Jimeng desktop settings:", err);
       }
@@ -451,6 +453,8 @@ export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModal
         await saveDesktopSettingsPatch({
           jimengDefaultModel,
           jimengDeviceCode: jimengDeviceCode.trim(),
+          runwareApiKey: runwareApiKey.trim(),
+          canvasModelConfigs: JSON.stringify(form),
         });
       } catch (err) {
         console.warn("Failed to sync Jimeng settings on save:", err);
@@ -465,13 +469,14 @@ export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModal
     }
   };
 
-  const currentConfig = form[activeTab] || DEFAULT_CONFIGS[activeTab];
+  const currentConfig = activeTab !== "runware" ? (form[activeTab as ModelKey] || DEFAULT_CONFIGS[activeTab as ModelKey]) : null;
 
   const handleFieldChange = (field: keyof ModelConfig, value: string) => {
+    if (activeTab === "runware") return;
     setForm((prev) => ({
       ...prev,
       [activeTab]: {
-        ...prev[activeTab],
+        ...prev[activeTab as ModelKey],
         [field]: value,
       },
     }));
@@ -586,6 +591,25 @@ export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModal
             ))}
 
             <div className="px-2.5 py-1.5 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mt-3">
+              图像增强 (Enhance)
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab("runware")}
+              className={`flex flex-col gap-1.5 px-3 py-2 rounded-lg text-left transition-colors cursor-pointer ${
+                activeTab === "runware"
+                  ? "bg-lime-500/10 text-lime-700 dark:bg-[#CCFF00]/10 dark:text-[#CCFF00] font-medium"
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/[0.04]"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 text-[13px] font-semibold">
+                <Sparkles size={16} className="flex-shrink-0 opacity-80" />
+                <span>Runware 增强</span>
+              </div>
+              <span className="text-[11px] text-zinc-400 dark:text-zinc-500 pl-6.5 leading-tight truncate w-full">Topaz Photo AI 超分辨率</span>
+            </button>
+
+            <div className="px-2.5 py-1.5 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mt-3">
               音频生成模型 (Audio)
             </div>
             {navItems.filter(item => item.type === "audio").map((item) => (
@@ -618,6 +642,34 @@ export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModal
             ) : (
               <form onSubmit={handleSave} className="h-full flex flex-col justify-between">
                 <div className="space-y-5">
+                  {activeTab === "runware" ? (
+                    <>
+                      <div className="flex items-center gap-2 pb-1.5 border-b border-zinc-100 dark:border-white/[0.06]">
+                        <span className="text-sm font-bold text-lime-700 dark:text-[#CCFF00]">Runware 图像增强</span>
+                        <span className="text-xs text-zinc-400 dark:text-zinc-500">Topaz Photo AI · 超分辨率</span>
+                      </div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed bg-zinc-50 dark:bg-white/[0.03] rounded-lg p-3 border border-zinc-100 dark:border-white/[0.06]">
+                        Runware 是调用 Topaz Photo AI 超分辨率算法的云端平台，支持 Standard V2 / High Fidelity V2 等增强模型。<br />
+                        请前往{" "}
+                        <a href="https://runware.ai" target="_blank" rel="noopener noreferrer" className="text-lime-600 dark:text-[#CCFF00] hover:underline">runware.ai</a>
+                        {" "}注册账号并创建 API Key 后填入下方。
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Runware API Key</label>
+                        <input
+                          type="password"
+                          value={runwareApiKey}
+                          onChange={(e) => setRunwareApiKey(e.target.value)}
+                          placeholder="填写 Runware API Key..."
+                          className="w-full text-sm px-3.5 py-3 rounded-lg bg-zinc-50 dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.08] text-zinc-800 dark:text-white focus:outline-none focus:border-lime-500 dark:focus:border-[#CCFF00]/40 transition-colors"
+                        />
+                      </div>
+                      <div className="text-[11px] text-zinc-400 dark:text-zinc-500 leading-relaxed">
+                        配置后，画布中的「超分辨率」节点将自动通过此 Key 调用 Runware 进行图像增强，无需平台积分。
+                      </div>
+                    </>
+                  ) : (
+                    <>
                   <div className="flex items-center gap-2 pb-1.5 border-b border-zinc-100 dark:border-white/[0.06]">
                     <span className="text-sm font-bold text-lime-700 dark:text-[#CCFF00]">
                       {navItems.find(n => n.id === activeTab)?.label}
@@ -629,7 +681,7 @@ export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModal
                     <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">API Base 地址 (Endpoint URL)</label>
                     <input
                       type="text"
-                      value={currentConfig.apiBase}
+                      value={currentConfig!.apiBase}
                       onChange={(e) => handleFieldChange("apiBase", e.target.value)}
                       placeholder="填写该模型的自定义 API Base 地址..."
                       className="w-full text-sm px-3.5 py-3 rounded-lg bg-zinc-50 dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.08] text-zinc-800 dark:text-white focus:outline-none focus:border-lime-500 dark:focus:border-[#CCFF00]/40 transition-colors"
@@ -641,7 +693,7 @@ export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModal
                     <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">API Key 授权密钥 (Authorization Key)</label>
                     <input
                       type="password"
-                      value={currentConfig.apiKey}
+                      value={currentConfig!.apiKey}
                       onChange={(e) => handleFieldChange("apiKey", e.target.value)}
                       placeholder="填写该模型的专属 API 授权密钥..."
                       className="w-full text-sm px-3.5 py-3 rounded-lg bg-zinc-50 dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.08] text-zinc-800 dark:text-white focus:outline-none focus:border-lime-500 dark:focus:border-[#CCFF00]/40 transition-colors"
@@ -652,7 +704,7 @@ export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModal
                     <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">调用模型名 (Model Name)</label>
                     <input
                       type="text"
-                      value={currentConfig.modelName}
+                      value={currentConfig!.modelName}
                       onChange={(e) => handleFieldChange("modelName", e.target.value)}
                       placeholder="该接口调用的底层大模型标识名..."
                       className="w-full text-sm px-3.5 py-3 rounded-lg bg-zinc-50 dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.08] text-zinc-800 dark:text-white focus:outline-none focus:border-lime-500 dark:focus:border-[#CCFF00]/40 transition-colors"
@@ -818,6 +870,8 @@ export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModal
                         </div>
                       ) : null}
                     </div>
+                  )}
+                    </>
                   )}
                 </div>
 

@@ -5,12 +5,12 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import {
   X, Check, Pencil, Circle, ArrowUpRight, Square, Eraser,
-  Minus, Plus,
+  Minus, Plus, Undo2, Type,
 } from "lucide-react";
 
 /* ────────────────────────── types ────────────────────────── */
 
-type Tool = "pen" | "circle" | "arrow" | "rect" | "eraser";
+type Tool = "pen" | "circle" | "arrow" | "rect" | "eraser" | "text";
 
 export interface AnnotationStroke {
   id: string;
@@ -20,6 +20,9 @@ export interface AnnotationStroke {
   points?: { x: number; y: number }[];   // pen
   start?: { x: number; y: number };       // circle / arrow / rect
   end?: { x: number; y: number };         // circle / arrow / rect
+  pos?: { x: number; y: number };         // text
+  text?: string;                           // text
+  fontSize?: number;                       // text
 }
 
 /* ────────────────────────── constants ────────────────────── */
@@ -38,6 +41,7 @@ const TOOLS: { value: Tool; icon: typeof Pencil; labelKey: string }[] = [
   { value: "arrow",  icon: ArrowUpRight, labelKey: "annotateArrow" },
   { value: "rect",   icon: Square,       labelKey: "annotateRect" },
   { value: "eraser", icon: Eraser,       labelKey: "annotateEraser" },
+  { value: "text",   icon: Type,         labelKey: "annotateText" },
 ];
 
 /* ────────────────────────── helpers ──────────────────────── */
@@ -146,6 +150,22 @@ function StrokeSVG({ stroke, opacity }: { stroke: AnnotationStroke; opacity?: nu
     );
   }
 
+  if (stroke.tool === "text" && stroke.pos && stroke.text) {
+    return (
+      <text
+        x={stroke.pos.x}
+        y={stroke.pos.y}
+        fill={stroke.color}
+        fontSize={stroke.fontSize ?? 44}
+        fontFamily="system-ui,-apple-system,sans-serif"
+        fontWeight="700"
+        style={style}
+      >
+        {stroke.text}
+      </text>
+    );
+  }
+
   return null;
 }
 
@@ -178,6 +198,8 @@ export function AnnotateModal({ imageUrl, annotations: initial, onClose, onSave 
   const [strokes, setStrokes] = useState<AnnotationStroke[]>(initial);
   const [currentStroke, setCurrentStroke] = useState<AnnotationStroke | null>(null);
   const [hoveredEraseId, setHoveredEraseId] = useState<string | null>(null);
+  const [history, setHistory] = useState<AnnotationStroke[][]>([]);
+  const [textInput, setTextInput] = useState<{ svgPos: { x: number; y: number }; screenPos: { x: number; y: number }; value: string } | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -210,10 +232,16 @@ export function AnnotateModal({ imageUrl, annotations: initial, onClose, onSave 
     if (e.button !== 0) return;
     const pt = toSvgCoords(e.clientX, e.clientY);
 
+    if (tool === "text") {
+      setTextInput({ svgPos: pt, screenPos: { x: e.clientX, y: e.clientY }, value: "" });
+      return;
+    }
+
     if (tool === "eraser") {
       const threshold = 20 + strokeWidth * 2;
       const hit = [...strokes].reverse().find((s) => distToStroke(s, pt.x, pt.y, threshold));
       if (hit) {
+        setHistory((prev) => [...prev, strokes]);
         setStrokes((prev) => prev.filter((s) => s.id !== hit.id));
       }
       return;
@@ -248,11 +276,49 @@ export function AnnotateModal({ imageUrl, annotations: initial, onClose, onSave 
 
   const handlePointerUp = useCallback(() => {
     if (currentStroke) {
+      setHistory((prev) => [...prev, strokes]);
       setStrokes((prev) => [...prev, currentStroke]);
       setCurrentStroke(null);
     }
     setHoveredEraseId(null);
-  }, [currentStroke]);
+  }, [currentStroke, strokes]);
+
+  const handleUndo = useCallback(() => {
+    setHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const last = prev[prev.length - 1];
+      setStrokes(last);
+      return prev.slice(0, -1);
+    });
+  }, []);
+
+  const commitText = useCallback((value: string) => {
+    if (!textInput) return;
+    if (value.trim()) {
+      setHistory((h) => [...h, strokes]);
+      setStrokes((prev) => [...prev, {
+        id: uid(),
+        tool: "text" as const,
+        color,
+        width: strokeWidth,
+        pos: textInput.svgPos,
+        text: value.trim(),
+        fontSize: 32 + strokeWidth * 6,
+      }]);
+    }
+    setTextInput(null);
+  }, [textInput, strokes, color, strokeWidth]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handleUndo]);
 
   const handleSave = useCallback(() => {
     onSave(strokes);
@@ -319,6 +385,29 @@ export function AnnotateModal({ imageUrl, annotations: initial, onClose, onSave 
         {currentStroke && <StrokeSVG stroke={currentStroke} />}
       </svg>
 
+      {/* ── Text input overlay ── */}
+      {textInput && (
+        <div
+          className="absolute z-20"
+          style={{ left: textInput.screenPos.x, top: textInput.screenPos.y }}
+        >
+          <input
+            autoFocus
+            className="min-w-[140px] bg-transparent border-b-2 border-white outline-none font-bold px-1"
+            style={{ color: textInput.value ? color : undefined, caretColor: "white", fontSize: 18, borderColor: color }}
+            placeholder="输入文字..."
+            value={textInput.value}
+            onChange={(e) => setTextInput((prev) => prev ? { ...prev, value: e.target.value } : null)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); commitText(textInput.value); }
+              if (e.key === "Escape") { setTextInput(null); }
+            }}
+            onBlur={() => commitText(textInput.value)}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       {/* ── Top bar: close / save ── */}
       <div className="relative z-10 flex items-center justify-between px-4 py-3">
         <button
@@ -355,6 +444,15 @@ export function AnnotateModal({ imageUrl, annotations: initial, onClose, onSave 
               </button>
             );
           })}
+
+          {/* Undo */}
+          <button
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-zinc-400 hover:bg-zinc-800 hover:text-white transition disabled:opacity-25 disabled:cursor-not-allowed"
+            onClick={handleUndo}
+            disabled={history.length === 0}
+          >
+            <Undo2 size={17} />
+          </button>
 
           <div className="w-px h-5 bg-zinc-700 mx-1" />
 

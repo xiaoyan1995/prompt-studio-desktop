@@ -1,11 +1,14 @@
 export interface AnnotationStroke {
   id: string;
-  tool: "pen" | "circle" | "arrow" | "rect";
+  tool: "pen" | "circle" | "arrow" | "rect" | "text";
   color: string;
   width: number;
   points?: { x: number; y: number }[];
   start?: { x: number; y: number };
   end?: { x: number; y: number };
+  pos?: { x: number; y: number };
+  text?: string;
+  fontSize?: number;
 }
 
 function svgPathFromPoints(pts: { x: number; y: number }[]) {
@@ -61,6 +64,22 @@ function StrokeSVG({ stroke, opacity }: { stroke: AnnotationStroke; opacity?: nu
         <line x1={s.x} y1={s.y} x2={e.x} y2={e.y} stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" />
         <polyline points={`${p1x},${p1y} ${e.x},${e.y} ${p2x},${p2y}`} stroke={stroke.color} strokeWidth={stroke.width} fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
+    );
+  }
+
+  if (stroke.tool === "text" && stroke.pos && stroke.text) {
+    return (
+      <text
+        x={stroke.pos.x}
+        y={stroke.pos.y}
+        fill={stroke.color}
+        fontSize={stroke.fontSize ?? 44}
+        fontFamily="system-ui,-apple-system,sans-serif"
+        fontWeight="700"
+        style={style}
+      >
+        {stroke.text}
+      </text>
     );
   }
 
