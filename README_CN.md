@@ -94,7 +94,7 @@
   - 节点间可自由连线，构建多模型串联生成流水线
   - 画布 API 设置：为文本 / 图像 / 视频 / 音频各类模型分别配置 API Base、API Key 和模型名称
   - 后端统一 Job + SSE 任务追踪，支持 `/api/generate/text`（流式）、`/api/generate/image`、`/api/generate/image-edit`、`/api/generate/audio`、`/api/generate/video`、`/api/generate/video-edit`、`/api/generate/enhance-video`、`/api/generate/rembg`、`/api/generate/outpaint`
-  - 视频生成支持 KIE.ai（Grok / WAN / Kling）、T8Star Seedance 2.0 / 2.0 Fast、T8Star v2（Grok / Kling）三种后端
+  - 视频生成支持多种第三方后端，在画布 API 设置中为每个服务商配置独立 API Key 即可使用
   - 画布快照、历史记录、右键上下文菜单、分组、对齐辅助线
 - **拉片工具** — 本地视频分镜分析
   - 上传本地视频文件，ffmpeg 提取时长与关键帧

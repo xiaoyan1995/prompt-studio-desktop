@@ -93,7 +93,7 @@
   - Freely connect nodes to build multi-model generation pipelines
   - Canvas API Settings: configure API Base, API Key and model name per model type (text / image / video / audio)
   - Unified Job + SSE task tracking: `/api/generate/text` (streaming), `/api/generate/image`, `/api/generate/image-edit`, `/api/generate/audio`, `/api/generate/video`, `/api/generate/video-edit`, `/api/generate/enhance-video`, `/api/generate/rembg`, `/api/generate/outpaint`
-  - Video generation supports KIE.ai (Grok / WAN / Kling), T8Star Seedance 2.0 / 2.0 Fast, T8Star v2 (Grok / Kling)
+  - Video generation supports multiple third-party backends; configure your own API key per provider in Canvas API Settings
   - Canvas snapshots, history, right-click context menu, grouping, alignment guides
 - **Film Analysis (Lapian)** — local video scene detection
   - Upload a local video file; ffmpeg extracts duration and keyframes
