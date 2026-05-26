@@ -4,7 +4,7 @@
 
 **本地桌面端 AI 图片 & 视频提示词管理工具，配套浏览器插件。**
 
-[![版本](https://img.shields.io/badge/版本-1.1.4-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![版本](https://img.shields.io/badge/版本-1.2.0-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
 [![构建](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml)
 [![平台](https://img.shields.io/badge/平台-Windows%20%7C%20macOS-lightgrey.svg)](#打包说明)
 [![Electron](https://img.shields.io/badge/Electron-37-47848F.svg)](https://www.electronjs.org/)
@@ -80,10 +80,34 @@
 - 🔊 **音效库** — 每个项目可链接本地音效文件夹，支持浏览子目录、水波形预览、收藏、LLM 翻译文件名、拖拽导入 DAW
 - 🌍 **中英文界面** — 设置中心一键切换中文 / English，所有 UI 文字即时更新
 - 🤝 **Agent / CLI 集成** — 完整 HTTP API，外部 agent 可读写提示词、推送 AI 生成的图片和视频，以及查询音效库
+- 🖼️ **AI 画布** — 节点式 AI 生成工作台，支持文本、图像、视频、音频节点自由连线组成生成流水线；内置画布 API 配置，可独立为每个模型配置 API Key
+- 🎞️ **拉片工具** — 上传本地视频，基于 ffmpeg + TransNetV2 自动分镜，AI 逐镜解析镜头语言，导出分镜稿
+- 🎬 **即梦 CLI 集成** — 设备码 / OAuth 登录即梦 App，通过 Dreamina CLI 在画布中生成 Seedance 2.0 视频
 
 ---
 
 ## 🗒️ 版本记录
+
+### v1.2.0
+- **AI 画布** — 全新节点式 AI 生成工作台
+  - 节点类型：文本、提示词、图像生成、涂改重绘、视频生成、音频生成、素材图、素材音、超分、视频超分、抠图、分镜、注释、分组、备注
+  - 节点间可自由连线，构建多模型串联生成流水线
+  - 画布 API 设置：为文本 / 图像 / 视频 / 音频各类模型分别配置 API Base、API Key 和模型名称
+  - 后端统一 Job + SSE 任务追踪，支持 `/api/generate/text`（流式）、`/api/generate/image`、`/api/generate/image-edit`、`/api/generate/audio`、`/api/generate/video`、`/api/generate/video-edit`、`/api/generate/enhance-video`、`/api/generate/rembg`、`/api/generate/outpaint`
+  - 视频生成支持 KIE.ai（Grok / WAN / Kling）、T8Star Seedance 2.0 / 2.0 Fast、T8Star v2（Grok / Kling）三种后端
+  - 画布快照、历史记录、右键上下文菜单、分组、对齐辅助线
+- **拉片工具** — 本地视频分镜分析
+  - 上传本地视频文件，ffmpeg 提取时长与关键帧
+  - TransNetV2 ONNX 模型本地离线检测分镜切点，无需联网
+  - AI 逐镜解析：镜头描述、景别、机位、运镜、灯光、情绪、台词等
+  - 支持快、标准、精细三种检测精度，可手动重新分镜
+- **即梦 CLI 集成** — Dreamina / 即梦 App 视频生成
+  - 设备码 OAuth 授权登录即梦账号
+  - 在画布视频节点选择 `seedance-2-cli` / `seedance-2-fast-cli` 即可调用官方 CLI 生成视频
+  - 支持查询账户余额、切换账号
+- **AI 标题生成优化** — 更精准的提示词模板，更低的误判率
+- **自适应进度条主题** — 进度条颜色跟随深色 / 浅色界面自动切换
+- **请求超时改善** — 大模型 / 图像 API 请求超时时间合理化，减少误报错误
 
 ### v1.1.4
 - **项目卡片右键菜单** — 右键任意项目卡片即可打开、编辑、更改封面或删除，无需进入项目
@@ -203,8 +227,8 @@ dev-start.bat
 
 ```bash
 # 发布新版本
-git tag v1.1.4
-git push origin v1.1.4
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
 <details>

@@ -4,7 +4,7 @@
 
 **A local desktop app for managing AI image & video prompts — with a companion browser extension.**
 
-[![Version](https://img.shields.io/badge/version-1.1.4-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/releases)
 [![Build](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml/badge.svg)](https://github.com/xiaoyan1995/prompt-studio-desktop/actions/workflows/build.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)](#build)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -81,8 +81,32 @@
 - 🔊 **Audio library** — link local audio folders; browse, preview, star, translate names with LLM, drag files to DAW or file manager
 - 🌍 **Bilingual UI** — switch between Chinese and English in Settings; all UI text updates instantly, preference saved locally
 - 🤝 **Agent / CLI integration** — full HTTP API for external agents to read & write prompts, push AI-generated images and videos, and query the audio library
+- 🖼️ **AI Canvas** — node-based AI generation workspace; connect text, image, video and audio nodes into pipelines; per-model API key configuration built in
+- 🎞️ **Film Analysis (Lapian)** — upload local video, auto-detect scene cuts with ffmpeg + TransNetV2, AI-analyse each shot, export storyboard
+- 🎬 **Jimeng / Dreamina CLI** — OAuth device-code login, generate Seedance 2.0 videos via official CLI from canvas video nodes
 
 ## 📋 Changelog
+
+### v1.2.0
+- **AI Canvas** — brand-new node-based AI generation workspace
+  - Node types: text, prompt, image-gen, image-edit (inpaint), video-gen, audio-gen, source-image, source-audio, upscale, video-upscale, rembg, storyboard, note, group, comment
+  - Freely connect nodes to build multi-model generation pipelines
+  - Canvas API Settings: configure API Base, API Key and model name per model type (text / image / video / audio)
+  - Unified Job + SSE task tracking: `/api/generate/text` (streaming), `/api/generate/image`, `/api/generate/image-edit`, `/api/generate/audio`, `/api/generate/video`, `/api/generate/video-edit`, `/api/generate/enhance-video`, `/api/generate/rembg`, `/api/generate/outpaint`
+  - Video generation supports KIE.ai (Grok / WAN / Kling), T8Star Seedance 2.0 / 2.0 Fast, T8Star v2 (Grok / Kling)
+  - Canvas snapshots, history, right-click context menu, grouping, alignment guides
+- **Film Analysis (Lapian)** — local video scene detection
+  - Upload a local video file; ffmpeg extracts duration and keyframes
+  - TransNetV2 ONNX model detects scene cuts fully offline
+  - AI analyses each shot: description, shot type, camera position, movement, lighting, mood, dialogue cues
+  - Three detection sensitivities (fast / standard / fine); manual re-split supported
+- **Jimeng / Dreamina CLI integration** — video generation via official CLI
+  - Device-code OAuth login to your Jimeng account
+  - Select `seedance-2-cli` / `seedance-2-fast-cli` in a canvas video node to generate via the official Dreamina CLI
+  - Credit balance query and account switching
+- **AI title generation improvements** — refined prompt templates, lower error rate
+- **Adaptive progress bar theme** — progress bar colour follows light / dark mode automatically
+- **Request timeout improvements** — more sensible timeouts for LLM / image APIs, fewer false errors
 
 ### v1.1.4
 - **Project card right-click menu** — right-click any project card to Open, Edit, Change Cover, or Delete without entering the project
@@ -200,8 +224,8 @@ Builds are **automated via GitHub Actions** — every push to `main` produces Wi
 
 ```bash
 # Trigger a release
-git tag v1.1.4
-git push origin v1.1.4
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
 <details>
