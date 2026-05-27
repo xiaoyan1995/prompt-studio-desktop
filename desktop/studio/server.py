@@ -950,6 +950,14 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=str(BASE_DIR), **kw)
 
+    def end_headers(self):
+        # Prevent caching for canvas-bundle to ensure new assets always load instantly
+        if "/canvas-bundle/" in self.path or "canvas-bundle" in self.path:
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
+        super().end_headers()
+
     def log_message(self, fmt, *args):
         print(f"[studio] {fmt % args}")
 
