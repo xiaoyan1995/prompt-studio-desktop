@@ -375,10 +375,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const pageUrl   = msg.pageUrl   || sender.tab?.url   || '';
     const pageTitle = msg.pageTitle || sender.tab?.title || '';
     const tabId = msg.tabId || sender.tab?.id || '';
+    const cookie = msg.cookie || '';
     if (msg.mode === 'reverse') {
-      openResult({ mediaUrl: msg.mediaUrl, mediaType: msg.mediaType, pageUrl, pageTitle, tabId, referer: msg.referer || pageUrl });
+      openResult({ mediaUrl: msg.mediaUrl, mediaType: msg.mediaType, pageUrl, pageTitle, tabId, referer: msg.referer || pageUrl, cookie });
     } else {
-      openDialog({ mediaUrl: msg.mediaUrl, mediaType: msg.mediaType, mode: msg.mode, pageUrl, pageTitle, tabId, referer: msg.referer || pageUrl });
+      openDialog({ mediaUrl: msg.mediaUrl, mediaType: msg.mediaType, mode: msg.mode, pageUrl, pageTitle, tabId, referer: msg.referer || pageUrl, cookie });
     }
     return false;
   }
@@ -392,7 +393,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'get-media-candidates') {
     const tabId = Number(msg.tabId || sender.tab?.id || -1);
-    sendResponse({ items: mediaForTab(tabId).map(({ cookie, ...rest }) => rest) });
+    sendResponse({ items: mediaForTab(tabId) });
     return false;
   }
 
@@ -529,4 +530,37 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse();
     return false;
   }
+
+  if (msg.type === 'save-skill-from-popup') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs[0];
+      if (!tab) return;
+      chrome.tabs.sendMessage(tab.id, { type: 'get-selection' }, (text) => {
+        const selText = (typeof text === 'string' && text.length > 0) ? text : '';
+        if (!selText.trim()) { sendResponse({ ok: false, reason: 'empty' }); return; }
+        chrome.storage.local.set({ _psc_skill_text: selText }, () => {
+          openDialog({ mediaType: 'text', mode: 'skill', pageUrl: tab.url, pageTitle: tab.title });
+          sendResponse({ ok: true });
+        });
+      });
+    });
+    return true;
+  }
+});
+
+// ── Keyboard shortcut: Alt+S → save selected text as Skill ───────────────────
+chrome.commands.onCommand.addListener((command) => {
+  if (command !== 'save-skill-shortcut') return;
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    if (!tab) return;
+    chrome.tabs.sendMessage(tab.id, { type: 'get-selection' }, (text) => {
+      if (chrome.runtime.lastError) return;
+      const selText = (typeof text === 'string' && text.length > 0) ? text : '';
+      if (!selText.trim()) return;
+      chrome.storage.local.set({ _psc_skill_text: selText }, () => {
+        openDialog({ mediaType: 'text', mode: 'skill', pageUrl: tab.url, pageTitle: tab.title });
+      });
+    });
+  });
 });

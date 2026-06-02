@@ -33,6 +33,11 @@
     "48":  "icons/icon48.png",
     "128": "icons/icon128.png"
   },
+  "commands": {
+    "save-skill-shortcut": {
+      "description": "保存选中文字为 Skill 提示词 / Save selected text as Skill prompt"
+    }
+  },
   "options_page": "settings.html",
   "content_scripts": [
     {

@@ -70,10 +70,19 @@ function resourcePath(...parts) {
     : path.join(__dirname, ...parts);
 }
 
+function packagedAppRoot() {
+  if (!app.isPackaged) return path.resolve(__dirname, '..');
+  if (process.env.PORTABLE_EXECUTABLE_DIR) return process.env.PORTABLE_EXECUTABLE_DIR;
+  if (process.platform === 'darwin') {
+    return path.resolve(path.dirname(process.execPath), '..', '..', '..');
+  }
+  return path.dirname(process.execPath);
+}
+
 function extensionPath() {
   if (!app.isPackaged) return path.resolve(__dirname, '..', 'extension');
-  // Packaged: extension/ sits next to the app folder, one level above the exe dir
-  const sibling = path.join(path.dirname(process.execPath), '..', 'extension');
+  // Packaged: prefer extension/ next to the app bundle or portable app folder.
+  const sibling = path.join(packagedAppRoot(), 'extension');
   if (fs.existsSync(sibling)) return sibling;
   // Fallback: legacy inside resources/
   return path.join(process.resourcesPath, 'extension');
@@ -81,8 +90,7 @@ function extensionPath() {
 
 function appWritableRoot() {
   if (!app.isPackaged) return path.resolve(__dirname, '..');
-  if (process.env.PORTABLE_EXECUTABLE_DIR) return process.env.PORTABLE_EXECUTABLE_DIR;
-  return path.dirname(process.execPath);
+  return packagedAppRoot();
 }
 
 function dataPath() {
@@ -469,6 +477,13 @@ async function createWindow() {
     },
   });
   mainWindow.setMenuBarVisibility(false);
+
+  // Prevent drag-drop from navigating the main window away from the application
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (url !== SERVER_URL && !url.startsWith(`${SERVER_URL}/`)) {
+      event.preventDefault();
+    }
+  });
 
   // Clear HTTP cache so a freshly installed version always loads new files
   await mainWindow.webContents.session.clearCache();

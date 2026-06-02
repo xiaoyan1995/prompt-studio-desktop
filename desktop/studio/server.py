@@ -41,7 +41,14 @@ def _load_studio_config():
         return {}
 _studio_cfg = _load_studio_config()
 _env_data_dir = os.environ.get("PROMPT_STUDIO_DATA_DIR")
-DATA_DIR   = Path(_env_data_dir or _studio_cfg.get("data_dir") or BASE_DIR).resolve()
+_cfg_data_dir = _studio_cfg.get("data_dir")
+def _resolve_data_dir():
+    raw = _env_data_dir or _cfg_data_dir
+    if not raw:
+        return BASE_DIR
+    p = Path(raw)
+    return (BASE_DIR / p).resolve() if not p.is_absolute() else p.resolve()
+DATA_DIR   = _resolve_data_dir()
 DATA_FILE  = DATA_DIR / "data.json"
 UPLOAD_DIR = DATA_DIR / "uploads"
 CONFIG_FILE = DATA_DIR / "desktop_settings.json"
@@ -234,9 +241,17 @@ def _load_settings():
 
 
 def _save_settings(settings):
+    # Load existing saved values so partial patch updates don't clobber unrelated keys
+    try:
+        existing = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        if not isinstance(existing, dict):
+            existing = {}
+    except Exception:
+        existing = {}
+    merged = {**existing, **settings}
     clean = {}
     for key, default in DEFAULT_DESKTOP_SETTINGS.items():
-        value = settings.get(key, default)
+        value = merged.get(key, default)
         if key == "promptPresets":
             presets = value if isinstance(value, list) else []
             clean[key] = [
@@ -249,6 +264,20 @@ def _save_settings(settings):
             ]
         else:
             clean[key] = str(value or "")
+    # Backup before overwrite — keep last 5 copies so data loss is recoverable
+    if CONFIG_FILE.exists():
+        import datetime as _dt
+        ts = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+        bak = CONFIG_FILE.with_name(f"desktop_settings.{ts}.bak")
+        try:
+            import shutil as _shutil
+            _shutil.copy2(CONFIG_FILE, bak)
+            # Prune old backups, keep newest 5
+            baks = sorted(CONFIG_FILE.parent.glob("desktop_settings.*.bak"))
+            for old in baks[:-5]:
+                old.unlink(missing_ok=True)
+        except Exception:
+            pass
     CONFIG_FILE.write_text(json.dumps(clean, ensure_ascii=False, indent=2), encoding="utf-8")
     return clean
 
@@ -3278,12 +3307,27 @@ class Handler(SimpleHTTPRequestHandler):
         cmd = ["relogin" if use_relogin else "login", "--headless"]
         run = _run_dreamina_cli(cmd, timeout=60)
         out_text = "\n".join(x for x in [run.get("stdout", ""), run.get("stderr", "")] if x)
+        # Detect "reused existing session" case — CLI exits 0 but no new OAuth flow started
+        reused = run.get("ok", False) and (
+            "已复用" in out_text or "reused" in out_text.lower() or "already logged" in out_text.lower()
+        )
+        # Try key:value extraction first, then JSON fallback
+        verification_uri = _extract_cli_value(out_text, "verification_uri")
+        user_code = _extract_cli_value(out_text, "user_code")
+        device_code = _extract_cli_value(out_text, "device_code")
+        if not verification_uri:
+            j = _extract_json_from_cli_text(out_text)
+            if isinstance(j, dict):
+                verification_uri = j.get("verification_uri", "") or ""
+                user_code = user_code or j.get("user_code", "") or ""
+                device_code = device_code or j.get("device_code", "") or ""
         self._json_resp({
             "ok": run.get("ok", False),
+            "reused": reused,
             "returncode": run.get("returncode", -1),
-            "verification_uri": _extract_cli_value(out_text, "verification_uri"),
-            "user_code": _extract_cli_value(out_text, "user_code"),
-            "device_code": _extract_cli_value(out_text, "device_code"),
+            "verification_uri": verification_uri,
+            "user_code": user_code,
+            "device_code": device_code,
             "expires_at": _extract_cli_value(out_text, "expires_at"),
             "raw": out_text,
             "command": run.get("command", []),
@@ -3468,7 +3512,18 @@ class Handler(SimpleHTTPRequestHandler):
 
         raw_status = str(payload.get("gen_status", payload.get("status", ""))).strip().lower()
         if raw_status in ("querying", "running", "pending", "queued", "processing"):
-            return self._json_resp({"ok": True, "status": "RUNNING", "raw_status": raw_status})
+            queue_info = payload.get("queue_info") or {}
+            queue_idx = queue_info.get("queue_idx")
+            queue_length = queue_info.get("queue_length")
+            queue_status = str(queue_info.get("queue_status", "")).strip()
+            resp = {"ok": True, "status": "RUNNING", "raw_status": raw_status}
+            if queue_idx is not None:
+                resp["queue_idx"] = int(queue_idx)
+            if queue_length is not None:
+                resp["queue_length"] = int(queue_length)
+            if queue_status:
+                resp["queue_status"] = queue_status
+            return self._json_resp(resp)
 
         if raw_status in ("fail", "failed", "error"):
             return self._json_resp({
@@ -3537,10 +3592,26 @@ class Handler(SimpleHTTPRequestHandler):
         is_dash = re.search(r'\.mpd([?#]|$)', video_url, re.I) is not None
         is_hls  = re.search(r'\.(m3u8|ts)([?#]|$)', video_url, re.I) is not None
 
+        browser_ua = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        )
+        origin = ""
+        if referer:
+            try:
+                u = urlparse(referer)
+                if u.scheme and u.netloc:
+                    origin = f"{u.scheme}://{u.netloc}"
+            except Exception:
+                origin = ""
+
         cmd = [ff, "-y", "-loglevel", "error"]
-        extra_headers = ""
+        extra_headers = f"User-Agent: {browser_ua}\r\nAccept: video/*,audio/*,*/*;q=0.8\r\n"
+        if origin: extra_headers += f"Origin: {origin}\r\n"
         if referer: extra_headers += f"Referer: {referer}\r\n"
         if cookie:  extra_headers += f"Cookie: {cookie}\r\n"
+        cmd += ["-user_agent", browser_ua]
         if extra_headers:
             cmd += ["-headers", extra_headers]
         if is_dash:
@@ -4494,21 +4565,60 @@ class Handler(SimpleHTTPRequestHandler):
         if not prompt:
             return self._err(400, "prompt is required")
         aspect_ratio = str(body.get("aspect_ratio") or "1:1")
+        image_size = str(body.get("image_size") or "1K")
         node_id = str(body.get("node_id") or "")
         project_id = str(body.get("project_id") or "")
         reference_images = list(body.get("reference_images") or [])
-        SIZE_MAP = {"1:1": "1024x1024", "16:9": "1792x1024", "9:16": "1024x1792",
-                   "4:3": "1024x768", "3:4": "768x1024", "3:2": "1024x682", "2:3": "682x1024"}
-        size = SIZE_MAP.get(aspect_ratio, "1024x1024")
+        SIZE_MAP = {
+            "1K": {"1:1": "1024x1024", "16:9": "1280x720", "9:16": "720x1280",
+                   "4:3": "1152x864", "3:4": "864x1152", "3:2": "1248x832", "2:3": "832x1248"},
+            "2K": {"1:1": "2048x2048", "16:9": "2560x1440", "9:16": "1440x2560",
+                   "4:3": "2304x1728", "3:4": "1728x2304", "3:2": "2496x1664", "2:3": "1664x2496"},
+            "4K": {"1:1": "2880x2880", "16:9": "3840x2160", "9:16": "2160x3840",
+                   "4:3": "3264x2448", "3:4": "2448x3264", "3:2": "3504x2336", "2:3": "2336x3504"},
+        }
+
+        def _round_to_multiple(value, multiple=8):
+            return max(multiple, int(round(value / multiple) * multiple))
+
+        def _host_of(base):
+            try:
+                return urlparse(base).hostname or ""
+            except Exception:
+                return ""
+
+        def _comfly_size(label, ratio):
+            base = {"1K": 1024, "2K": 2048, "4K": 4096}.get(label, 1024)
+            m = re.match(r"^(\d+):(\d+)$", ratio or "")
+            if not m:
+                return f"{base}x{base}"
+            wr, hr = int(m.group(1)), int(m.group(2))
+            if not wr or not hr or wr == hr:
+                return f"{base}x{base}"
+            if wr > hr:
+                return f"{base}x{_round_to_multiple(base * hr / wr)}"
+            return f"{_round_to_multiple(base * wr / hr)}x{base}"
+
+        if _host_of(api_base).lower() in {"ai.comfly.org", "api2.aigcbest.top"}:
+            size = _comfly_size(image_size, aspect_ratio)
+        else:
+            size = SIZE_MAP.get(image_size, SIZE_MAP["1K"]).get(aspect_ratio, SIZE_MAP.get(image_size, SIZE_MAP["1K"])["1:1"])
+        is_grsai = _host_of(api_base).lower() in {"grsaiapi.com", "grsai.dakka.com.cn"}
         job_id = str(uuid.uuid4())
         _job_create(job_id)
         def _run():
             try:
-                req_body: dict = {"model": use_model, "prompt": prompt, "n": 1,
-                                  "size": size, "response_format": "url"}
-                if reference_images:
-                    req_body["image_url"] = reference_images[0]
-                img_url = (api_base + "/images/generations") if api_base.endswith("/v1") else (api_base + "/v1/images/generations")
+                if is_grsai:
+                    grs_size = _comfly_size(image_size, aspect_ratio)
+                    req_body = {"model": use_model, "prompt": prompt, "images": reference_images,
+                                "aspectRatio": grs_size, "replyType": "json"}
+                    img_url = api_base + "/v1/api/generate"
+                else:
+                    req_body = {"model": use_model, "prompt": prompt, "n": 1,
+                                "size": size, "response_format": "url"}
+                    if reference_images:
+                        req_body["image_url"] = reference_images[0]
+                    img_url = (api_base + "/images/generations") if api_base.endswith("/v1") else (api_base + "/v1/images/generations")
                 req = urllib.request.Request(
                     img_url,
                     data=json.dumps(req_body).encode(),
@@ -4517,15 +4627,32 @@ class Handler(SimpleHTTPRequestHandler):
                 )
                 with urllib.request.urlopen(req, timeout=120) as resp:
                     resp_data = json.loads(resp.read().decode())
+                if is_grsai and not resp_data.get("results") and resp_data.get("id"):
+                    result_url = api_base + "/v1/api/result?id=" + quote(str(resp_data.get("id")))
+                    for _ in range(80):
+                        req_poll = urllib.request.Request(
+                            result_url,
+                            headers={"Authorization": f"Bearer {api_key}"},
+                            method="GET",
+                        )
+                        with urllib.request.urlopen(req_poll, timeout=60) as resp:
+                            polled = json.loads(resp.read().decode())
+                        status = str(polled.get("status") or "").lower()
+                        if status in {"succeeded", "success", "completed", "finished"}:
+                            resp_data = polled
+                            break
+                        if status in {"failed", "error", "failure"}:
+                            raise Exception(str(polled.get("error") or polled.get("message") or polled))
+                        time.sleep(3)
                 if resp_data.get("error"):
                     err = resp_data["error"]
                     raise Exception(str(err.get("message", err)) if isinstance(err, dict) else str(err))
-                items = resp_data.get("data") or []
+                items = resp_data.get("results") if is_grsai else (resp_data.get("data") or [])
                 if not items:
                     raise Exception(f"API returned no data: {resp_data}")
                 item = items[0]
-                img_src_url = item.get("url")
-                b64 = item.get("b64_json")
+                img_src_url = item if isinstance(item, str) else item.get("url")
+                b64 = None if isinstance(item, str) else item.get("b64_json")
                 if img_src_url:
                     req2 = urllib.request.Request(img_src_url, headers={"User-Agent": "Mozilla/5.0"})
                     with urllib.request.urlopen(req2, timeout=120) as r:
@@ -4910,4 +5037,3 @@ if __name__ == "__main__":
         srv.serve_forever()
     except KeyboardInterrupt:
         print("\nStopped.")
-

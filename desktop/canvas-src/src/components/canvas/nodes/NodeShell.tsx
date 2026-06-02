@@ -315,7 +315,7 @@ function NodeShellComponent({ id, data, selected }: NodeProps<CanvasNode>) {
       />
       {(String(data.status) === "running" || String(data.status) === "queued" || String(data.status) === "uploading") && (
         <>
-          <MeteorShowerOverlay startTime={data.generationStartedAt as number | undefined} label={String(data.status) === "uploading" ? t("uploading") : undefined} />
+          <MeteorShowerOverlay startTime={data.generationStartedAt as number | undefined} label={String(data.status) === "uploading" ? t("uploading") : (data.generationProgress as string | undefined)} />
           {/* Pulsing border glow for running state */}
           <svg
             className="pointer-events-none"

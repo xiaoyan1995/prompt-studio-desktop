@@ -388,14 +388,26 @@ export function CanvasEditor({
     [onConnectionDrop],
   );
 
+  const hasNativeFilePayload = useCallback((dt: DataTransfer | null | undefined) => {
+    if (!dt) return false;
+    if (dt.files && dt.files.length > 0) return true;
+    if (dt.items && Array.from(dt.items).some((item) => item.kind === "file")) return true;
+    const types = Array.from(dt.types || []);
+    return (
+      types.includes("Files") ||
+      types.includes("application/x-moz-file") ||
+      types.includes("public.file-url")
+    );
+  }, []);
+
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
-      if (!e.dataTransfer.types.includes("Files")) return;
+      if (!hasNativeFilePayload(e.dataTransfer)) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "copy";
       setIsDragOver(true);
     },
-    [],
+    [hasNativeFilePayload],
   );
 
   const handleDragLeave = useCallback(() => setIsDragOver(false), []);
@@ -445,12 +457,13 @@ export function CanvasEditor({
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragOver(false);
-      const files = Array.from(e.dataTransfer.files);
+      if (!hasNativeFilePayload(e.dataTransfer)) return;
+      const files = Array.from(e.dataTransfer.files ?? []);
       if (files.length === 0) return;
       const flow = screenToFlowPosition({ x: e.clientX, y: e.clientY });
       onFileDrop?.(files, flow.x, flow.y);
     },
-    [screenToFlowPosition, onFileDrop],
+    [screenToFlowPosition, onFileDrop, hasNativeFilePayload],
   );
 
   return (

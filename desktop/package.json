@@ -25,6 +25,7 @@
     "productName": "Prompt Studio Desktop",
     "icon": "build/icon",
     "asar": true,
+    "afterPack": "scripts/after-pack.js",
     "publish": {
       "provider": "github",
       "owner": "xiaoyan1995",
@@ -44,6 +45,14 @@
       {
         "from": "bin",
         "to": "bin"
+      },
+      {
+        "from": "../extension",
+        "to": "extension"
+      },
+      {
+        "from": "../skills",
+        "to": "skills"
       },
       {
         "from": "../prompt_studio_icon.ico",

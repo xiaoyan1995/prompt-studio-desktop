@@ -4,6 +4,10 @@
 (function() {
   'use strict';
 
+  // Global safety: prevent default file-drop navigation in this iframe (Electron packaged builds)
+  document.addEventListener('dragover', e => e.preventDefault(), false);
+  document.addEventListener('drop', e => e.preventDefault(), false);
+
   const RF = window.ReactFlow;
   const { ReactFlow, useReactFlow } = RF;
 

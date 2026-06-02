@@ -43,6 +43,9 @@ const SKIP_DESKTOP = new Set([
   'uploads',     // user data
   'snapshots',   // user data
   'exports',     // user data
+  'data.json',           // runtime data
+  'studio-config.json',  // runtime config
+  'lapian_projects.json' // runtime project data
 ]);
 console.log('Copying desktop source...');
 copyDir(DESKTOP, path.join(STAGE, 'desktop'), SKIP_DESKTOP);

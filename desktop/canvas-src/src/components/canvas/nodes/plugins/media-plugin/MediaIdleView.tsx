@@ -20,6 +20,7 @@ import type { IdleViewProps } from "../../plugin-types";
 import { AudioWaveformPlayer } from "./AudioWaveformPlayer";
 import { useCanvasStore } from "@/stores/canvas-store";
 import { openFilePicker, uploadFile, type UploadResult, type VideoUploadResult } from "@/lib/upload-client";
+import { toErrorKey } from "@/lib/error-keys";
 
 const ERR_KEYS = new Set([
   "errContentSafety", "errBadParams", "errInsufficientBalance",
@@ -154,9 +155,15 @@ export const MediaIdleView = memo(function MediaIdleView({ id, data, selected, s
           updaters.updateSize(w, h);
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[MediaIdleView] upload failed:", err);
-      updaters.updateData({ status: "failed" });
+      const rawMsg = err instanceof Error ? err.message : String(err || "");
+      const errKey = toErrorKey(rawMsg || "");
+      updaters.updateData({
+        status: "failed",
+        errorMessage: errKey,
+        errorDetail: rawMsg || undefined,
+      });
     } finally {
       setUploading(false);
     }

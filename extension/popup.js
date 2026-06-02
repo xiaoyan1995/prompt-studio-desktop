@@ -148,6 +148,20 @@ document.getElementById('openSettingsBtn').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
+// Show assigned shortcut (if any) and link to shortcut settings
+(async () => {
+  const cmds = await chrome.commands.getAll();
+  const cmd = cmds.find(c => c.name === 'save-skill-shortcut');
+  const label = document.getElementById('skillShortcutLabel');
+  if (cmd && cmd.shortcut) {
+    label.innerHTML = `<kbd style="font-size:11px;font-family:monospace;background:#e4e8ef;border:1px solid #c8cdd8;border-radius:4px;padding:1px 6px;color:#1a2340">${cmd.shortcut}</kbd>`;
+  }
+})();
+document.getElementById('skillShortcutTip').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+});
+
+
 // ── Inline Batch Collect ──────────────────────────────────────────────────────
 const SERVER_URL = 'http://127.0.0.1:8767';
 let cAllImages = [], cSelected = new Set(), cFilters = { fmt: 'all', size: 0, minW: 0, minH: 0 };
@@ -573,7 +587,8 @@ async function initVideoDetect() {
           pageUrl: tab.url,
           pageTitle: tab.title,
           tabId: tab.id,
-          referer: item.referer || tab.url
+          referer: item.referer || tab.url,
+          cookie: item.cookie || ''
         });
         window.close();
       });

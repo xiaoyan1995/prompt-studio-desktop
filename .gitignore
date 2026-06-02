@@ -7,12 +7,15 @@ desktop/.context/
 __pycache__/
 *.pyc
 desktop/studio/data.json
+desktop/studio/studio-config.json
+desktop/studio/lapian_projects.json
 extension.zip
 *.log
 .DS_Store
 Thumbs.db
 release/
 desktop/node_modules/
+desktop/.venv-build/
 desktop/dist/
 desktop/server-dist/*
 !desktop/server-dist/.gitkeep
@@ -27,4 +30,3 @@ desktop/server-build/build/
 desktop/studio/canvas-bundle/
 desktop/lapian_research/
 画布/
-

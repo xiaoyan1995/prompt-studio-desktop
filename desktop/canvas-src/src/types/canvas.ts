@@ -71,6 +71,7 @@ export interface NodeData extends Record<string, unknown> {
   maskDataUrl?: string;
   status?: "idle" | "queued" | "running" | "uploading" | "succeeded" | "failed";
   generationStartedAt?: number;
+  generationProgress?: string;
 
   /** storyboard node — rows live in canvas JSON (no base64). */
   rows?: ShotRow[];

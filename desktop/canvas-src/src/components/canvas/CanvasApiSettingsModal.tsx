@@ -310,8 +310,24 @@ export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModal
 
         setJimengAuthLink(verificationUri);
         setJimengUserCode(userCode);
+
+        if (d?.reused) {
+          // Already logged in — CLI reused existing session, no QR needed
+          setJimengStatus("状态：已复用现有登录态，无需重新扫码");
+          setJimengStatusTone("success");
+          showToast("✅ 已复用即梦登录态", "info");
+          // Auto-trigger a check to confirm and fill device code
+          if (!deviceCode) void handleJimengCheck();
+          return;
+        }
+
         if (verificationUri) {
-          window.open(verificationUri, "_blank");
+          // Try postMessage to Electron shell first (avoids iframe popup blocking)
+          try {
+            window.parent.postMessage({ type: "open-url", url: verificationUri }, "*");
+          } catch {
+            window.open(verificationUri, "_blank");
+          }
         }
         setJimengStatus("状态：已发起登录，请扫码/打开授权页完成登录");
         setJimengStatusTone("info");
@@ -326,6 +342,7 @@ export function CanvasApiSettingsModal({ open, onClose }: CanvasApiSettingsModal
         setBusy(false);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [jimengDefaultModel, saveDesktopSettingsPatch, startJimengAutoPoll],
   );
 

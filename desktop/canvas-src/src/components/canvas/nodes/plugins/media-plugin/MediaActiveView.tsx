@@ -758,6 +758,9 @@ export function MediaActiveView({ id, data, updaters, connectedRefs, promptEdito
                 window.dispatchEvent(new Event("xinyu:save-now"));
                 resolve();
               } else if (msg.status === "FAILED") { es.close(); reject(new Error(msg.error || "Video generation failed")); }
+              else if (msg.status === "RUNNING" && msg.message) {
+                updateTarget({ generationProgress: String(msg.message) });
+              }
             } catch { /* ignore */ }
           };
           es.onerror = () => { es.close(); if (retries < MAX_RETRIES) { retries++; setTimeout(connectSSE, Math.min(3000 * retries, 15000)); } else reject(new Error("SSE connection lost")); };
@@ -771,6 +774,7 @@ export function MediaActiveView({ id, data, updaters, connectedRefs, promptEdito
         status: "failed",
         errorMessage: errKey,
         errorDetail: rawMsg || undefined,
+        generationProgress: undefined,
         videoUrl: prevVideoUrl,
         originalVideoUrl: prevOriginalVideoUrl,
         thumbnailUrl: prevThumbUrl,

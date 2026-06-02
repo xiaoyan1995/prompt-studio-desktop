@@ -436,6 +436,131 @@ class LapianManager:
         except Exception:
             return 0.0
 
+    def _extract_json_payload(self, text):
+        """Parse model JSON, tolerating markdown fences or small text wrappers."""
+        if not isinstance(text, str):
+            return text
+        cleaned = re.sub(r"```(?:json)?\s*|\s*```", "", text.strip(), flags=re.IGNORECASE)
+        try:
+            return json.loads(cleaned)
+        except Exception:
+            pass
+
+        start_obj = cleaned.find("{")
+        start_arr = cleaned.find("[")
+        starts = [p for p in (start_obj, start_arr) if p >= 0]
+        if not starts:
+            raise ValueError("AI response did not contain JSON")
+        start = min(starts)
+        opener = cleaned[start]
+        closer = "}" if opener == "{" else "]"
+        end = cleaned.rfind(closer)
+        if end <= start:
+            raise ValueError("AI response JSON was incomplete")
+        return json.loads(cleaned[start:end + 1])
+
+    def _coerce_lapian_analysis(self, raw, shot=None):
+        """Normalize custom prompt schemas into the internal single-shot fields."""
+        if isinstance(raw, list):
+            raw = next((item for item in raw if isinstance(item, dict)), raw)
+        if not isinstance(raw, dict):
+            return raw
+
+        analysis = dict(raw)
+        shot_item = None
+        shot_list = analysis.get("镜头列表") or analysis.get("shots") or analysis.get("shotList")
+        if isinstance(shot_list, list) and shot_list:
+            target_index = None
+            try:
+                target_index = int((shot or {}).get("index") or 0)
+            except Exception:
+                target_index = None
+            if target_index:
+                for item in shot_list:
+                    if isinstance(item, dict):
+                        try:
+                            if int(item.get("镜头号") or item.get("shotIndex") or item.get("index") or 0) == target_index:
+                                shot_item = item
+                                break
+                        except Exception:
+                            pass
+            if shot_item is None and isinstance(shot_list[0], dict):
+                shot_item = shot_list[0]
+
+        visual = analysis.get("视觉设计") if isinstance(analysis.get("视觉设计"), dict) else {}
+        photo = analysis.get("整体摄影") if isinstance(analysis.get("整体摄影"), dict) else {}
+        src = {}
+        src.update(analysis)
+        if isinstance(shot_item, dict):
+            src.update(shot_item)
+
+        def first_value(*keys):
+            for key in keys:
+                val = src.get(key)
+                if val is None or val == "":
+                    continue
+                if isinstance(val, (list, tuple)):
+                    return "、".join(str(x) for x in val if x)
+                return str(val)
+            return ""
+
+        def visual_value(*keys):
+            for key in keys:
+                val = visual.get(key)
+                if val:
+                    return str(val)
+            return ""
+
+        def photo_value(*keys):
+            for key in keys:
+                val = photo.get(key)
+                if val:
+                    return str(val)
+            return ""
+
+        if not analysis.get("shotSummary"):
+            analysis["shotSummary"] = first_value("shotSummary", "summary", "画面描述", "视频故事", "整体提示词")
+        if not analysis.get("shotScale"):
+            analysis["shotScale"] = first_value("shotScale", "景别")
+        if not analysis.get("cameraAngle"):
+            analysis["cameraAngle"] = first_value("cameraAngle", "摄影机角度") or photo_value("角度")
+        if not analysis.get("cameraMovement"):
+            analysis["cameraMovement"] = first_value("cameraMovement", "摄影机运动") or photo_value("运动")
+
+        comp = analysis.get("composition")
+        if not isinstance(comp, dict):
+            comp = {}
+        if not comp.get("sceneAndLayers"):
+            scene_bits = [
+                visual_value("主体"),
+                visual_value("场景"),
+                first_value("画面描述"),
+            ]
+            comp["sceneAndLayers"] = "；".join(x for x in scene_bits if x)
+        if not comp.get("compositionalRules"):
+            comp["compositionalRules"] = photo_value("镜头", "角度", "焦距与景深") or first_value("焦距与景深")
+        analysis["composition"] = comp
+
+        if not analysis.get("colorAnalysis"):
+            analysis["colorAnalysis"] = first_value("colorAnalysis", "色彩") or visual_value("色彩")
+        if not analysis.get("lighting"):
+            analysis["lighting"] = first_value("lighting", "光线") or visual_value("光线")
+        if not analysis.get("soundInference"):
+            sound_bits = [first_value("背景音乐"), first_value("人声/音效")]
+            analysis["soundInference"] = "；".join(x for x in sound_bits if x)
+        if not analysis.get("desc"):
+            analysis["desc"] = first_value("desc", "叙事内容", "画面描述", "整体提示词")
+        if not analysis.get("narrativeFunction"):
+            analysis["narrativeFunction"] = first_value("narrativeFunction", "叙事内容", "视频故事")
+        if not analysis.get("creativeIntent"):
+            analysis["creativeIntent"] = first_value("creativeIntent", "表达情绪")
+        if not analysis.get("experienceTransfer"):
+            analysis["experienceTransfer"] = first_value("experienceTransfer", "整体风格") or photo_value("镜头", "运动")
+        if not analysis.get("aigcPrompt"):
+            analysis["aigcPrompt"] = first_value("aigcPrompt", "prompt", "生成提示词", "整体提示词")
+
+        return analysis
+
     def analyze_shot(self, project_id, shot_id, api_base, api_key, model, custom_prompt="",
                      use_video=False, ffmpeg_path=None, aigc_instruction=""):
         # This will use the visual LLM to analyze the shot's picture/video and return:
@@ -629,10 +754,8 @@ class LapianManager:
             else:
                 text_res = resp["choices"][0]["message"]["content"]
 
-            # Parse JSON
-            # Clean markdown codeblocks if LLM returned them despite JSON request
-            text_res = re.sub(r"```json\s*|\s*```", "", text_res.strip())
-            analysis = json.loads(text_res)
+            raw_analysis = self._extract_json_payload(text_res)
+            analysis = self._coerce_lapian_analysis(raw_analysis, shot)
 
             # Update database
             db = self._read_db()
@@ -662,11 +785,16 @@ class LapianManager:
                             s["creativeIntent"] = analysis.get("creativeIntent", "")
                             s["experienceTransfer"] = analysis.get("experienceTransfer", "")
                             s["prompt"] = analysis.get("aigcPrompt", analysis.get("prompt", ""))
+                            s["rawAnalysis"] = raw_analysis
+                            try:
+                                s["analysisJson"] = json.dumps(raw_analysis, ensure_ascii=False, indent=2)
+                            except Exception:
+                                s["analysisJson"] = str(raw_analysis)
                             s["analysisMode"] = "video" if use_video else "image"
                             s["status"] = "completed"
                             break
             self._write_db(db)
-            return {"ok": True, "analysis": analysis}
+            return {"ok": True, "analysis": analysis, "rawAnalysis": raw_analysis}
 
         except Exception as e:
             return {"ok": False, "error": f"AI 分析接口报错: {str(e)}"}

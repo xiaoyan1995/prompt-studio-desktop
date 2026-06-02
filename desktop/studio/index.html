@@ -1844,8 +1844,7 @@
       <iframe id="canvasIframe"
         src="/canvas-bundle/index.html"
         style="width:100%;height:100%;border:none;display:block"
-        allow="clipboard-read; clipboard-write"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads">
+        allow="clipboard-read; clipboard-write">
       </iframe>
     </div>
 
@@ -2916,6 +2915,10 @@
     jimengDefaultModel: 'seedance-2-fast-cli',
     jimengDeviceCode: '',
   };
+
+  // Global safety net for Electron: prevent default dragover and drop to avoid page navigation
+  window.addEventListener('dragover', e => e.preventDefault(), false);
+  window.addEventListener('drop', e => e.preventDefault(), false);
 
   // ── State ─────────────────────────────────────────────────────────────
   let state = { view: 'projects', projectId: null, promptId: null, skillFolderId: null, skillFolderPath: [], folderFilter: null, audioFolderId: null, audioSubPath: '', canvasProjectId: null, canvasLoadTime: 0 };
@@ -4953,6 +4956,37 @@
   let _lapianDetailActiveShotId = null;
   if (!state.lapianTab) state.lapianTab = 'flow'; // 'flow' (分镜拆解), 'prompts' (提示词库), 'frames' (关键帧墙)
 
+  function lpRawAnalysisText(shot) {
+    const raw = shot?.rawAnalysis ?? shot?.analysisRaw ?? shot?.fullAnalysis ?? null;
+    if (raw == null) return String(shot?.analysisJson || '').trim();
+    if (typeof raw === 'string') return raw.trim();
+    try { return JSON.stringify(raw, null, 2); }
+    catch { return String(raw || '').trim(); }
+  }
+
+  function lpRawAnalysisBlock(shot) {
+    const rawText = lpRawAnalysisText(shot);
+    if (!rawText) return '';
+    const safeId = String(shot.id || Math.random()).replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `
+      <details style="margin-top:18px;border:1px solid var(--border);background:var(--bg-2);border-radius:8px;overflow:hidden">
+        <summary style="padding:8px 12px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;justify-content:space-between;gap:8px;list-style:none">
+          <span>📦 完整返回 JSON</span>
+          <button class="btn btn-secondary btn-sm" onclick="event.preventDefault();copyLpRawAnalysis('${safeId}')" style="font-size:11px;padding:2px 10px">复制</button>
+        </summary>
+        <textarea id="lpRawAnalysis_${safeId}" readonly style="display:block;width:100%;min-height:220px;box-sizing:border-box;border:0;border-top:1px solid var(--border);padding:12px;font-size:12px;line-height:1.55;font-family:Consolas,monospace;background:var(--surface);color:var(--text);white-space:pre;resize:vertical">${h(rawText)}</textarea>
+      </details>
+    `;
+  }
+
+  window.copyLpRawAnalysis = async function(id) {
+    const el = document.getElementById('lpRawAnalysis_' + id);
+    const text = el?.value || el?.textContent || '';
+    if (!text) return;
+    try { await navigator.clipboard.writeText(text); toast('✅ 已复制完整 JSON'); }
+    catch { toast('复制失败，请手动选择文本'); }
+  };
+
   async function renderLapianDetail(projId) {
     const grid = document.getElementById('mainGrid');
     const empty = document.getElementById('emptyState');
@@ -5249,6 +5283,8 @@
             ${shot.experienceTransfer ? fsec('8','经验迁移',
               `<div style="font-size:13px;line-height:1.8">${h(shot.experienceTransfer)}</div>`) : ''}
 
+            ${lpRawAnalysisBlock(shot)}
+
           </div>
 
           <!-- AIGC Prompt -->
@@ -5487,6 +5523,7 @@
             ${s.narrativeFunction ? fsec('6','叙事功能',`<div style="font-size:12.5px;line-height:1.8">${h(s.narrativeFunction)}</div>`) : ''}
             ${s.creativeIntent ? fsec('7','创作意图',`<div style="font-size:12.5px;line-height:1.8">${h(s.creativeIntent)}</div>`) : ''}
             ${s.experienceTransfer ? fsec('8','经验迁移',`<div style="font-size:12.5px;line-height:1.8">${h(s.experienceTransfer)}</div>`) : ''}
+            ${lpRawAnalysisBlock(s)}
           </div>` :
           `<div style="margin-top:10px;padding:10px;background:var(--bg-2);border-radius:8px;text-align:center"><div style="font-size:11.5px;color:var(--subtle);margin-bottom:8px">未分析</div><div style="display:flex;gap:8px;justify-content:center"><button class="btn btn-primary btn-sm lp-analyze-btn2" data-mode="image" data-proj-id="${proj.id}" data-shot-id="${s.id}" style="font-size:11px">📷 图片分析</button><button class="btn btn-secondary btn-sm lp-analyze-btn2" data-mode="video" data-proj-id="${proj.id}" data-shot-id="${s.id}" style="font-size:11px">🎬 视频分析</button></div></div>`;
 
@@ -5641,6 +5678,7 @@
         ${shot.narrativeFunction ? fsec('6','叙事功能',`<div style="font-size:13px;line-height:1.8">${h(shot.narrativeFunction)}</div>`) : ''}
         ${shot.creativeIntent ? fsec('7','创作意图',`<div style="font-size:13px;line-height:1.8">${h(shot.creativeIntent)}</div>`) : ''}
         ${shot.experienceTransfer ? fsec('8','经验迁移',`<div style="font-size:13px;line-height:1.8">${h(shot.experienceTransfer)}</div>`) : ''}
+        ${lpRawAnalysisBlock(shot)}
         ${shot.prompt ? `<div style="margin-top:14px;border:1px solid #fed7aa;background:#fff7ed;border-radius:8px;overflow:hidden">
           <div style="padding:7px 12px;background:#ffedd5;border-bottom:1px solid #fed7aa;display:flex;align-items:center;justify-content:space-between">
             <span style="font-size:11.5px;font-weight:700;color:#ea580c">🔥 AIGC 英文提示词</span>
@@ -8285,6 +8323,11 @@
         renderPage();
       });
     }
+    if (e.data?.type === 'open-url' && e.data?.url) {
+      try { window.open(e.data.url, '_blank'); } catch(err) {
+        console.warn('[open-url] failed:', err);
+      }
+    }
   });
 
   document.getElementById('langBtnCN').onclick = () => {
@@ -9427,8 +9470,8 @@
     if (!items.length) { grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--subtle);padding:32px;font-size:13px">当前项目暂无图片资产</div>`; return; }
     grid.innerHTML = items.map(({ path, title }) => {
       const sel = _libPickerSelected.has(path);
-      return `<div data-path="${h(path)}" style="position:relative;cursor:pointer;border-radius:8px;overflow:hidden;border:2.5px solid ${sel ? 'var(--primary)' : 'transparent'};transition:.12s">
-        <img src="${h(path)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" loading="lazy">
+      return `<div data-path="${h(path)}" style="position:relative;cursor:pointer;border-radius:8px;overflow:hidden;border:2.5px solid ${sel ? 'var(--primary)' : 'transparent'};transition:.12s;height:0;padding-bottom:100%">
+        <img src="${h(path)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block" loading="lazy">
         ${sel ? `<div style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:var(--primary);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700">✓</div>` : ''}
         <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.55));padding:3px 5px;font-size:9px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(title)}</div>
       </div>`;
@@ -11381,10 +11424,6 @@
 </div>
 </body>
 </html>
-
-
-
-
 
 
 

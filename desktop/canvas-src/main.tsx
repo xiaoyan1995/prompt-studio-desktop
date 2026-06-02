@@ -4,6 +4,10 @@ import { ReactFlowProvider } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./src/app/globals.css";
 
+// Global safety: prevent default file-drop navigation (Electron packaged builds)
+document.addEventListener("dragover", (e) => e.preventDefault(), false);
+document.addEventListener("drop", (e) => e.preventDefault(), false);
+
 import { CanvasEditor } from "./src/components/canvas/CanvasEditor";
 import { CanvasTopBar } from "./src/components/canvas/CanvasTopBar";
 import { DockToolbar } from "./src/components/canvas/DockToolbar";
@@ -33,6 +37,26 @@ const PROJECT_ID = urlParams.get("projectId") || "ps-local";
 const STORAGE_KEY = `ps_canvas_current_${PROJECT_ID}`;
 const VIEWPORT_KEY = `ps_canvas_viewport_${PROJECT_ID}`;
 const MARKETING_KEY = `ps_canvas_marketing_studio_${PROJECT_ID}`;
+
+const IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "webp", "gif", "avif", "bmp", "tif", "tiff", "heic", "heif"]);
+const VIDEO_EXTS = new Set(["mp4", "mov", "webm", "m4v", "mkv", "avi", "mpeg", "mpg", "ts", "m2ts"]);
+const AUDIO_EXTS = new Set(["mp3", "wav", "ogg", "flac", "aac", "m4a", "opus", "weba", "aiff", "au"]);
+
+function inferDroppedFileKind(file: File): "image" | "video" | "audio" | null {
+  const mime = String(file.type || "").toLowerCase();
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("audio/")) return "audio";
+
+  const name = String(file.name || "").toLowerCase();
+  const dot = name.lastIndexOf(".");
+  const ext = dot >= 0 ? name.slice(dot + 1) : "";
+  if (!ext) return null;
+  if (IMAGE_EXTS.has(ext)) return "image";
+  if (VIDEO_EXTS.has(ext)) return "video";
+  if (AUDIO_EXTS.has(ext)) return "audio";
+  return null;
+}
 
 // ─── Mock Job Tracking for Image Generation ───
 interface MockJob {
@@ -68,10 +92,61 @@ const SIZE_MAP: Record<string, Record<string, string>> = {
   "4K": {
     "1:1": "2880x2880", "4:3": "3264x2448", "3:4": "2448x3264",
     "16:9": "3840x2160", "9:16": "2160x3840", "3:2": "3504x2336",
-    "2:3": "3504x2336", "5:4": "3200x2560", "4:5": "2560x3200",
+    "2:3": "2336x3504", "5:4": "3200x2560", "4:5": "2560x3200",
     "21:9": "3696x1584", "2:1": "3840x1920", "1:2": "1920x3840",
   },
 };
+
+const COMFLY_IMAGE_API_HOSTS = new Set(["ai.comfly.org", "api2.aigcbest.top"]);
+const GRSAI_IMAGE_API_HOSTS = new Set(["grsaiapi.com", "grsai.dakka.com.cn"]);
+const COMFLY_LONG_EDGE_BY_SIZE: Record<string, number> = {
+  "1K": 1024,
+  "2K": 2048,
+  "4K": 4096,
+};
+
+function getApiHost(apiBase: unknown): string {
+  if (typeof apiBase !== "string" || !apiBase.trim()) return "";
+  try {
+    return new URL(apiBase.trim()).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function roundToMultiple(value: number, multiple: number): number {
+  return Math.max(multiple, Math.round(value / multiple) * multiple);
+}
+
+function resolveComflyImageSize(imageSize: unknown, aspectRatio: unknown): string {
+  const base = COMFLY_LONG_EDGE_BY_SIZE[String(imageSize)] ?? COMFLY_LONG_EDGE_BY_SIZE["1K"];
+  const ratio = typeof aspectRatio === "string" && aspectRatio !== "auto" ? aspectRatio : "1:1";
+  const match = ratio.match(/^(\d+):(\d+)$/);
+  if (!match) return `${base}x${base}`;
+
+  const wRatio = Number(match[1]);
+  const hRatio = Number(match[2]);
+  if (!wRatio || !hRatio) return `${base}x${base}`;
+  if (wRatio === hRatio) return `${base}x${base}`;
+
+  if (wRatio > hRatio) {
+    return `${base}x${roundToMultiple((base * hRatio) / wRatio, 8)}`;
+  }
+  return `${roundToMultiple((base * wRatio) / hRatio, 8)}x${base}`;
+}
+
+function resolveImageSizeForRatio(imageSize: unknown, aspectRatio: unknown, apiBase?: unknown): string {
+  if (COMFLY_IMAGE_API_HOSTS.has(getApiHost(apiBase))) {
+    return resolveComflyImageSize(imageSize, aspectRatio);
+  }
+  const quality = typeof imageSize === "string" && SIZE_MAP[imageSize] ? imageSize : "1K";
+  const ratio = typeof aspectRatio === "string" && aspectRatio !== "auto" ? aspectRatio : "1:1";
+  return SIZE_MAP[quality]?.[ratio] ?? SIZE_MAP[quality]?.["1:1"] ?? SIZE_MAP["1K"]["1:1"];
+}
+
+function isGrsaiImageApi(apiBase: unknown): boolean {
+  return GRSAI_IMAGE_API_HOSTS.has(getApiHost(apiBase));
+}
 
 // ─── Monkeypatch window.EventSource to support mock SSE ───
 const originalEventSource = window.EventSource;
@@ -125,6 +200,21 @@ class MockEventSource extends EventTarget {
       const job = mockJobs.get(jobId);
       if (!job) { this.triggerError("Job not found"); return; }
 
+      // Handle immediate success (for synchronous API sites)
+      if (job.status === "SUCCEEDED" && job.url) {
+        this.triggerMessage({ 
+          status: "SUCCEEDED", 
+          url: job.url, 
+          thumbnailUrl: job.url, 
+          width: 1024, 
+          height: 1024, 
+          progress: 100, 
+          assets: [{ url: job.url, thumbnailUrl: job.url }] 
+        });
+        this.close();
+        return;
+      }
+
       try {
         if (job.type === "audio") {
           const res = await originalFetch(`${job.apiBase}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(jobId)}`, { headers: { Authorization: `Bearer ${job.apiKey}` } });
@@ -166,8 +256,14 @@ class MockEventSource extends EventTarget {
               this.triggerMessage({ status: "FAILED", error: data.error || "Video generation failed" });
               this.close();
             } else {
-              this.triggerMessage({ status: "RUNNING", progress: 50 });
-              this.timer = setTimeout(poll, 8000);
+              let queueMsg: string | undefined;
+              if (data.queue_idx != null && data.queue_length != null) {
+                queueMsg = `排队中 ${data.queue_idx}/${data.queue_length}`;
+              } else if (data.queue_idx != null) {
+                queueMsg = `排队中，位置 ${data.queue_idx}`;
+              }
+              this.triggerMessage({ status: "RUNNING", progress: 50, ...(queueMsg ? { message: queueMsg } : {}) });
+              this.timer = setTimeout(poll, 15000);
             }
           } else if (fmt === "kie") {
             const res = await originalFetch(`${job.apiBase}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(jobId)}`, { headers: { Authorization: `Bearer ${job.apiKey}` } });
@@ -241,21 +337,115 @@ class MockEventSource extends EventTarget {
           }
         } else {
           // Image polling
-          const endpoint = job.isNanoBanana ? `${job.apiBase}/api/gemini/nano-banana/${jobId}` : `${job.apiBase}/v1/tasks/${jobId}`;
-          const res = await originalFetch(endpoint, { headers: { Authorization: job.apiKey } });
+          const useGrsai = !job.isNanoBanana && isGrsaiImageApi(job.apiBase);
+          let endpoint = useGrsai
+            ? `${job.apiBase}/v1/api/result?id=${encodeURIComponent(jobId)}`
+            : job.isNanoBanana
+              ? `${job.apiBase}/api/gemini/nano-banana/${jobId}`
+              : `${job.apiBase}/v1/tasks/${jobId}`;
+          const authHeader = job.apiKey.startsWith("Bearer ") || job.isNanoBanana ? job.apiKey : `Bearer ${job.apiKey}`;
+          let res = await originalFetch(endpoint, { headers: { Authorization: authHeader } });
+          
+          // Automatic routing fallback: some providers (like comfly / Apifox setups) use /v1/images/tasks/{id} instead of /v1/tasks/{id}
+          if (!useGrsai && !job.isNanoBanana && res.status === 404) {
+            console.log("[MockEventSource] Polling endpoint /v1/tasks/ returned 404, trying /v1/images/tasks/ instead...");
+            endpoint = `${job.apiBase}/v1/images/tasks/${jobId}`;
+            res = await originalFetch(endpoint, { headers: { Authorization: authHeader } });
+          }
+
           if (!res.ok) throw new Error(`Upstream returned HTTP ${res.status}`);
           const json = await res.json();
-          const record = job.isNanoBanana ? (json.data ?? json) : json;
-          const state = record.state ?? "";
-          if (state === "succeeded") {
-            const imageUrl = record.data?.images?.[0]?.url;
-            if (!imageUrl) throw new Error("Succeeded but no image URL");
-            job.status = "SUCCEEDED"; job.url = imageUrl; mockJobs.set(jobId, job);
-            this.triggerMessage({ status: "SUCCEEDED", url: imageUrl, thumbnailUrl: record.data?.images?.[0]?.thumbnailUrl || imageUrl, width: record.data?.images?.[0]?.width || 1024, height: record.data?.images?.[0]?.height || 1024, progress: 100, assets: (record.data?.images || []).map((img: any) => ({ url: img.url, thumbnailUrl: img.thumbnailUrl || img.url })) });
+          console.log("[MockEventSource] Image Poll response:", JSON.stringify(json).slice(0, 1000));
+          
+          // Determine the record container.
+          // 1. If it's a multi-layered response with status under data (e.g. the apifox docs where json.data.status is "SUCCESS")
+          // we use json.data as the primary record container, but fall back to json.
+          let record = json;
+          if (json.data && typeof json.data === "object" && (json.data.status !== undefined || json.data.state !== undefined)) {
+            record = json.data;
+          } else if (job.isNanoBanana) {
+            record = json.data ?? json;
+          }
+          
+          // Highly robust status/state parsing
+          const rawState = String(record.state || record.status || json.state || json.status || "").toLowerCase();
+          const isSucceeded = ["succeeded", "success", "completed", "finished"].includes(rawState);
+          const isFailed = ["failed", "error", "failure"].includes(rawState);
+
+          if (isSucceeded) {
+            // Robust image URL extraction
+            let imageUrl = "";
+            let rawImagesList: any[] = [];
+            
+            // Try different nested image array formats (e.g., json.data.data.data for Apifox query docs)
+            const innerDataObj = record.data;
+            if (innerDataObj && typeof innerDataObj === "object") {
+              if (Array.isArray(innerDataObj.data)) {
+                rawImagesList = innerDataObj.data;
+              } else if (Array.isArray(innerDataObj.images)) {
+                rawImagesList = innerDataObj.images;
+              }
+            }
+
+            if (rawImagesList.length === 0) {
+              if (Array.isArray(record.images)) {
+                rawImagesList = record.images;
+              } else if (Array.isArray(record.results)) {
+                rawImagesList = record.results;
+              } else if (Array.isArray(record.data?.images)) {
+                rawImagesList = record.data.images;
+              }
+            }
+
+            if (rawImagesList.length > 0) {
+              const firstImg = rawImagesList[0];
+              imageUrl = typeof firstImg === "string" ? firstImg : (firstImg?.url || firstImg?.imageUrl || firstImg?.image_url || "");
+            }
+
+            if (!imageUrl) {
+              imageUrl = record.data?.url || record.url || record.data?.imageUrl || record.imageUrl || record.data?.image_url || record.image_url || record.data?.output || record.output || "";
+            }
+
+            if (!imageUrl && json.data?.data?.data?.[0]?.url) {
+              imageUrl = json.data.data.data[0].url;
+            }
+
+            if (!imageUrl) {
+              throw new Error("Succeeded but no image URL could be parsed");
+            }
+
+            job.status = "SUCCEEDED"; 
+            job.url = imageUrl; 
+            mockJobs.set(jobId, job);
+
+            // Construct standard assets array
+            const assetsList = rawImagesList.length > 0 
+              ? rawImagesList.map((img: any) => {
+                  const u = typeof img === "string" ? img : (img.url || img.imageUrl || img.image_url || "");
+                  const t = typeof img === "string" ? img : (img.thumbnailUrl || img.thumbnail_url || u);
+                  return { url: u, thumbnailUrl: t };
+                }).filter(a => a.url)
+              : [{ url: imageUrl, thumbnailUrl: imageUrl }];
+
+            const thumbUrl = typeof rawImagesList[0] === "object" 
+              ? (rawImagesList[0]?.thumbnailUrl || rawImagesList[0]?.thumbnail_url || imageUrl) 
+              : imageUrl;
+
+            this.triggerMessage({ 
+              status: "SUCCEEDED", 
+              url: imageUrl, 
+              thumbnailUrl: thumbUrl, 
+              width: 1024, 
+              height: 1024, 
+              progress: 100, 
+              assets: assetsList 
+            });
             this.close();
-          } else if (state === "failed" || state === "error") {
-            const failMsg = record.data?.description || record.msg || "Unknown error";
-            job.status = "FAILED"; job.error = failMsg; mockJobs.set(jobId, job);
+          } else if (isFailed) {
+            const failMsg = record.fail_reason || record.failMsg || record.error || record.msg || record.data?.description || json.message || "Unknown error";
+            job.status = "FAILED"; 
+            job.error = failMsg; 
+            mockJobs.set(jobId, job);
             this.triggerMessage({ status: "FAILED", error: failMsg });
             this.close();
           } else {
@@ -562,34 +752,48 @@ window.fetch = async function (input, init) {
         }
 
         const resJson = await upstreamRes.json();
-        finalJobId = resJson.data?.task_id || resJson.task_id;
+        console.log("[ref-upload] Nano Banana response:", JSON.stringify(resJson).slice(0, 300));
+        finalJobId = resJson.data?.task_id || resJson.data?.id || resJson.task_id || resJson.id || resJson.data?.taskId || resJson.taskId || "";
       } else {
         const ratioVal = aspect_ratio && aspect_ratio !== "auto" ? aspect_ratio : "1:1";
-        // Duomi GPT Image 2 requires ratio format like "16:9", "1:1", not resolution pixels
-        const sizeValue = ratioVal;
-        const gptQuality = output_quality || "auto";
+        const sizeValue = resolveImageSizeForRatio(image_size, ratioVal, apiBase);
+        const gptQuality = output_quality || "high";
+        const useGrsai = isGrsaiImageApi(apiBase);
 
-        const bodyObj: any = {
-          model: "gpt-image-2",
-          prompt,
-          n: count || 1,
-          quality: gptQuality,
-          size: sizeValue,
-        };
+        const bodyObj: any = useGrsai
+          ? {
+              model: "gpt-image-2",
+              prompt,
+              images: [],
+              aspectRatio: resolveComflyImageSize(image_size, ratioVal),
+              replyType: "json",
+            }
+          : {
+              model: "gpt-image-2",
+              prompt,
+              n: count || 1,
+              quality: gptQuality,
+              size: sizeValue,
+            };
         if (reference_images && reference_images.length > 0) {
           console.log("[ref-upload] Converting GPT Image 2 reference images...");
           const publicRefs = await Promise.all((reference_images as string[]).map(ensurePublicRefUrl));
           console.log("[ref-upload] GPT Image 2 references converted:", publicRefs);
-          bodyObj.image = publicRefs;
+          if (useGrsai) {
+            bodyObj.images = publicRefs;
+          } else {
+            bodyObj.image = publicRefs;
+          }
         }
 
-        const duomiUrl = `${apiBase}/v1/images/generations?async=true`;
+        const duomiUrl = useGrsai ? `${apiBase}/v1/api/generate` : `${apiBase}/v1/images/generations?async=true`;
         console.log("[ref-upload] Sending to Duomi GPT Image 2 endpoint:", duomiUrl);
         console.log("[ref-upload] GPT Image 2 Payload:", bodyObj);
 
+        const subAuthHeader = apiKey.startsWith("Bearer ") ? apiKey : `Bearer ${apiKey}`;
         upstreamRes = await originalFetch(duomiUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: apiKey },
+          headers: { "Content-Type": "application/json", Authorization: subAuthHeader },
           body: JSON.stringify(bodyObj),
         });
 
@@ -599,23 +803,58 @@ window.fetch = async function (input, init) {
         }
 
         const resJson = await upstreamRes.json();
-        finalJobId = resJson.id;
+        console.log("[ref-upload] GPT Image 2 response:", JSON.stringify(resJson).slice(0, 300));
+        
+        // Check if the API returned a direct image URL synchronously instead of a task ID
+        let immediateUrl = "";
+        if (Array.isArray(resJson.data) && resJson.data.length > 0) {
+          const firstData = resJson.data[0];
+          immediateUrl = firstData.url || firstData.imageUrl || firstData.image_url || "";
+        } else if (resJson.url) {
+          immediateUrl = resJson.url;
+        } else if (Array.isArray(resJson.images) && resJson.images.length > 0) {
+          immediateUrl = typeof resJson.images[0] === "string" ? resJson.images[0] : (resJson.images[0].url || "");
+        } else if (Array.isArray(resJson.results) && resJson.results.length > 0) {
+          immediateUrl = typeof resJson.results[0] === "string" ? resJson.results[0] : (resJson.results[0].url || "");
+        }
+
+        if (immediateUrl) {
+          // Synchronous immediate image return! (Standard OpenAI Dall-E 3 proxy format)
+          console.log("[ref-upload] API returned immediate image URL:", immediateUrl);
+          const virtualId = "sync_" + Math.random().toString(36).substring(2) + "_" + Date.now();
+          mockJobs.set(virtualId, {
+            id: virtualId,
+            modelId: model_id,
+            type: "image",
+            status: "SUCCEEDED",
+            url: immediateUrl,
+            progress: 100,
+            apiKey,
+            apiBase,
+            isNanoBanana
+          });
+          finalJobId = virtualId;
+        } else {
+          finalJobId = resJson.id || resJson.task_id || resJson.data?.id || resJson.data?.task_id || resJson.taskId || resJson.data?.taskId || "";
+        }
       }
 
       if (!finalJobId) {
         return new Response(JSON.stringify({ error: "接口提交成功但未返回 task_id" }), { status: 500, headers: { "Content-Type": "application/json" } });
       }
 
-      mockJobs.set(finalJobId, {
-        id: finalJobId,
-        modelId: model_id,
-        type: "image",
-        status: "RUNNING",
-        progress: 10,
-        apiKey,
-        apiBase,
-        isNanoBanana
-      });
+      if (!mockJobs.has(finalJobId)) {
+        mockJobs.set(finalJobId, {
+          id: finalJobId,
+          modelId: model_id,
+          type: "image",
+          status: "RUNNING",
+          progress: 10,
+          apiKey,
+          apiBase,
+          isNanoBanana
+        });
+      }
 
       return new Response(JSON.stringify({ jobId: finalJobId, price: 0 }), { status: 200, headers: { "Content-Type": "application/json" } });
     } catch (e: any) {
@@ -1284,7 +1523,8 @@ function CanvasApp() {
   // ─── File drop handler ───
   const handleFileDrop = useCallback(async (files: File[], flowX: number, flowY: number) => {
     for (const file of files) {
-      if (file.type.startsWith("image/")) {
+      const fileKind = inferDroppedFileKind(file);
+      if (fileKind === "image") {
         try {
           const result = await uploadFile(file);
           if ("url" in result) {
@@ -1308,7 +1548,7 @@ function CanvasApp() {
             flowX += 20; flowY += 20;
           }
         } catch {}
-      } else if (file.type.startsWith("audio/")) {
+      } else if (fileKind === "audio") {
         try {
           const result = await uploadFile(file);
           if ("audioUrl" in result) {
@@ -1317,7 +1557,7 @@ function CanvasApp() {
             });
           }
         } catch {}
-      } else if (file.type.startsWith("video/")) {
+      } else if (fileKind === "video") {
         try {
           const result = await uploadFile(file);
           if ("videoUrl" in result) {
@@ -1534,6 +1774,3 @@ createRoot(document.getElementById("root")!).render(
     <CanvasApp />
   </StrictMode>
 );
-
-
-
