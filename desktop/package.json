@@ -55,11 +55,11 @@
         "to": "skills"
       },
       {
-        "from": "../prompt_studio_icon.ico",
+        "from": "studio/prompt_studio_icon.ico",
         "to": "prompt_studio_icon.ico"
       },
       {
-        "from": "../prompt_studio_icon.png",
+        "from": "studio/prompt_studio_icon.png",
         "to": "prompt_studio_icon.png"
       },
       {
